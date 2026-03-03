@@ -190,12 +190,12 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
             position,
             billboard: {
               image: iconUri,
-              width:  38,
-              height: 38,
+              width:  46,
+              height: 46,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-              // Shrink then disappear at distance — NOT grow (original was inverted)
-              scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, MAX_RANGE, 0.28),
+              // Shrink at distance but stay visible — 46px at close range, ~25px at far range
+              scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
               distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },

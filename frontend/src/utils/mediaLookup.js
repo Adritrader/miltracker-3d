@@ -3,8 +3,12 @@
  * Each ICAO type-code maps to a unique, specific photograph.
  */
 
-const W = (filename, w = 400) =>
-  `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=${w}`;
+const W = (filename, w = 400) => {
+  // encodeURIComponent over-encodes () which breaks Wikimedia lookup — keep them literal
+  const encoded = encodeURIComponent(filename)
+    .replace(/%28/g, '(').replace(/%29/g, ')').replace(/%2C/g, ',').replace(/%21/g, '!');
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encoded}?width=${w}`;
+};
 
 // Aircraft: unique photo per ICAO type-code
 const AIRCRAFT_IMAGES = {
