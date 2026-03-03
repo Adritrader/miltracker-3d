@@ -62,11 +62,16 @@ function getCachedIcon(heading, color) {
   return _iconCache.get(key);
 }
 
-const AircraftLayer = ({ viewer, aircraft, visible, onSelect }) => {
+const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
   const trailPointsRef  = useRef(loadStoredTrails()); // icao24 → Cartesian3[] (persisted)
   const prevIdsRef      = useRef(new Set());
+
+  // LOD constants — tighter on mobile to preserve frame rate
+  const MAX_RANGE      = isMobile ? 2.5e6 : 4.5e6;  // hide billboard beyond this (m)
+  const LABEL_RANGE    = isMobile ? 8e5   : 2e6;    // hide label beyond this
+  const TRAIL_RANGE    = isMobile ? 0     : 9e5;    // hide trail beyond this (0 = disable on mobile)
 
   // ── helper: get-or-create named datasource ─────────────────────────────────
   const getDS = useCallback((name) => {
@@ -141,7 +146,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect }) => {
         const cesiumColor = Cesium.Color.fromCssColorString(color);
 
         // ── Polyline trail ─────────────────────────────────────────────────
-        if (pts.length >= 2) {
+        if (TRAIL_RANGE > 0 && pts.length >= 2) {
           if (trailEntityRef.current.has(ac.id)) {
             // Update existing trail positions
             const te = trailEntityRef.current.get(ac.id);
@@ -160,10 +165,16 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect }) => {
                 }),
                 clampToGround: false,
                 followSurface: false,
+                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE),
               },
             });
             trailEntityRef.current.set(ac.id, te);
           }
+        } else if (TRAIL_RANGE === 0 && trailEntityRef.current.has(ac.id)) {
+          // mobile: remove existing trails
+          const te = trailEntityRef.current.get(ac.id);
+          trailDS.entities.remove(te);
+          trailEntityRef.current.delete(ac.id);
         }
 
         // ── Billboard / label ──────────────────────────────────────────────
@@ -179,12 +190,13 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect }) => {
             position,
             billboard: {
               image: iconUri,
-              width: 38,
+              width:  38,
               height: 38,
-              verticalOrigin: Cesium.VerticalOrigin.CENTER,
+              verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-              scaleByDistance: new Cesium.NearFarScalar(2e5, 0.8, 1.5e7, 1.6),
-              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1.8e7),
+              // Shrink then disappear at distance — NOT grow (original was inverted)
+              scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, MAX_RANGE, 0.28),
+              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
             label: {
@@ -196,7 +208,8 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect }) => {
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
               verticalOrigin: Cesium.VerticalOrigin.TOP,
               pixelOffset: new Cesium.Cartesian2(0, 20),
-              scaleByDistance: new Cesium.NearFarScalar(1.5e5, 1.2, 8e6, 0.0),
+              scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, LABEL_RANGE, 0.0),
+              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
               showBackground: true,
               backgroundColor: new Cesium.Color(0, 0, 0, 0.5),
               backgroundPadding: new Cesium.Cartesian2(5, 3),

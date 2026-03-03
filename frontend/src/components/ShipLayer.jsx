@@ -7,9 +7,13 @@ import * as Cesium from 'cesium';
 import { SHIP_SVG, getShipColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
 
-const ShipLayer = ({ viewer, ships, visible, onSelect }) => {
+const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
   const entityMapRef = useRef(new Map());
   const prevIdsRef = useRef(new Set());
+
+  // LOD constants
+  const MAX_RANGE   = isMobile ? 3e6 : 5.5e6;
+  const LABEL_RANGE = isMobile ? 1e6 : 2.5e6;
 
   const getOrCreateDataSource = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return null;
@@ -64,12 +68,12 @@ const ShipLayer = ({ viewer, ships, visible, onSelect }) => {
           position,
           billboard: {
             image: iconUri,
-            width: 38,
+            width:  38,
             height: 38,
-            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            verticalOrigin:   Cesium.VerticalOrigin.CENTER,
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            scaleByDistance: new Cesium.NearFarScalar(2e5, 0.8, 1.5e7, 1.6),
-            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1.8e7),
+            scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, MAX_RANGE, 0.28),
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
           label: {
@@ -81,7 +85,8 @@ const ShipLayer = ({ viewer, ships, visible, onSelect }) => {
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             verticalOrigin: Cesium.VerticalOrigin.TOP,
             pixelOffset: new Cesium.Cartesian2(0, 22),
-            scaleByDistance: new Cesium.NearFarScalar(5e4, 1.2, 5e6, 0.0),
+            scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, LABEL_RANGE, 0.0),
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
             showBackground: true,
             backgroundColor: new Cesium.Color(0, 0, 0, 0.5),
             backgroundPadding: new Cesium.Cartesian2(5, 3),

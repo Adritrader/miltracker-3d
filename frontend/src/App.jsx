@@ -123,12 +123,14 @@ function App() {
           aircraft={filteredAircraft}
           visible={filters.showAircraft}
           onSelect={handleEntityClick}
+          isMobile={isMobile}
         />
         <ShipLayer
           viewer={viewer}
           ships={filteredShips}
           visible={filters.showShips}
           onSelect={handleEntityClick}
+          isMobile={isMobile}
         />
         <DangerZoneLayer
           viewer={viewer}
