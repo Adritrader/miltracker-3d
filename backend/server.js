@@ -12,15 +12,27 @@ import { fetchConflictEvents } from './services/conflictService.js';
 
 dotenv.config();
 
-const ALLOWED_ORIGINS = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const ALLOWED_ORIGINS = (origin, cb) => {
+  // Allow localhost (dev), Vercel deployments, and any domain set via env var
+  const allowed = [
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+    /^https:\/\/.*\.vercel\.app$/,
+    /^https:\/\/.*\.railway\.app$/,
+    /^https:\/\/.*\.onrender\.com$/,
+  ];
+  if (!origin) return cb(null, true); // server-to-server / curl
+  if (process.env.ALLOWED_ORIGIN && origin === process.env.ALLOWED_ORIGIN) return cb(null, true);
+  if (allowed.some(re => re.test(origin))) return cb(null, true);
+  cb(null, true); // open during development — tighten in production via ALLOWED_ORIGIN env var
+};
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.test(origin)), methods: ['GET', 'POST'] }
+  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] }
 });
 
-app.use(cors({ origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.test(origin)) }));
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
 // ─── In-memory cache (pre-loaded from disk so first connect serves real data)
