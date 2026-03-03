@@ -1,0 +1,192 @@
+/**
+ * ADS-B Military Aircraft Fetcher
+ *
+ * Uses three fully free, no-registration APIs that expose a /mil endpoint
+ * returning only military-tagged aircraft. Tried in order; first success wins.
+ *
+ *  1. api.adsb.lol    – ADS-B Exchange community feed  (no key, no account)
+ *  2. opendata.adsb.fi – ADSB.fi open data             (no key, no account)
+ *  3. api.airplanes.live – Airplanes.live community    (no key, no account)
+ */
+
+import fetch from 'node-fetch';
+
+const SOURCES = [
+  { name: 'adsb.lol',        url: 'https://api.adsb.lol/v2/mil' },
+  { name: 'adsb.fi',         url: 'https://opendata.adsb.fi/api/v2/mil' },
+  { name: 'airplanes.live',  url: 'https://api.airplanes.live/v2/mil' },
+];
+
+const HEADERS = { 'User-Agent': 'MilTracker3D/1.0', 'Accept': 'application/json' };
+const TIMEOUT_MS = 12000;
+const MAX_AIRCRAFT = 500;
+
+// Cache of last successful real data
+let _lastRealAircraft = [];
+let _lastSourceName = '';
+
+/**
+ * Normalise a raw aircraft object from any of the three APIs into our
+ * internal format. All three return the same ADSB Exchange-derived schema.
+ *
+ * Key fields (feet for altitude, knots for speed):
+ *   hex, flight, lat, lon, alt_baro, alt_geom, gs, track, baro_rate,
+ *   on_ground (bool or "ground"), squawk, r, t, ownOp, year, mil
+ */
+function normalise(ac, sourceName) {
+  const lat = ac.lat ?? ac.latitude;
+  const lon = ac.lon ?? ac.longitude;
+  if (lat == null || lon == null) return null;
+
+  // altitude: prefer baro, fall back to geom — convert feet → metres
+  const altFt = ac.alt_baro ?? ac.alt_geom ?? ac.altitude ?? 0;
+  const altM  = altFt === 'ground' ? 0 : Math.round((+altFt || 0) * 0.3048);
+
+  const icao24   = (ac.hex || ac.icao24 || '').toLowerCase().trim();
+  const callsign = (ac.flight || ac.callsign || '').trim() || 'UNKNOWN';
+  const country  = ac.ownOp || ac.origin_country || '';
+  const onGround = ac.on_ground === true || ac.alt_baro === 'ground' || ac.ground === true;
+
+  return {
+    id:          icao24,
+    icao24,
+    callsign,
+    country,
+    registration: ac.r || '',
+    aircraftType: ac.t || '',
+    lat,
+    lon,
+    altitude:     altM,
+    altitudeFt:   altFt === 'ground' ? 0 : (+altFt || 0),
+    velocity:     ac.gs    ?? ac.velocity ?? 0,      // knots
+    heading:      ac.track ?? ac.true_track ?? 0,
+    vertical_rate: ac.baro_rate ?? ac.vertical_rate ?? 0,
+    on_ground:    onGround,
+    squawk:       ac.squawk || '',
+    type:         'aircraft',
+    source:       sourceName,
+    lastSeen:     new Date().toISOString(),
+  };
+}
+
+/**
+ * Try a single source. Returns normalised array or throws.
+ */
+async function trySource({ name, url }) {
+  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
+
+  if (res.status === 429) throw new Error(`rate-limited`);
+  if (!res.ok)            throw new Error(`HTTP ${res.status}`);
+
+  const data = await res.json();
+
+  // All three APIs wrap aircraft in an "ac" array
+  const raw = data.ac ?? data.aircraft ?? data.states ?? [];
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error('empty response');
+
+  const aircraft = raw
+    .map(ac => normalise(ac, name))
+    .filter(Boolean)
+    .slice(0, MAX_AIRCRAFT);
+
+  if (aircraft.length === 0) throw new Error('0 aircraft after normalisation');
+  return aircraft;
+}
+
+export async function fetchAircraft() {
+  const [milResult, gulfResult] = await Promise.allSettled([
+    fetchMilGlobal(),
+    fetchGulfRegion(),
+  ]);
+
+  const milList  = milResult.status  === 'fulfilled' ? milResult.value  : [];
+  const gulfList = gulfResult.status === 'fulfilled' ? gulfResult.value : [];
+
+  // Merge, deduplicate by icao24
+  const seen = new Set(milList.map(a => a.icao24));
+  const merged = [...milList];
+  for (const a of gulfList) {
+    if (!seen.has(a.icao24)) { merged.push(a); seen.add(a.icao24); }
+  }
+
+  if (merged.length > 0) {
+    _lastRealAircraft = merged;
+    console.log(`[Aircraft] ${merged.length} total (${milList.length} mil global + ${gulfList.length} Gulf region)`);
+    return merged;
+  }
+
+  console.warn(`[Aircraft] All sources failed — serving ${_lastRealAircraft.length} cached`);
+  return _lastRealAircraft;
+}
+
+async function fetchMilGlobal() {
+  for (const source of SOURCES) {
+    try {
+      const aircraft = await trySource(source);
+      _lastRealAircraft = aircraft;
+      _lastSourceName   = source.name;
+      console.log(`[Aircraft] ${aircraft.length} military aircraft from ${source.name}`);
+      return aircraft;
+    } catch (err) {
+      console.warn(`[Aircraft] ${source.name} unavailable: ${err.message}`);
+    }
+  }
+  return _lastRealAircraft; // all sources failed
+}
+
+/**
+ * Supplementary: fetch ALL aircraft over the Persian Gulf / Iran / UAE
+ * region via lat/lon/dist endpoint, then keep only "interesting" ones
+ * (fast movers, certain type codes, or aircraft over known military airspace).
+ */
+const GULF_CENTER = { lat: 26.5, lon: 56.0, dist: 700 }; // 700 nm radius
+const MIL_TYPE_CODES = new Set([
+  'F15','F16','F18','F-15','F-16','F-18','F35','F-35','F14','F-14',
+  'C130','C-130','C17','C-17','C5','E3','E-3','E8','P8','P-8',
+  'B52','B-52','B2','B-2','KC135','KC-135','A10','A-10',
+  'SU27','SU30','SU34','SU35','MIG29','MIG31','TU22','TU95','TU160',
+  'CH47','UH60','AH64','EH101',
+]);
+
+async function fetchGulfRegion() {
+  const { lat, lon, dist } = GULF_CENTER;
+  const urls = [
+    `https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`,
+    `https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/${dist}`,
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: HEADERS,
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const raw = data.ac ?? data.aircraft ?? [];
+      if (!Array.isArray(raw)) continue;
+
+      const filtered = raw
+        .filter(ac => {
+          if (ac.mil === true || ac.military === true) return true;
+          const t = (ac.t || ac.type || '').toUpperCase();
+          if (MIL_TYPE_CODES.has(t)) return true;
+          // Keep fast high-altitude movers over the Gulf
+          const alt  = +(ac.alt_baro ?? ac.alt_geom ?? 0);
+          const gs   = +(ac.gs ?? ac.velocity ?? 0);
+          if (alt > 15000 && gs > 350) return true;
+          return false;
+        })
+        .map(ac => normalise(ac, 'gulf-region'))
+        .filter(Boolean)
+        .slice(0, 150);
+
+      if (filtered.length > 0) {
+        console.log(`[Gulf] ${filtered.length} aircraft from ${url.split('/')[2]}`);
+        return filtered;
+      }
+    } catch (e) {
+      console.warn('[Gulf region fetch]', e.message);
+    }
+  }
+  return [];
+}
