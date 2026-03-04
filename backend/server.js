@@ -77,8 +77,10 @@ function buildStore(diskItems, ttl) {
 const conflictStore = buildStore(loadCache('conflicts', []), CONFLICT_TTL);
 const newsStore     = buildStore(loadCache('news',      []), NEWS_TTL);
 
-// Load persisted AI insight (served immediately on connect, refreshed every ~5min poll)
+// Load persisted AI insight (served immediately on connect, refreshed every ~30min)
 let cachedAiInsight = loadCache('ai_insight', null);
+const GEMINI_COOLDOWN_MS = 30 * 60_000; // 30 minutes — free tier: 1500 req/day = max 48/day
+let lastGeminiCallAt = 0; // epoch ms of last successful Gemini request
 
 // Merge fresh events into a store; returns { changed, items[] }
 function mergeIntoStore(store, freshEvents, ttl) {
@@ -241,20 +243,30 @@ async function pollNews() {
       saveCache('news', cache.news);
     }
 
-    // AI analysis on top headlines (if Gemini key present)
-    if (process.env.GEMINI_API_KEY && cache.news.length > 0) {
+    // AI analysis — only when news changed AND 30-min cooldown has elapsed
+    const geminiReady = process.env.GEMINI_API_KEY
+      && cache.news.length > 0
+      && changed
+      && (Date.now() - lastGeminiCallAt) >= GEMINI_COOLDOWN_MS;
+
+    if (geminiReady) {
       try {
+        console.log('[AI] Requesting Gemini analysis…');
         const aiInsights = await analyzeWithGemini(cache.news.slice(0, 10), cache.aircraft, cache.ships);
         if (aiInsights) {
           cachedAiInsight = aiInsights;
+          lastGeminiCallAt = Date.now();
           saveCache('ai_insight', aiInsights);
           io.emit('ai_insight', aiInsights);
+          console.log('[AI] Analysis emitted.');
         }
       } catch (e) {
         console.error('[AI] Gemini error:', e.message);
-        // Emit error so frontend stops showing "AWAITING" and displays the actual problem
         io.emit('ai_insight', { error: e.message, source: 'gemini_error', timestamp: new Date().toISOString() });
       }
+    } else if (process.env.GEMINI_API_KEY && !geminiReady) {
+      const waitMin = Math.ceil((GEMINI_COOLDOWN_MS - (Date.now() - lastGeminiCallAt)) / 60000);
+      if (lastGeminiCallAt > 0) console.log(`[AI] Cooldown active — next call in ~${waitMin}m`);
     }
 
     // Generate alerts from real breaking news (replaces rule-based heuristics)
@@ -327,7 +339,11 @@ httpServer.listen(PORT, () => {
   pollConflicts();
 
   // Probe Gemini on startup — logs which model is available (or why it failed)
+  // Note: only calls listModels (no generateContent) — does NOT consume quota
   if (process.env.GEMINI_API_KEY) probeGeminiModel(process.env.GEMINI_API_KEY);
+  // Stagger first Gemini analysis by one full cooldown so a rapid redeploy
+  // cycle doesn't burn quota — first real call will happen after first changed poll
+  lastGeminiCallAt = Date.now() - GEMINI_COOLDOWN_MS + 5 * 60_000; // allow after 5 min
 
   // Intervals
   setInterval(pollAircraft,   30_000);
