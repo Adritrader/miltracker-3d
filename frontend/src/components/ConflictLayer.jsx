@@ -326,6 +326,27 @@ function buildIcon(type, severity) {
   return uri;
 }
 
+// ── Geographic deduplication — keep only the highest-priority event within
+// minDeg degrees of any already-placed pin. Prevents icon pile-ups at global zoom.
+function deduplicateByProximity(items, minDeg = 1.2) {
+  const PRIORITY = { critical: 4, high: 3, medium: 2, low: 1 };
+  const sorted = [...items].sort((a, b) =>
+    (PRIORITY[b.severity] || 0) - (PRIORITY[a.severity] || 0)
+  );
+  const placed = [];
+  const result = [];
+  for (const item of sorted) {
+    const overlaps = placed.some(
+      p => Math.abs(item.lat - p.lat) < minDeg && Math.abs(item.lon - p.lon) < minDeg
+    );
+    if (!overlaps) {
+      result.push(item);
+      placed.push({ lat: item.lat, lon: item.lon });
+    }
+  }
+  return result;
+}
+
 const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
   const entityMapRef = useRef(new Map());
   const dsRef        = useRef(null);
@@ -360,10 +381,12 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
 
     if (!visible || !conflicts.length) return;
 
+    const visibleConflicts = deduplicateByProximity(conflicts, 1.2);
+
     ds.entities.suspendEvents();
     try {
-      for (let _ci = 0; _ci < conflicts.length; _ci++) {
-        const ev = conflicts[_ci];
+      for (let _ci = 0; _ci < visibleConflicts.length; _ci++) {
+        const ev = visibleConflicts[_ci];
         if (!isValidCoord(ev.lat, ev.lon)) continue;
 
         const icon = buildIcon(ev.type || 'conflict', ev.severity || 'medium');

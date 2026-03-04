@@ -191,7 +191,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
               width:  46,
               height: 46,
               // Baseline vessels dimmed to indicate "last known position"
-              color: isBase ? cesiumColor.withAlpha(0.50) : Cesium.Color.WHITE,
+              color: isBase ? Cesium.Color.WHITE.withAlpha(0.45) : Cesium.Color.WHITE,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),

@@ -18,6 +18,32 @@ function getNewsColor(item) {
   return '#00ff88';
 }
 
+// ── Geographic deduplication — prevent news pin pile-ups at global zoom.
+// Sort by category priority, then suppress pins within minDeg of a kept pin.
+function deduplicateNews(items, minDeg = 1.5) {
+  const priority = (item) => {
+    const t = (item.title || '').toLowerCase();
+    if (/explosion|blast|strike|bomb|attack|missile|kill|dead/.test(t)) return 5;
+    if (/aircraft|fighter|drone|airstrike|warplane/.test(t)) return 4;
+    if (/naval|warship|submarine|fleet|vessel/.test(t)) return 3;
+    if (/military|troops|soldiers|army|forces/.test(t)) return 2;
+    return 1;
+  };
+  const sorted = [...items].sort((a, b) => priority(b) - priority(a));
+  const placed = [];
+  const result = [];
+  for (const item of sorted) {
+    const overlaps = placed.some(
+      p => Math.abs(item.lat - p.lat) < minDeg && Math.abs(item.lon - p.lon) < minDeg
+    );
+    if (!overlaps) {
+      result.push(item);
+      placed.push({ lat: item.lat, lon: item.lon });
+    }
+  }
+  return result;
+}
+
 const NewsLayer = ({ viewer, news, visible, onSelect }) => {
   const entityMapRef = useRef(new Map());
   const dsRef = useRef(null);
@@ -53,10 +79,10 @@ const NewsLayer = ({ viewer, news, visible, onSelect }) => {
     if (!visible) return;
 
     // Filter only geolocated news
-    const geoNews = news
-      .map(geocodeNewsItem)
-      .filter(n => n.lat && n.lon)
-      .slice(0, 80); // limit to 80 pins for performance
+    const geoNews = deduplicateNews(
+      news.map(geocodeNewsItem).filter(n => n.lat && n.lon),
+      1.5
+    ).slice(0, 80); // limit to 80 pins for performance
 
     for (let _i = 0; _i < geoNews.length; _i++) {
       const item = geoNews[_i];
