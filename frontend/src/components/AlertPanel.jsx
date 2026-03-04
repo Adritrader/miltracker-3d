@@ -210,7 +210,7 @@ const SitrepView = ({ alerts, aiInsight }) => {
   );
 };
 
-const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) => {
+const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, isMobile = false }) => {
   const [open, setOpen] = useState(!isMobile);
   const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
 
@@ -294,10 +294,23 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
               aiInsight
                 ? <AIInsightView insight={aiInsight} />
                 : (
-                  <div className="text-center py-4">
-                    <div className="text-hud-text text-xs mb-2">AI analysis requires Gemini API key</div>
-                    <div className="text-hud-text text-xs">Set GEMINI_API_KEY in backend .env</div>
-                    <div className="text-hud-green text-xs mt-2">aistudio.google.com/app/apikey</div>
+                  <div className="text-center py-6 space-y-2">
+                    {geminiEnabled === false ? (
+                      <>
+                        <div className="text-red-400 text-xs font-mono font-bold">⚠ GEMINI NOT CONFIGURED</div>
+                        <div className="text-hud-text text-xs">Set GEMINI_API_KEY in Railway env vars</div>
+                        <a
+                          href="https://aistudio.google.com/app/apikey"
+                          target="_blank" rel="noopener noreferrer"
+                          className="text-hud-green text-xs underline"
+                        >aistudio.google.com/app/apikey</a>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-hud-green text-xs font-mono animate-pulse">◈ AWAITING AI ANALYSIS…</div>
+                        <div className="text-hud-text text-xs opacity-60">First result arrives after news poll (~5 min)</div>
+                      </>
+                    )}
                   </div>
                 )
             )}

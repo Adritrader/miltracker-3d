@@ -266,8 +266,15 @@ async function pollNews() {
 }
 
 // ─── Socket.io events ────────────────────────────────────────────────────────
+const SERVER_INFO = {
+  geminiEnabled: !!process.env.GEMINI_API_KEY,
+};
+
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);
+
+  // Inform client of server capabilities
+  socket.emit('server_info', SERVER_INFO);
 
   // Send cached data immediately on connect
   socket.emit('aircraft_update', { aircraft: cache.aircraft, timestamp: cache.lastAircraftUpdate });
