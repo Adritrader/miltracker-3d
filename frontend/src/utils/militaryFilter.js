@@ -313,6 +313,16 @@ export function filterAircraft(aircraft, filters) {
     if (filters.country !== 'ALL' && ac.country !== filters.country) return false;
     if (filters.alliance !== 'ALL' && getAlliance(ac.country) !== filters.alliance) return false;
     if (ac.on_ground && !filters.showOnGround) return false;
+    if (filters.missionType && filters.missionType !== 'ALL') {
+      const cat = categorizeAircraft(ac);
+      const mt = filters.missionType;
+      if (mt === 'FIGHTER'   && cat !== 'Fighter')   return false;
+      if (mt === 'BOMBER'    && cat !== 'Bomber')     return false;
+      if (mt === 'ISR'       && cat !== 'ISR/Recon')  return false;
+      if (mt === 'TANKER'    && cat !== 'Tanker')     return false;
+      if (mt === 'TRANSPORT' && cat !== 'Transport')  return false;
+      if (mt === 'PATROL'    && cat !== 'Patrol')     return false;
+    }
     return true;
   });
 }
@@ -347,9 +357,18 @@ export function filterNews(news, filters) {
 
 export function categorizeAircraft(ac) {
   const cs = (ac.callsign || '').toUpperCase();
-  if (['RCH', 'REACH', 'JAKE', 'CNV'].some(p => cs.startsWith(p))) return 'Transport';
-  if (['PAT', 'NAVY', 'MARCO'].some(p => cs.startsWith(p))) return 'Naval Patrol';
-  if (ac.altitude > 15000 && ac.velocity > 200) return 'Fighter/Bomber';
+  // Tankers — air-refuelling callsigns
+  if (['SHELL', 'POLO', 'QUID', 'ARCO', 'SWIFT', 'JAKE60', 'JAKE7'].some(p => cs.startsWith(p))) return 'Tanker';
+  // Bombers
+  if (['RAIDR', 'DEATH', 'BONE', 'DARK', 'GHOST'].some(p => cs.startsWith(p))) return 'Bomber';
+  // Transport / Airlift
+  if (['RCH', 'REACH', 'JAKE', 'CNV', 'SPAR', 'EXEC', 'ATLAS', 'HAVOC'].some(p => cs.startsWith(p))) return 'Transport';
+  // ISR / Recon
+  if (['DRAGON', 'COBRA', 'MAGMA', 'FORTE', 'ROVER'].some(p => cs.startsWith(p))) return 'ISR/Recon';
+  // Naval Patrol
+  if (['PAT', 'NAVY', 'MARCO', 'AWACS', 'SENTRY'].some(p => cs.startsWith(p))) return 'Patrol';
+  // Heuristics
   if (ac.altitude > 18000) return 'ISR/Recon';
+  if (ac.altitude > 10000 && (ac.velocity || 0) > 350) return 'Fighter';
   return 'Military';
 }

@@ -177,6 +177,27 @@ const FilterPanel = ({
       </div>
       )}
 
+      {/* Mission type filter */}
+      {panelOpen && !isMobile && (
+      <div className="hud-panel px-3 py-2">
+        <div className="hud-title mb-2">MISSION TYPE</div>
+        <select
+          value={filters.missionType || 'ALL'}
+          onChange={e => set('missionType', e.target.value)}
+          className="w-full bg-hud-bg border border-hud-border text-hud-green font-mono text-xs
+                     px-2 py-1 rounded outline-none focus:border-hud-green cursor-pointer"
+        >
+          <option value="ALL">&#9654; ALL MISSIONS</option>
+          <option value="FIGHTER">&#9651; FIGHTER</option>
+          <option value="BOMBER">&#11044; BOMBER</option>
+          <option value="ISR">&#9670; ISR / RECON</option>
+          <option value="TANKER">&#9632; TANKER</option>
+          <option value="TRANSPORT">&#9660; TRANSPORT</option>
+          <option value="PATROL">&#9650; PATROL</option>
+        </select>
+      </div>
+      )}
+
       {/* Radar animation */}
       {panelOpen && !isMobile && (
       <div className="hud-panel px-3 py-2 flex items-center gap-3">

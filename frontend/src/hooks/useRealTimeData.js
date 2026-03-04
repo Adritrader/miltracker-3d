@@ -42,6 +42,7 @@ export function useRealTimeData() {
   const [dangerZones, setDangerZones] = useState(() => cacheLoad('dangerZones') || []);
   const [aiInsight, setAiInsight] = useState(null);
   const [lastUpdate, setLastUpdate] = useState({ aircraft: null, ships: null, news: null });
+  const [isInitialLoad, setIsInitialLoad] = useState(() => !cacheLoad('aircraft') && !cacheLoad('ships'));
 
   const reconnect = useCallback(() => {
     socketRef.current?.connect();
@@ -67,6 +68,7 @@ export function useRealTimeData() {
     socket.on('aircraft_update', ({ aircraft: ac, timestamp }) => {
       const list = ac || [];
       setAircraft(list);
+      setIsInitialLoad(false);
       const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
       if (list.length === 0) setAircraftSource('empty');
       else if (knownSources.includes(list[0]?.source)) setAircraftSource(list[0].source);
@@ -78,6 +80,7 @@ export function useRealTimeData() {
     socket.on('ship_update', ({ ships: sh, timestamp }) => {
       const list = sh || [];
       setShips(list);
+      setIsInitialLoad(false);
       setLastUpdate(prev => ({ ...prev, ships: timestamp }));
       cacheSave('ships', list);
     });
@@ -109,5 +112,5 @@ export function useRealTimeData() {
     return () => socket.disconnect();
   }, []);
 
-  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, lastUpdate, reconnect };
+  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, lastUpdate, isInitialLoad, reconnect };
 }

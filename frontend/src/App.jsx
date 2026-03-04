@@ -33,8 +33,9 @@ const DEFAULT_FILTERS = {
   showConflicts: true,
   showBases:     true,
   showOnGround:  false,
-  country:   'ALL',
-  alliance:  'ALL',
+  country:     'ALL',
+  alliance:    'ALL',
+  missionType: 'ALL',
 };
 
 function App() {
@@ -67,14 +68,14 @@ function App() {
   }, []);
 
   const {
-    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, lastUpdate,
+    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, lastUpdate, isInitialLoad,
   } = useRealTimeData();
 
   // Filtered data — deps split per-layer to avoid cross-layer re-renders (§2.3)
   const filteredAircraft = useMemo(
     () => filterAircraft(aircraft, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aircraft, filters.showAircraft, filters.country, filters.alliance, filters.showOnGround]
+    [aircraft, filters.showAircraft, filters.country, filters.alliance, filters.showOnGround, filters.missionType]
   );
   const filteredShips = useMemo(
     () => filterShips(ships, filters),
@@ -281,6 +282,21 @@ function App() {
         connected={connected}
         isMobile={isMobile}
       />
+
+      {/* Initial load overlay */}
+      {isInitialLoad && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center pointer-events-none"
+          style={{ background: 'rgba(5,8,16,0.82)' }}
+        >
+          <div className="font-mono text-hud-green text-xl tracking-widest animate-pulse mb-3">
+            &#9670; INITIALIZING SENSORS...
+          </div>
+          <div className="font-mono text-hud-text text-xs tracking-widest opacity-60">
+            CONNECTING TO LIVE FEEDS
+          </div>
+        </div>
+      )}
     </div>
   );
 }
