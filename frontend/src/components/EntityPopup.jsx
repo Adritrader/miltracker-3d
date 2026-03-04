@@ -1,5 +1,6 @@
 /**
  * EntityPopup – HUD-style info panel for selected aircraft, ship, or news item
+ * All logic pre-computed before JSX return to avoid IIFE-in-JSX issues.
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -92,6 +93,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
 
   if (!entity) return null;
 
+  // ── Entity type detection ─────────────────────────────────────────────────
   const isAircraft = entity.type === 'aircraft' || !!entity.icao24;
   const isShip     = entity.type_entity === 'ship' || !!entity.mmsi;
   const isConflict = entity.type === 'conflict';
@@ -101,23 +103,57 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
   const isNews     = !isAircraft && !isShip && !isConflict && !isBase && !isAlert &&
                      (entity.type === 'news' || entity.type === 'geo_event' || !!entity.source);
 
-  // ── Resolve media image ─────────────────────────────────────────────────
-  // For aircraft: try specific type image, then country-generic fallback
+  // ── Pre-compute aircraft fields (before JSX) ──────────────────────────────
+  let acCountryDisplay = '\u2753 Unknown';
+  let acTypeName   = '';
+  let acAltFt      = 0;
+  let acVrStr      = '\u2014';
+  if (isAircraft) {
+    const rawCountry = entity.country || '';
+    const icaoCode   = icaoToCountry(entity.icao24 || '');
+    let resolved = rawCountry ? resolveCountry(rawCountry) : null;
+    if (!resolved || resolved.code === '??') resolved = icaoCode ? resolveCountry(icaoCode) : null;
+    if (!resolved || resolved.code === '??') resolved = { name: rawCountry || 'Unknown', emoji: '\u2753' };
+    acCountryDisplay = `${resolved.emoji}\u00a0${resolved.name}`;
+    acTypeName = getAircraftTypeName(entity.aircraftType || '');
+    acAltFt    = entity.altitudeFt != null ? entity.altitudeFt : Math.round((entity.altitude || 0) * 3.28084);
+    const vr   = entity.vertical_rate || 0;
+    acVrStr    = vr
+      ? `${vr > 0 ? '\u25b2' : '\u25bc'} ${Math.abs(Math.round(vr * 196.85)).toLocaleString()} fpm`
+      : '\u2014';
+  }
+
+  // ── Pre-compute ship fields (before JSX) ──────────────────────────────────
+  let shipFlagDisplay = '\u2753 Unknown';
+  if (isShip) {
+    const rawFlag = entity.flag || entity.country || '';
+    let resolved = rawFlag ? resolveCountry(rawFlag) : null;
+    if (!resolved || resolved.code === '??') resolved = { name: rawFlag || 'Unknown', emoji: '\u2753' };
+    shipFlagDisplay = `${resolved.emoji}\u00a0${resolved.name}`;
+  }
+
+  // ── Tracking ──────────────────────────────────────────────────────────────
+  const trackableId = isAircraft
+    ? (entity.icao24 || entity.id)
+    : isShip ? (entity.mmsi || entity.id) : null;
+  const isTracking = !!trackableId && trackedId === trackableId;
+
+  // ── Image URL ─────────────────────────────────────────────────────────────
   let imageUrl = null;
-  if (isNews)     imageUrl = entity.imageUrl || entity.urlToImage || null;
-  else if (isAircraft) {
+  if (isNews) {
+    imageUrl = entity.imageUrl || entity.urlToImage || null;
+  } else if (isAircraft) {
     imageUrl = getAircraftImageUrl(entity.aircraftType);
-    // Fallback: country-generic image based on resolved country
     if (!imageUrl) {
       const raw = entity.country || icaoToCountry(entity.icao24 || '');
       const r   = raw ? resolveCountry(raw) : null;
       imageUrl  = r && r.code !== '??' ? getCountryFallbackImage(r.code) : null;
     }
-  }
-  else if (isShip)     imageUrl = getShipImageUrl(entity);
-  else if (isBase)     imageUrl = getBaseImageUrl(entity.baseType);
-  else if (isConflict) imageUrl = getConflictImageUrl(entity.type || entity.eventType);
+  } else if (isShip)     imageUrl = getShipImageUrl(entity);
+  else if (isBase)       imageUrl = getBaseImageUrl(entity.baseType);
+  else if (isConflict)   imageUrl = getConflictImageUrl(entity.type || entity.eventType);
 
+  // ── Fly to ────────────────────────────────────────────────────────────────
   const flyTo = () => {
     if (!viewer || !entity.lat || !entity.lon) return;
     viewer.camera.flyTo({
@@ -126,23 +162,33 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
     });
   };
 
+  // ── Severity color map ─────────────────────────────────────────────────────
+  const SEVERITY_COLOR = {
+    critical: 'text-red-400', high: 'text-orange-400',
+    medium: 'text-yellow-400', low: 'text-green-400',
+  };
+
+  const borderColor = isAircraft ? '#4488ff' : isShip ? '#00aaff' : isConflict ? '#ff4400'
+                    : isBase ? '#4af7ff' : isAlert ? '#ff3b3b' : '#ffaa00';
+
   return (
     <>
-      {/* Backdrop — no backdrop-filter to avoid WebGL canvas recomposite flash */}
+      {/* Backdrop */}
       <div
         className="fixed inset-0 z-40"
         style={{ background: 'rgba(0,0,0,0.55)' }}
         onClick={onClose}
       />
+
       {/* Panel – centered by default; draggable by header */}
       <div
         ref={panelRef}
         className="fixed hud-panel z-50"
         style={{
-          borderColor: isAircraft ? '#4488ff' : isShip ? '#00aaff' : isConflict ? '#ff4400' : isBase ? '#4af7ff' : isAlert ? '#ff3b3b' : '#ffaa00',
+          borderColor,
           ...(pos
             ? { top: pos.top, left: pos.left, transform: 'none' }
-            : { top: '50%',   left: '50%',    transform: 'translate(-50%, -50%)' }
+            : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
           ),
           width: isMobile ? 'min(340px, calc(100vw - 24px))' : 'min(460px, calc(100vw - 32px))',
           maxHeight: 'calc(100vh - 120px)',
@@ -150,45 +196,46 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
           userSelect: dragging ? 'none' : undefined,
         }}
       >
-      {/* Header — drag handle */}
-      <div
-        className="flex items-center justify-between px-3 py-2 border-b border-hud-border select-none"
-        style={{ background: 'rgba(0,0,0,0.4)', cursor: dragging ? 'grabbing' : 'grab' }}
-        onMouseDown={onDragStart}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-lg">
-            {isAircraft ? '▲' : isShip ? '▬' : isConflict ? '◆' : isBase ? '⬡' : isAlert ? '⚠' : '■'}
-          </span>
-          <div>
-            <div className="hud-title text-xs">
-              {isAircraft ? 'AIRCRAFT INTEL' : isShip ? 'VESSEL INTEL' : isConflict ? 'CONFLICT EVENT' : isBase ? 'MILITARY FACILITY' : isAlert ? 'THREAT ALERT' : 'NEWS EVENT'}
-            </div>
-            <div className="text-white font-mono font-bold text-sm truncate max-w-[160px]">
-              {isAircraft ? (entity.callsign || 'UNKNOWN') :
-               isShip    ? (entity.name    || entity.mmsi) :
-               isConflict? (entity.eventType || entity.type || 'EVENT').toUpperCase() :
-               isBase    ? (entity.name || 'BASE') :
-               isAlert   ? (entity.title?.slice(0, 28) || 'ALERT') :
-               entity.source || 'NEWS'}
+        {/* Header — drag handle */}
+        <div
+          className="flex items-center justify-between px-3 py-2 border-b border-hud-border select-none"
+          style={{ background: 'rgba(0,0,0,0.4)', cursor: dragging ? 'grabbing' : 'grab' }}
+          onMouseDown={onDragStart}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">
+              {isAircraft ? '\u25b2' : isShip ? '\u25ac' : isConflict ? '\u25c6' : isBase ? '\u2b21' : isAlert ? '\u26a0' : '\u25a0'}
+            </span>
+            <div>
+              <div className="hud-title text-xs">
+                {isAircraft ? 'AIRCRAFT INTEL' : isShip ? 'VESSEL INTEL' : isConflict ? 'CONFLICT EVENT'
+                 : isBase ? 'MILITARY FACILITY' : isAlert ? 'THREAT ALERT' : 'NEWS EVENT'}
+              </div>
+              <div className="text-white font-mono font-bold text-sm truncate max-w-[160px]">
+                {isAircraft ? (entity.callsign || 'UNKNOWN')
+                 : isShip    ? (entity.name || entity.mmsi)
+                 : isConflict? (entity.eventType || entity.type || 'EVENT').toUpperCase()
+                 : isBase    ? (entity.name || 'BASE')
+                 : isAlert   ? (entity.title?.slice(0, 28) || 'ALERT')
+                 : entity.source || 'NEWS'}
+              </div>
             </div>
           </div>
+          <button onClick={onClose} className="text-hud-text hover:text-white text-lg leading-none px-1">&times;</button>
         </div>
-        <button onClick={onClose} className="text-hud-text hover:text-white text-lg leading-none px-1">✕</button>
-      </div>
 
-      {/* Photo banner */}
-      <EntityImage src={imageUrl} alt={entity.name || entity.callsign || entity.title || ''} />
+        {/* Photo banner */}
+        <EntityImage src={imageUrl} alt={entity.name || entity.callsign || entity.title || ''} />
 
-      {/* Body */}
-      <div className="px-3 py-2 space-y-0.5">
-        {isAlert && (() => {
-          const SCOLOR = { critical:'text-red-400', high:'text-orange-400', medium:'text-yellow-400', low:'text-green-400' };
-          const sc = SCOLOR[entity.severity] || 'text-hud-amber';
-          return (
+        {/* Body */}
+        <div className="px-3 py-2 space-y-0.5">
+
+          {/* ALERT */}
+          {isAlert && (
             <>
-              <Row label="SEVERITY" value={(entity.severity || '—').toUpperCase()} highlight={sc} />
-              {entity.lat != null && <Row label="LOCATION" value={`${entity.lat?.toFixed(2)}°, ${entity.lon?.toFixed(2)}°`} />}
+              <Row label="SEVERITY" value={(entity.severity || '\u2014').toUpperCase()}
+                highlight={SEVERITY_COLOR[entity.severity] || 'text-hud-amber'} />
+              {entity.lat != null && <Row label="LOCATION" value={`${entity.lat?.toFixed(2)}\u00b0, ${entity.lon?.toFixed(2)}\u00b0`} />}
               {entity.entityId && <Row label="ENTITY ID" value={entity.entityId} />}
               <Row label="TIME" value={timeAgo(entity.timestamp)} />
               <div className="pt-1">
@@ -196,185 +243,125 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
                 <p className="text-hud-text text-xs mt-1 leading-relaxed">{entity.message}</p>
               </div>
             </>
-          );
-        })()}
-        {isBase && (
-          <>
-            <Row label="COUNTRY"   value={entity.country}  highlight="text-hud-amber" />
-            <Row label="TYPE"      value={(entity.baseType || '').toUpperCase()} />
-            <Row label="LAT"       value={entity.lat?.toFixed(4)} highlight="text-hud-green" />
-            <Row label="LON"       value={entity.lon?.toFixed(4)} highlight="text-hud-green" />
-            {entity.note && (
-              <p className="text-hud-text text-xs mt-1 leading-relaxed border-t border-hud-border/40 pt-1">
-                {entity.note}
-              </p>
-            )}
-          </>
-        )}
-        {isAircraft && (() => {
-            // Resolve country: try ownOp/country first, then ICAO prefix, then unknown
-            const rawCountry = entity.country || '';
-            const icaoCode   = icaoToCountry(entity.icao24 || '');
-            let resolved = rawCountry ? resolveCountry(rawCountry) : null;
-            // Only accept if it actually resolved (not the ??-unknown fallback)
-            if (!resolved || resolved.code === '??') {
-              resolved = icaoCode ? resolveCountry(icaoCode) : null;
-            }
-            if (!resolved || resolved.code === '??') {
-              resolved = { name: rawCountry || 'Unknown', emoji: '\u2753' };
-            }
-            const countryDisplay = `${resolved.emoji}\u00a0${resolved.name}`;
-            const typeName = getAircraftTypeName(entity.aircraftType || '');
-            const altFt    = entity.altitudeFt != null
-              ? entity.altitudeFt
-              : Math.round((entity.altitude || 0) * 3.28084);
-            const vr = entity.vertical_rate;
-            const vrStr = vr
-              ? `${vr > 0 ? '\u25b2' : '\u25bc'} ${Math.abs(Math.round(vr * 196.85)).toLocaleString()} fpm`
-              : '\u2014';
-            return (
-              <>
-                <Row label="CALLSIGN"    value={entity.callsign}                   highlight="text-hud-green" />
-                {entity.registration && <Row label="REG" value={entity.registration} highlight="text-hud-blue" />}
-                {entity.aircraftType  && <Row label="AC TYPE" value={typeName}       highlight="text-white" />}
-                <Row label="ICAO24"     value={entity.icao24} />
-                <Row label="COUNTRY"    value={countryDisplay} />
-                <Row label="ALTITUDE"   value={`${altFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
-                <Row label="SPEED"      value={`${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
-                <Row label="HEADING"    value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
-                <Row label="VERT RATE"  value={vrStr} />
-                <Row label="SQUAWK"     value={entity.squawk || '\u2014'} />
-                <Row label="STATUS"     value={entity.on_ground ? '\ud83d\udfe2 ON GROUND' : '\ud83d\udd35 AIRBORNE'} />
-                <Row label="SOURCE"     value={entity.source || 'adsb'} highlight="text-hud-text" />
-                <Row label="LAST SEEN"  value={timeAgo(entity.lastSeen)} />
-              </>
-            );
-          })()}
-            const typeName = getAircraftTypeName(entity.aircraftType || '');
-            const altFt    = entity.altitudeFt != null
-              ? entity.altitudeFt
-              : Math.round((entity.altitude || 0) * 3.28084);
-            const vr = entity.vertical_rate;
-            const vrStr = vr
-              ? `${vr > 0 ? '▲' : '▼'} ${Math.abs(Math.round(vr * 196.85)).toLocaleString()} fpm`
-              : '—';
-            return (
-              <>
-                <Row label="CALLSIGN"    value={entity.callsign}                   highlight="text-hud-green" />
-                {entity.registration && <Row label="REG" value={entity.registration} highlight="text-hud-blue" />}
-                {entity.aircraftType  && <Row label="AC TYPE" value={typeName}       highlight="text-white" />}
-                <Row label="ICAO24"     value={entity.icao24} />
-                <Row label="COUNTRY"    value={countryDisplay} />
-                <Row label="ALTITUDE"   value={`${altFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
-                <Row label="SPEED"      value={`${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
-                <Row label="HEADING"    value={`${Math.round(entity.heading || 0)}° ${headingToCompass(entity.heading || 0)}`} />
-                <Row label="VERT RATE"  value={vrStr} />
-                <Row label="SQUAWK"     value={entity.squawk || '—'} />
-                <Row label="STATUS"     value={entity.on_ground ? '🟢 ON GROUND' : '🔵 AIRBORNE'} />
-                <Row label="SOURCE"     value={entity.source || 'adsb'} highlight="text-hud-text" />
-                <Row label="LAST SEEN"  value={timeAgo(entity.lastSeen)} />
-              </>
-            );
-          })()}
+          )}
 
-        {isShip && (() => {
-          const resolved = resolveCountry(entity.flag || entity.country || '');
-          const flagDisplay = `${resolved.emoji} ${resolved.name}`;
-          return (
+          {/* BASE */}
+          {isBase && (
             <>
-              <Row label="NAME"        value={entity.name}        highlight="text-hud-blue" />
-              <Row label="MMSI"        value={entity.mmsi} />
-              <Row label="FLAG"        value={flagDisplay} />
-              <Row label="TYPE"        value={entity.type || 'Military'} />
-              <Row label="SPEED"       value={`${Math.round(entity.velocity || 0)} kn`} highlight="text-hud-amber" />
-              <Row label="HEADING"     value={`${Math.round(entity.heading || 0)}° ${headingToCompass(entity.heading || 0)}`} />
-              <Row label="DESTINATION" value={entity.destination || '—'} />
-              <Row label="POSITION"    value={`${entity.lat?.toFixed(3)}°, ${entity.lon?.toFixed(3)}°`} />
-              <Row label="LAST SEEN"   value={timeAgo(entity.lastSeen)} />
-            </>
-          );
-        })()}
-
-        {isConflict && (
-          <>
-            <Row label="EVENT TYPE" value={(entity.eventType || entity.type || '—').toUpperCase()} highlight="text-orange-400" />
-            <Row label="SEVERITY"   value={(entity.severity || '—').toUpperCase()}
-              highlight={entity.severity === 'critical' ? 'text-red-400' : entity.severity === 'high' ? 'text-orange-400' : 'text-hud-amber'} />
-            <Row label="COUNTRY"    value={entity.country || '—'} />
-            <Row label="POSITION"   value={`${entity.lat?.toFixed(2)}°, ${entity.lon?.toFixed(2)}°`} />
-            <Row label="SOURCE"     value={entity.source || 'GDELT'} />
-            {entity.publishedAt && <Row label="DATE"      value={new Date(entity.publishedAt).toLocaleString('es-ES', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })} />}
-            <Row label="REPORTED"   value={timeAgo(entity.publishedAt)} />
-            <div className="pt-1">
-              <p className="text-white text-xs font-mono leading-relaxed line-clamp-4">
-                {entity.title}
-              </p>
-            </div>
-          </>
-        )}
-
-        {isNews && (
-          <>
-            <Row label="SOURCE" value={entity.source} highlight="text-hud-amber" />
-            <Row label="PUBLISHED" value={timeAgo(entity.publishedAt)} />
-            {entity.lat && <Row label="LOCATION" value={`${entity.lat?.toFixed(2)}°, ${entity.lon?.toFixed(2)}°`} />}
-            <div className="pt-1">
-              <p className="text-white text-xs font-mono leading-relaxed">
-                {entity.title}
-              </p>
-              {entity.description && (
-                <p className="text-hud-text text-xs mt-1 leading-relaxed line-clamp-3">
-                  {entity.description}
+              <Row label="COUNTRY" value={entity.country}             highlight="text-hud-amber" />
+              <Row label="TYPE"    value={(entity.baseType || '').toUpperCase()} />
+              <Row label="LAT"     value={entity.lat?.toFixed(4)}     highlight="text-hud-green" />
+              <Row label="LON"     value={entity.lon?.toFixed(4)}     highlight="text-hud-green" />
+              {entity.note && (
+                <p className="text-hud-text text-xs mt-1 leading-relaxed border-t border-hud-border/40 pt-1">
+                  {entity.note}
                 </p>
               )}
-            </div>
-          </>
-        )}
-      </div>
+            </>
+          )}
 
-      {/* Footer actions */}
-      <div className="flex gap-2 px-3 pb-3 pt-1 flex-wrap">
-        <button className="hud-btn-primary flex-1 text-center" onClick={flyTo}>
-          📍 FLY TO
-        </button>
+          {/* AIRCRAFT */}
+          {isAircraft && (
+            <>
+              <Row label="CALLSIGN"  value={entity.callsign}                       highlight="text-hud-green" />
+              {entity.registration && <Row label="REG"      value={entity.registration} highlight="text-hud-blue" />}
+              {entity.aircraftType  && <Row label="AC TYPE" value={acTypeName}          highlight="text-white" />}
+              <Row label="ICAO24"    value={entity.icao24} />
+              <Row label="COUNTRY"   value={acCountryDisplay} />
+              <Row label="ALTITUDE"  value={`${acAltFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
+              <Row label="SPEED"     value={`${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
+              <Row label="HEADING"   value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
+              <Row label="VERT RATE" value={acVrStr} />
+              <Row label="SQUAWK"    value={entity.squawk || '\u2014'} />
+              <Row label="STATUS"    value={entity.on_ground ? '\ud83d\udfe2 ON GROUND' : '\ud83d\udd35 AIRBORNE'} />
+              <Row label="SOURCE"    value={entity.source || 'adsb'}               highlight="text-hud-text" />
+              <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
+            </>
+          )}
 
-        {/* TRACK button — only for aircraft and ships */}
-        {(isAircraft || isShip) && (() => {
-          const entityId = isAircraft ? (entity.icao24 || entity.id) : (entity.mmsi || entity.id);
-          const isTracking = trackedId === entityId;
-          return (
+          {/* SHIP */}
+          {isShip && (
+            <>
+              <Row label="NAME"        value={entity.name}            highlight="text-hud-blue" />
+              <Row label="MMSI"        value={entity.mmsi} />
+              <Row label="FLAG"        value={shipFlagDisplay} />
+              <Row label="TYPE"        value={entity.type || 'Military'} />
+              <Row label="SPEED"       value={`${Math.round(entity.velocity || 0)} kn`} highlight="text-hud-amber" />
+              <Row label="HEADING"     value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
+              <Row label="DESTINATION" value={entity.destination || '\u2014'} />
+              <Row label="POSITION"    value={`${entity.lat?.toFixed(3)}\u00b0, ${entity.lon?.toFixed(3)}\u00b0`} />
+              <Row label="LAST SEEN"   value={timeAgo(entity.lastSeen)} />
+            </>
+          )}
+
+          {/* CONFLICT */}
+          {isConflict && (
+            <>
+              <Row label="EVENT TYPE" value={(entity.eventType || entity.type || '\u2014').toUpperCase()} highlight="text-orange-400" />
+              <Row label="SEVERITY"   value={(entity.severity || '\u2014').toUpperCase()}
+                highlight={SEVERITY_COLOR[entity.severity] || 'text-hud-amber'} />
+              <Row label="COUNTRY"    value={entity.country || '\u2014'} />
+              <Row label="POSITION"   value={`${entity.lat?.toFixed(2)}\u00b0, ${entity.lon?.toFixed(2)}\u00b0`} />
+              <Row label="SOURCE"     value={entity.source || 'GDELT'} />
+              {entity.publishedAt && (
+                <Row label="DATE" value={new Date(entity.publishedAt).toLocaleString('es-ES', {
+                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                })} />
+              )}
+              <Row label="REPORTED"   value={timeAgo(entity.publishedAt)} />
+              <div className="pt-1">
+                <p className="text-white text-xs font-mono leading-relaxed line-clamp-4">{entity.title}</p>
+              </div>
+            </>
+          )}
+
+          {/* NEWS */}
+          {isNews && (
+            <>
+              <Row label="SOURCE"    value={entity.source}            highlight="text-hud-amber" />
+              <Row label="PUBLISHED" value={timeAgo(entity.publishedAt)} />
+              {entity.lat && <Row label="LOCATION" value={`${entity.lat?.toFixed(2)}\u00b0, ${entity.lon?.toFixed(2)}\u00b0`} />}
+              <div className="pt-1">
+                <p className="text-white text-xs font-mono leading-relaxed">{entity.title}</p>
+                {entity.description && (
+                  <p className="text-hud-text text-xs mt-1 leading-relaxed line-clamp-3">{entity.description}</p>
+                )}
+              </div>
+            </>
+          )}
+
+        </div>
+
+        {/* Footer actions */}
+        <div className="flex gap-2 px-3 pb-3 pt-1 flex-wrap">
+          <button className="hud-btn-primary flex-1 text-center" onClick={flyTo}>
+            \ud83d\udccd FLY TO
+          </button>
+
+          {(isAircraft || isShip) && trackableId && (
             <button
               className={`flex-1 text-center text-xs font-mono font-bold px-2 py-1 rounded border transition-colors ${
                 isTracking
                   ? 'bg-red-900/40 border-red-500/70 text-red-400 hover:bg-red-900/60 animate-pulse'
                   : 'bg-hud-accent/10 border-hud-accent/50 text-hud-accent hover:bg-hud-accent/20'
               }`}
-              onClick={() => {
-                if (isTracking) {
-                  onUntrack?.();
-                } else {
-                  onTrack?.(entityId, isAircraft ? 'aircraft' : 'ship');
-                }
-              }}
+              onClick={() => isTracking ? onUntrack?.() : onTrack?.(trackableId, isAircraft ? 'aircraft' : 'ship')}
             >
-              {isTracking ? '⏹ UNTRACK' : '📶 TRACK'}
+              {isTracking ? '\u23f9 UNTRACK' : '\ud83d\udce1 TRACK'}
             </button>
-          );
-        })()}
+          )}
 
-        {isNews && entity.url && (
-          <a href={entity.url} target="_blank" rel="noopener noreferrer"
-             className="hud-btn flex-1 text-center">
-            🔗 OPEN
-          </a>
-        )}
-        {isConflict && entity.url && (
-          <a href={entity.url} target="_blank" rel="noopener noreferrer"
-             className="hud-btn flex-1 text-center">
-            🔗 SOURCE
-          </a>
-        )}
-      </div>
+          {isNews && entity.url && (
+            <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
+              \ud83d\udd17 OPEN
+            </a>
+          )}
+          {isConflict && entity.url && (
+            <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
+              \ud83d\udd17 SOURCE
+            </a>
+          )}
+        </div>
       </div>
     </>
   );

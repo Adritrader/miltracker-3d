@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import * as Cesium from 'cesium';
 import Globe3D from './components/Globe3D.jsx';
 import AircraftLayer from './components/AircraftLayer.jsx';
 import ShipLayer from './components/ShipLayer.jsx';
@@ -101,13 +102,10 @@ function App() {
     const lat = newsItem?.lat ?? newsItem?.location?.lat;
     const lon = newsItem?.lon ?? newsItem?.location?.lon;
     if (v && lat != null && lon != null) {
-      const C = window.Cesium;
-      if (C?.Cartesian3) {
-        v.camera.flyTo({
-          destination: C.Cartesian3.fromDegrees(lon, lat, 1_800_000),
-          duration: 2,
-        });
-      }
+      v.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1_800_000),
+        duration: 2,
+      });
     }
   }, []);
 
@@ -148,7 +146,7 @@ function App() {
       const alt = trackedType === 'ship' ? ALTITUDE_SH : ALTITUDE_AC;
       // Use setView (instant) instead of flyTo (animated) so camera stays glued
       v.camera.setView({
-        destination: window.Cesium?.Cartesian3.fromDegrees(entity.lon, entity.lat, alt),
+        destination: Cesium.Cartesian3.fromDegrees(entity.lon, entity.lat, alt),
         orientation: { heading: 0, pitch: -Math.PI / 2.5, roll: 0 },
       });
     };

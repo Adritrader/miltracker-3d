@@ -7,13 +7,34 @@ import { io } from 'socket.io-client';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
+// ── LocalStorage cache helpers ───────────────────────────────────────────────
+const CACHE = {
+  aircraft: { key: 'milt_ac',  ttl: 5  * 60 * 1000 },
+  ships:    { key: 'milt_sh',  ttl: 10 * 60 * 1000 },
+  news:     { key: 'milt_nw',  ttl: 30 * 60 * 1000 },
+};
+function cacheLoad(type) {
+  try {
+    const raw = localStorage.getItem(CACHE[type].key);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE[type].ttl) return null;
+    return data;
+  } catch { return null; }
+}
+function cacheSave(type, data) {
+  try {
+    localStorage.setItem(CACHE[type].key, JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
+
 export function useRealTimeData() {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
-  const [aircraft, setAircraft] = useState([]);
-  const [aircraftSource, setAircraftSource] = useState('loading');
-  const [ships, setShips] = useState([]);
-  const [news, setNews] = useState([]);
+  const [aircraft, setAircraft] = useState(() => cacheLoad('aircraft') || []);
+  const [aircraftSource, setAircraftSource] = useState(() => cacheLoad('aircraft') ? 'cached' : 'loading');
+  const [ships, setShips] = useState(() => cacheLoad('ships') || []);
+  const [news, setNews] = useState(() => cacheLoad('news') || []);
   const [conflicts, setConflicts] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [dangerZones, setDangerZones] = useState([]);
@@ -49,16 +70,21 @@ export function useRealTimeData() {
       else if (knownSources.includes(list[0]?.source)) setAircraftSource(list[0].source);
       else setAircraftSource('cached');
       setLastUpdate(prev => ({ ...prev, aircraft: timestamp }));
+      cacheSave('aircraft', list);
     });
 
     socket.on('ship_update', ({ ships: sh, timestamp }) => {
-      setShips(sh || []);
+      const list = sh || [];
+      setShips(list);
       setLastUpdate(prev => ({ ...prev, ships: timestamp }));
+      cacheSave('ships', list);
     });
 
     socket.on('news_update', ({ news: nw, timestamp }) => {
-      setNews(nw || []);
+      const list = nw || [];
+      setNews(list);
       setLastUpdate(prev => ({ ...prev, news: timestamp }));
+      cacheSave('news', list);
     });
 
     socket.on('conflict_update', ({ conflicts: cf }) => {
