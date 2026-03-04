@@ -42,6 +42,7 @@ export function useRealTimeData() {
   const [alerts, setAlerts] = useState(() => cacheLoad('alerts') || []);
   const [dangerZones, setDangerZones] = useState(() => cacheLoad('dangerZones') || []);
   const [aiInsight, setAiInsight] = useState(() => cacheLoad('aiInsight'));
+  const [aiError, setAiError] = useState(null);
   const [geminiEnabled, setGeminiEnabled] = useState(null); // null = unknown until server_info arrives
   const [lastUpdate, setLastUpdate] = useState({ aircraft: null, ships: null, news: null });
   const [isInitialLoad, setIsInitialLoad] = useState(() => !cacheLoad('aircraft') && !cacheLoad('ships'));
@@ -108,8 +109,13 @@ export function useRealTimeData() {
     });
 
     socket.on('ai_insight', (insight) => {
-      setAiInsight(insight);
-      cacheSave('aiInsight', insight);
+      if (insight?.error) {
+        setAiError(insight.error); // surface error in UI, don't overwrite a valid cached insight
+      } else {
+        setAiInsight(insight);
+        setAiError(null);
+        cacheSave('aiInsight', insight);
+      }
     });
 
     socket.on('server_info', ({ geminiEnabled: ge }) => {
@@ -119,5 +125,5 @@ export function useRealTimeData() {
     return () => socket.disconnect();
   }, []);
 
-  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, geminiEnabled, lastUpdate, isInitialLoad, reconnect };
+  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, reconnect };
 }

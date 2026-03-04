@@ -8,7 +8,12 @@
 
 import fetch from 'node-fetch';
 
-const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-1.5-flash',
+];
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ─── Static conflict / restricted zones ────────────────────────────────────────
 const CONFLICT_ZONES = [
@@ -163,25 +168,30 @@ Be factual, concise, and analytical. Do not speculate beyond available data.`;
     generationConfig: { temperature: 0.3, maxOutputTokens: 600 },
   };
 
-  const res = await fetch(`${GEMINI_API}?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(20000),
-  });
-
-  if (!res.ok) {
-    const errTxt = await res.text();
-    throw new Error(`Gemini ${res.status}: ${errTxt.slice(0, 200)}`);
+  let lastErr;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) {
+        const errTxt = await res.text();
+        lastErr = new Error(`Gemini ${model} HTTP ${res.status}: ${errTxt.slice(0, 200)}`);
+        continue; // try next model
+      }
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) { lastErr = new Error(`No JSON in ${model} response`); continue; }
+      const result = JSON.parse(jsonMatch[0]);
+      console.log(`[AI] Success with model ${model}`);
+      return { ...result, model, source: 'gemini', timestamp: new Date().toISOString() };
+    } catch (e) {
+      lastErr = e;
+    }
   }
-
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  // Extract JSON from response
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON in Gemini response');
-
-  const result = JSON.parse(jsonMatch[0]);
-  return { ...result, source: 'gemini', timestamp: new Date().toISOString() };
+  throw lastErr || new Error('All Gemini models failed');
 }

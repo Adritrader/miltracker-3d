@@ -210,7 +210,7 @@ const SitrepView = ({ alerts, aiInsight }) => {
   );
 };
 
-const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, isMobile = false }) => {
+const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false }) => {
   const [open, setOpen] = useState(!isMobile);
   const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
   const [alertsExpanded, setAlertsExpanded] = useState(false);
@@ -360,6 +360,12 @@ const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, 
                           target="_blank" rel="noopener noreferrer"
                           className="text-hud-green text-xs underline"
                         >aistudio.google.com/app/apikey</a>
+                      </>
+                    ) : aiError ? (
+                      <>
+                        <div className="text-red-400 text-xs font-mono font-bold">⚠ AI ANALYSIS FAILED</div>
+                        <div className="text-hud-text text-xs mt-1 font-mono break-all opacity-80">{aiError}</div>
+                        <div className="text-hud-text text-xs mt-2 opacity-60">Retries automatically every 5 min</div>
                       </>
                     ) : (
                       <>

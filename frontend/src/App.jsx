@@ -68,7 +68,7 @@ function App() {
   }, []);
 
   const {
-    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, geminiEnabled, lastUpdate, isInitialLoad,
+    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad,
   } = useRealTimeData();
 
   // Filtered data — deps split per-layer to avoid cross-layer re-renders (§2.3)
@@ -236,6 +236,7 @@ function App() {
       <AlertPanel
         alerts={alerts}
         aiInsight={aiInsight}
+        aiError={aiError}
         geminiEnabled={geminiEnabled}
         viewer={viewer}
         onFlyTo={handleFlyToAlert}

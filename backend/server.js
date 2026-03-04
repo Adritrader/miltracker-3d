@@ -251,6 +251,8 @@ async function pollNews() {
         }
       } catch (e) {
         console.error('[AI] Gemini error:', e.message);
+        // Emit error so frontend stops showing "AWAITING" and displays the actual problem
+        io.emit('ai_insight', { error: e.message, source: 'gemini_error', timestamp: new Date().toISOString() });
       }
     }
 
