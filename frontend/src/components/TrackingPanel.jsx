@@ -1,14 +1,23 @@
 /**
- * TrackingPanel – multi-entity tracking HUD
- * Sits on the right edge (vertically centred) and never overlaps top/bottom bars.
- * Each tracked entity shows live telemetry + FLY TO + UNTRACK.
+ * TrackingPanel – horizontal bottom strip, sits just above the NewsPanel.
+ * Collapsed = 40px bar with horizontal entity pills.
+ * Expanded = cards row above the bar.
+ *
+ * Layout stack (bottom → top):
+ *   0–28px   CoordinateHUD
+ *  28–68px   NewsPanel (collapsed)
+ *  68–108px  TrackingPanel (collapsed)
+ * 108px+     Globe / MapLayerSwitcher
  */
 import React, { useState } from 'react';
 import * as Cesium from 'cesium';
-import { headingToCompass } from '../utils/geoUtils.js';
+
+const BOTTOM_NEWS   = 68;   // CoordinateHUD(28) + NewsPanel(40)
+const PANEL_H_COLL  = 40;   // collapsed pill-bar height
+const CARD_H        = 88;   // approx expanded card height
 
 const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false }) => {
-  const [open, setOpen] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   if (!trackedList || trackedList.size === 0) return null;
 
@@ -17,133 +26,201 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(
         entity.lon, entity.lat,
-        type === 'aircraft' ? 160_000 : 250_000
+        type === 'aircraft' ? 160_000 : 250_000,
       ),
-      // pitch -90° = top-down → entity is exactly at screen centre
       orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
       duration: 1.5,
     });
   };
 
   const entries = [...trackedList.entries()].map(([id, meta]) => {
-    const type = meta.type;
-    const entity =
-      type === 'aircraft'
-        ? aircraft.find(a => a.id === id || a.icao24 === id)
-        : ships.find(s => (s.mmsi || s.id) === id);
+    const type   = meta.type;
+    const entity = type === 'aircraft'
+      ? aircraft.find(a => a.id === id || a.icao24 === id)
+      : ships.find(s => (s.mmsi || s.id) === id);
     return { id, type, entity };
   });
 
   return (
     <div
-      className="fixed z-30"
-      style={{
-        right: isMobile ? 8 : 16,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        maxHeight: 'calc(100vh - 180px)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
+      className="fixed left-0 right-0"
+      style={{ bottom: BOTTOM_NEWS, zIndex: 38 }}
     >
-      {/* Toggle header */}
-      <div
-        className="hud-panel px-3 py-1.5 flex items-center gap-2 cursor-pointer select-none mb-0.5"
-        style={{ borderColor: '#4af766', borderRadius: '4px 4px 0 0' }}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-        <span className="text-green-400 font-mono font-bold text-xs tracking-widest">TRACKING</span>
-        <span className="ml-1 bg-green-700 text-green-200 rounded px-1.5 text-xs font-mono font-bold">
-          {trackedList.size}
-        </span>
-        <span className="ml-auto text-hud-text text-xs">{open ? '▲' : '▼'}</span>
-        {open && trackedList.size > 1 && (
-          <button
-            onClick={e => { e.stopPropagation(); onUntrackAll?.(); }}
-            className="text-hud-text hover:text-red-400 text-xs font-mono ml-1 transition-colors"
-            title="Untrack all"
-          >CLR</button>
-        )}
-      </div>
-
-      {/* Entity list */}
-      {open && (
+      {/* ── Expanded cards –– open upward ───────────────────────── */}
+      {expanded && (
         <div
-          className="hud-panel overflow-y-auto"
-          style={{ borderColor: '#4af766', borderRadius: '0 0 4px 4px', minWidth: isMobile ? 180 : 220 }}
+          className="hud-panel overflow-x-auto"
+          style={{
+            borderRadius: 0,
+            borderBottom: 'none',
+            background: 'rgba(5,8,16,0.93)',
+          }}
+        >
+          <div
+            className="flex gap-2 px-3 py-2"
+            style={{ minWidth: 'max-content' }}
+          >
+            {entries.map(({ id, type, entity }) => {
+              const label  = entity?.callsign || entity?.name || id;
+              const altFt  = type === 'aircraft' && entity
+                ? (entity.altitudeFt ?? Math.round((entity.altitude || 0) * 3.28084))
+                : null;
+              const speed  = entity ? Math.round(entity.velocity || 0) : null;
+              const hdg    = entity ? Math.round(entity.heading  || 0) : null;
+              const alive  = !!entity;
+              const acColor = type === 'aircraft' ? '#00ff88' : '#00aaff';
+
+              return (
+                <div
+                  key={id}
+                  className="flex flex-col gap-1 px-3 py-2 rounded"
+                  style={{
+                    minWidth: isMobile ? 140 : 170,
+                    border: `1px solid ${acColor}33`,
+                    background: `${acColor}08`,
+                  }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold" style={{ color: acColor }}>
+                      {type === 'aircraft' ? '▲' : '▬'}
+                    </span>
+                    <span className={`font-mono font-bold text-xs truncate flex-1 ${alive ? 'text-white' : 'text-hud-text/40'}`}>
+                      {label}
+                    </span>
+                    {!alive && <span className="text-yellow-600 text-xs font-mono">LOST</span>}
+                    <button
+                      onClick={() => onUntrack(id)}
+                      className="text-hud-text hover:text-red-400 text-xs font-bold pl-1 transition-colors"
+                    >&times;</button>
+                  </div>
+
+                  {/* Telemetry */}
+                  {alive && (
+                    <div className="flex gap-2 text-xs font-mono flex-wrap">
+                      {altFt != null && (
+                        <span className="text-hud-amber font-bold">
+                          {entity.on_ground ? 'GND' : `${Math.round(altFt / 100) * 100}ft`}
+                        </span>
+                      )}
+                      {speed != null && (
+                        <span className="text-hud-green">
+                          {speed}{type === 'aircraft' ? 'kt' : 'kn'}
+                        </span>
+                      )}
+                      {hdg != null && (
+                        <span className="text-hud-text">{hdg}&deg;</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* FLY TO */}
+                  <button
+                    onClick={() => flyTo(entity, type)}
+                    disabled={!alive}
+                    className="text-xs font-mono font-bold px-2 py-0.5 rounded border transition-colors
+                      bg-hud-accent/10 border-hud-accent/40 text-hud-accent hover:bg-hud-accent/25
+                      disabled:opacity-25 disabled:cursor-not-allowed w-full text-center mt-auto"
+                  >
+                    📍 FLY TO
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Collapsed pill bar ────────────────────────────────────── */}
+      <div
+        className="hud-panel flex items-center gap-2 px-3"
+        style={{
+          height: PANEL_H_COLL,
+          borderRadius: 0,
+          borderColor: '#4af76644',
+          borderTop: '1px solid #4af76644',
+          background: 'rgba(5,8,16,0.92)',
+        }}
+      >
+        {/* Label + expand toggle */}
+        <button
+          className="flex items-center gap-1.5 shrink-0 select-none focus:outline-none"
+          onClick={() => setExpanded(e => !e)}
+        >
+          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-green-400 font-mono font-bold text-xs tracking-widest hidden sm:inline">TRACKING</span>
+          <span className="bg-green-800/80 text-green-200 rounded px-1.5 text-xs font-mono font-bold">
+            {trackedList.size}
+          </span>
+          <span className="text-hud-text/60 text-xs ml-0.5">{expanded ? '▼' : '▲'}</span>
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-hud-border/50 shrink-0" />
+
+        {/* Horizontal scrollable pills */}
+        <div
+          className="flex-1 flex gap-2 overflow-x-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {entries.map(({ id, type, entity }) => {
-            const label = entity?.callsign || entity?.name || id;
-            const altFt = type === 'aircraft' && entity
+            const label  = entity?.callsign || entity?.name || id;
+            const altFt  = type === 'aircraft' && entity
               ? (entity.altitudeFt ?? Math.round((entity.altitude || 0) * 3.28084))
               : null;
-            const speed = entity ? Math.round(entity.velocity || 0) : null;
-            const hdg   = entity ? Math.round(entity.heading  || 0) : null;
-            const alive = !!entity;
+            const speed  = entity ? Math.round(entity.velocity || 0) : null;
+            const alive  = !!entity;
+            const acColor = type === 'aircraft' ? '#00ff88' : '#00aaff';
 
             return (
               <div
                 key={id}
-                className="border-b border-hud-border/40 last:border-b-0"
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono shrink-0"
+                style={{ border: `1px solid ${acColor}44`, background: `${acColor}0d` }}
               >
-                {/* Entity name + type badge + untrack */}
-                <div className="flex items-center gap-1.5 px-2 pt-1.5 pb-0.5">
-                  <span className={`text-xs ${type === 'aircraft' ? 'text-hud-green' : 'text-hud-blue'}`}>
-                    {type === 'aircraft' ? '▲' : '▬'}
+                <span style={{ color: acColor }}>{type === 'aircraft' ? '▲' : '▬'}</span>
+                <span className={`font-bold ${alive ? 'text-white' : 'text-hud-text/40'}`}
+                  style={{ maxWidth: isMobile ? 72 : 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {label}
+                </span>
+                {alive && altFt != null && (
+                  <span className="text-hud-amber hidden sm:inline">
+                    {entity.on_ground ? 'GND' : `${Math.round(altFt / 100) * 100}ft`}
                   </span>
-                  <span className={`font-mono font-bold text-xs truncate flex-1 ${alive ? 'text-white' : 'text-hud-text/50'}`}
-                    style={{ maxWidth: isMobile ? 90 : 120 }}>
-                    {label}
-                  </span>
-                  {!alive && (
-                    <span className="text-xs text-yellow-600 font-mono">LOST</span>
-                  )}
-                  <button
-                    onClick={() => onUntrack(id)}
-                    className="text-hud-text hover:text-red-400 font-bold text-xs transition-colors ml-auto pl-1"
-                    title="Stop tracking"
-                  >&times;</button>
-                </div>
-
-                {/* Telemetry row */}
-                {alive && (
-                  <div className="flex items-center gap-2 px-2 pb-1 text-xs font-mono">
-                    {altFt != null && (
-                      <span className="text-hud-amber font-bold">
-                        {entity?.on_ground ? 'GND' : `${Math.round(altFt / 100) * 100}ft`}
-                      </span>
-                    )}
-                    {speed != null && (
-                      <span className="text-hud-green">
-                        {speed}{type === 'aircraft' ? 'kt' : 'kn'}
-                      </span>
-                    )}
-                    {hdg != null && (
-                      <span className="text-hud-text">
-                        {hdg}&deg;&nbsp;{headingToCompass(hdg)}
-                      </span>
-                    )}
-                  </div>
                 )}
-
-                {/* FLY TO button */}
-                <div className="px-2 pb-1.5">
-                  <button
-                    onClick={() => flyTo(entity, type)}
-                    disabled={!alive}
-                    className="w-full text-center text-xs font-mono font-bold px-2 py-0.5 rounded border transition-colors
-                      bg-hud-accent/10 border-hud-accent/40 text-hud-accent hover:bg-hud-accent/25
-                      disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    &#x1F4CD; FLY TO
-                  </button>
-                </div>
+                {alive && speed != null && (
+                  <span className="text-hud-green hidden md:inline">
+                    {speed}{type === 'aircraft' ? 'kt' : 'kn'}
+                  </span>
+                )}
+                {/* FLY TO icon */}
+                <button
+                  onClick={() => flyTo(entity, type)}
+                  disabled={!alive}
+                  className="text-hud-text hover:text-hud-accent transition-colors disabled:opacity-25"
+                  title="Fly to"
+                >&#x25B6;</button>
+                {/* Untrack */}
+                <button
+                  onClick={() => onUntrack(id)}
+                  className="text-hud-text hover:text-red-400 font-bold transition-colors"
+                  title="Stop tracking"
+                >&times;</button>
               </div>
             );
           })}
         </div>
-      )}
+
+        {/* Clear all (desktop only if > 1) */}
+        {trackedList.size > 1 && (
+          <button
+            onClick={() => { onUntrackAll?.(); setExpanded(false); }}
+            className="shrink-0 text-hud-text hover:text-red-400 text-xs font-mono border border-hud-border/40
+              px-2 py-0.5 rounded transition-colors hidden sm:block"
+            title="Untrack all"
+          >CLR</button>
+        )}
+      </div>
     </div>
   );
 };
