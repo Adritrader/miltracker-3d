@@ -3,6 +3,7 @@
  */
 
 import React, { useState } from 'react';
+import * as Cesium from 'cesium';
 import { timeAgo } from '../utils/geoUtils.js';
 
 const SEVERITY_CONFIG = {
@@ -91,35 +92,36 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
   const criticalCount  = criticalAlerts.length;
 
   const flyToAlert = (alert) => {
-    if (viewer && alert.lat != null && alert.lon != null) {
-      const C = window.Cesium;
-      if (C?.Cartesian3) {
-        viewer.camera.flyTo({
-          destination: C.Cartesian3.fromDegrees(alert.lon, alert.lat, 2_000_000),
-          duration: 2,
-        });
-      }
+    if (viewer && !viewer.isDestroyed() && alert.lat != null && alert.lon != null) {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(alert.lon, alert.lat, 2_000_000),
+        duration: 2,
+      });
     }
-    onFlyTo?.(alert); // opens EntityPopup in App.jsx
+    onFlyTo?.(alert);
   };
 
   return (
-    <div className={`fixed top-4 z-50 transition-all duration-300 ${
-      isMobile
-        ? `right-2 ${open ? 'left-2' : ''}`
-        : `right-4 ${open ? 'w-80' : 'w-auto'}`
-    }`}>
+    <div
+      className="fixed top-4 z-50 transition-all duration-300"
+      style={{
+        right: isMobile ? 8 : 16,
+        // On mobile: never go wider than 48vw so FilterPanel (left) has room
+        maxWidth: isMobile ? 'min(44vw, 240px)' : 320,
+        width: isMobile ? undefined : (open ? 320 : 'auto'),
+      }}
+    >
       {/* Header toggle */}
       <div
         className="hud-panel px-3 py-2 flex items-center justify-between cursor-pointer mb-1"
         onClick={() => setOpen(!open)}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-red-400 text-sm">⚠</span>
-          <span className="hud-title">INTEL ALERTS</span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-red-400 text-sm shrink-0">⚠</span>
+          <span className="hud-title truncate">{isMobile ? 'ALERTS' : 'INTEL ALERTS'}</span>
           {criticalCount > 0 && (
-            <span className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded font-mono font-bold animate-pulse">
-              {criticalCount} CRITICAL
+            <span className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded font-mono font-bold animate-pulse shrink-0">
+              {criticalCount}{isMobile ? '' : ' CRITICAL'}
             </span>
           )}
         </div>
@@ -129,7 +131,7 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
       {open && (
         <div className="hud-panel animate-fade-in">
           {/* Tabs */}
-          <div className="flex border-b border-hud-border">
+          <div className="flex border-b border-hud-border" style={{ overflowX: 'hidden' }}>
             {['alerts', 'ai'].map(t => (
               <button
                 key={t}
@@ -142,7 +144,7 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
             ))}
           </div>
 
-          <div className="p-2 max-h-[28rem] overflow-y-auto">
+          <div className="p-2 overflow-y-auto" style={{ maxHeight: 'min(28rem, 55vh)' }}>
             {tab === 'alerts' && (
               criticalAlerts.length > 0
                 ? criticalAlerts.slice(0, 20).map(a => (

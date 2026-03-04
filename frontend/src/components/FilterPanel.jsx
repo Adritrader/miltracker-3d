@@ -69,7 +69,10 @@ const FilterPanel = ({
   useEffect(() => setPanelOpen(!isMobile), [isMobile]);
 
   return (
-    <div className={`fixed top-4 left-4 z-50 space-y-2 ${isMobile ? 'max-w-[55vw]' : 'w-56'}`}>
+    <div
+      className={`fixed top-4 left-4 z-50 space-y-2 ${isMobile ? 'max-w-[52vw]' : 'w-56'}`}
+      style={isMobile ? { maxHeight: 'calc(100dvh - 180px)', overflowY: 'auto' } : {}}
+    >
       {/* Status bar */}
       <div className="hud-panel px-3 py-2">
         <div
