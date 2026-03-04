@@ -21,9 +21,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          cesium: ['cesium'],
-          resium: ['resium'],
-          react:  ['react', 'react-dom'],
+          react: ['react', 'react-dom'],
         },
       },
     },
