@@ -191,6 +191,17 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
           const entity = entityMapRef.current.get(ac.id);
           // Smooth position transition: lerp from current displayed position
           // to the new position over SMOOTH_MS so entities glide instead of snap
+          if (!entity._transition) {
+            // Old entity (no CallbackProperty yet) — replace position with lerp-driven one
+            const tr0 = { from: position, to: position, start: Date.now() };
+            entity._transition = tr0;
+            entity.position = new Cesium.CallbackProperty(() => {
+              const elapsed = Date.now() - tr0.start;
+              const t = Math.min(elapsed / SMOOTH_MS, 1);
+              if (t >= 1) return tr0.to;
+              return Cesium.Cartesian3.lerp(tr0.from, tr0.to, t, new Cesium.Cartesian3());
+            }, false);
+          }
           const tr  = entity._transition;
           const cur = entity.position?.getValue?.(Cesium.JulianDate.now());
           tr.from   = (cur && isFinite(cur.x)) ? Cesium.Cartesian3.clone(cur) : tr.to;
