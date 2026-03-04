@@ -83,11 +83,16 @@ const IMAGERY_PROVIDER = ION_TOKEN
 const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'dark', children }) => {
   const viewerRef = useRef(null);
   const cameraInitialized = useRef(false);
+  const imageryInitialized = useRef(false);   // guard: prevents re-init on spurious re-calls
   const [globeReady, setGlobeReady] = useState(false);
   const overlayRemovedRef = useRef(false);
 
   const handleViewerReady = useCallback((cesiumComponent) => {
     if (!cesiumComponent || !cesiumComponent.cesiumElement) return;
+    // Guard: only initialize once — spurious second calls (Resium/Cesium internal
+    // re-renders) must NOT reset the imagery layer or any other state.
+    if (imageryInitialized.current) return;
+    imageryInitialized.current = true;
     const viewer = cesiumComponent.cesiumElement;
 
     // ── Imagery layer (imageryProvider prop removed in Cesium 1.110) ─────────
