@@ -68,7 +68,7 @@ export async function fetchGDELTNews() {
   }
 
   return allArticles.map(a => ({
-    id: `gdelt-${encodeURIComponent(a.url || '').slice(0, 40)}-${Date.now()}`,
+    id: `gdelt-${encodeURIComponent(a.url || a.title || '').slice(0, 60)}`,
     source: a.domain || 'GDELT',
     title: a.title || 'No title',
     url: a.url || '',
@@ -94,8 +94,8 @@ export async function fetchGDELTGeoEvents() {
     if (!res.ok) throw new Error(`GDELT GEO ${res.status}`);
     const data = await res.json();
 
-    return (data?.features || []).map((f, i) => ({
-      id: `gdelt-geo-${i}-${Date.now()}`,
+    return (data?.features || []).map((f) => ({
+      id: `gdelt-geo-${(f.geometry?.coordinates?.[1] ?? 0).toFixed(3)}-${(f.geometry?.coordinates?.[0] ?? 0).toFixed(3)}-${encodeURIComponent(f.properties?.url || f.properties?.name || '').slice(0, 30)}`,
       source: 'GDELT-GEO',
       title: f.properties?.name || f.properties?.title || 'Event',
       url: f.properties?.url || '',
