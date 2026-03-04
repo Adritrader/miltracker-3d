@@ -8,12 +8,19 @@
 
 import fetch from 'node-fetch';
 
-const GEMINI_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-exp',
-  'gemini-1.5-flash',
+// Each entry: [apiVersion, modelId]
+// Ordered newest → oldest. On 404 we log and try next.
+const GEMINI_CANDIDATES = [
+  ['v1beta', 'gemini-2.0-flash'],
+  ['v1beta', 'gemini-2.0-flash-001'],
+  ['v1',     'gemini-2.0-flash'],
+  ['v1',     'gemini-2.0-flash-001'],
+  ['v1beta', 'gemini-1.5-flash-latest'],
+  ['v1beta', 'gemini-1.5-flash-001'],
+  ['v1',     'gemini-1.5-flash-latest'],
+  ['v1',     'gemini-1.5-flash-001'],
 ];
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_HOST = 'https://generativelanguage.googleapis.com';
 
 // ─── Static conflict / restricted zones ────────────────────────────────────────
 const CONFLICT_ZONES = [
@@ -169,9 +176,10 @@ Be factual, concise, and analytical. Do not speculate beyond available data.`;
   };
 
   let lastErr;
-  for (const model of GEMINI_MODELS) {
+  for (const [apiVer, model] of GEMINI_CANDIDATES) {
+    const url = `${GEMINI_HOST}/${apiVer}/models/${model}:generateContent?key=${key}`;
     try {
-      const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -179,19 +187,26 @@ Be factual, concise, and analytical. Do not speculate beyond available data.`;
       });
       if (!res.ok) {
         const errTxt = await res.text();
-        lastErr = new Error(`Gemini ${model} HTTP ${res.status}: ${errTxt.slice(0, 200)}`);
-        continue; // try next model
+        const msg = `[AI] ${model} (${apiVer}) → HTTP ${res.status}: ${errTxt.slice(0, 120)}`;
+        console.warn(msg);
+        lastErr = new Error(msg);
+        continue;
       }
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) { lastErr = new Error(`No JSON in ${model} response`); continue; }
+      if (!jsonMatch) {
+        console.warn(`[AI] ${model} (${apiVer}) → no JSON in response`);
+        lastErr = new Error(`No JSON in ${model} response`);
+        continue;
+      }
       const result = JSON.parse(jsonMatch[0]);
       console.log(`[AI] Success with model ${model}`);
       return { ...result, model, source: 'gemini', timestamp: new Date().toISOString() };
     } catch (e) {
+      console.warn(`[AI] ${model} (${apiVer}) → exception: ${e.message}`);
       lastErr = e;
     }
   }
-  throw lastErr || new Error('All Gemini models failed');
+  throw lastErr || new Error('All Gemini models failed — check Railway logs for details');
 }
