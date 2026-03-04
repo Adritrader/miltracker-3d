@@ -2,39 +2,194 @@
  * Client-side military filtering and categorization logic
  */
 
-export const COUNTRY_FLAGS = {
-  'United States': '🇺🇸', 'Russia': '🇷🇺', 'China': '🇨🇳',
-  'United Kingdom': '🇬🇧', 'France': '🇫🇷', 'Germany': '🇩🇪',
-  'Israel': '🇮🇱', 'Turkey': '🇹🇷', 'Iran': '🇮🇷', 'Ukraine': '🇺🇦',
-  'India': '🇮🇳', 'Pakistan': '🇵🇰', 'Saudi Arabia': '🇸🇦',
-  'Australia': '🇦🇺', 'Japan': '🇯🇵', 'South Korea': '🇰🇷',
-  'North Korea': '🇰🇵', 'Brazil': '🇧🇷', 'Canada': '🇨🇦',
-  'Poland': '🇵🇱', 'Italy': '🇮🇹', 'Spain': '🇪🇸',
-  'Netherlands': '🇳🇱', 'Norway': '🇳🇴', 'Sweden': '🇸🇪',
-  'Belgium': '🇧🇪', 'Greece': '🇬🇷', 'Romania': '🇷🇴',
+// ── Country data: ISO-2 code → { name, emoji } ────────────────────────────
+const COUNTRY_DATA = {
+  US: { name: 'United States',   emoji: '🇺🇸' },
+  GB: { name: 'United Kingdom',  emoji: '🇬🇧' },
+  UK: { name: 'United Kingdom',  emoji: '🇬🇧' }, // alias
+  FR: { name: 'France',          emoji: '🇫🇷' },
+  DE: { name: 'Germany',         emoji: '🇩🇪' },
+  RU: { name: 'Russia',          emoji: '🇷🇺' },
+  CN: { name: 'China',           emoji: '🇨🇳' },
+  IL: { name: 'Israel',          emoji: '🇮🇱' },
+  TR: { name: 'Turkey',          emoji: '🇹🇷' },
+  IR: { name: 'Iran',            emoji: '🇮🇷' },
+  UA: { name: 'Ukraine',         emoji: '🇺🇦' },
+  IN: { name: 'India',           emoji: '🇮🇳' },
+  PK: { name: 'Pakistan',        emoji: '🇵🇰' },
+  SA: { name: 'Saudi Arabia',    emoji: '🇸🇦' },
+  AU: { name: 'Australia',       emoji: '🇦🇺' },
+  JP: { name: 'Japan',           emoji: '🇯🇵' },
+  KR: { name: 'South Korea',     emoji: '🇰🇷' },
+  KP: { name: 'North Korea',     emoji: '🇰🇵' },
+  BR: { name: 'Brazil',          emoji: '🇧🇷' },
+  CA: { name: 'Canada',          emoji: '🇨🇦' },
+  PL: { name: 'Poland',          emoji: '🇵🇱' },
+  IT: { name: 'Italy',           emoji: '🇮🇹' },
+  ES: { name: 'Spain',           emoji: '🇪🇸' },
+  NL: { name: 'Netherlands',     emoji: '🇳🇱' },
+  NO: { name: 'Norway',          emoji: '🇳🇴' },
+  SE: { name: 'Sweden',          emoji: '🇸🇪' },
+  BE: { name: 'Belgium',         emoji: '🇧🇪' },
+  GR: { name: 'Greece',          emoji: '🇬🇷' },
+  RO: { name: 'Romania',         emoji: '🇷🇴' },
+  FI: { name: 'Finland',         emoji: '🇫🇮' },
+  DK: { name: 'Denmark',         emoji: '🇩🇰' },
+  PT: { name: 'Portugal',        emoji: '🇵🇹' },
+  CY: { name: 'Cyprus',          emoji: '🇨🇾' },
+  KW: { name: 'Kuwait',          emoji: '🇰🇼' },
+  AE: { name: 'UAE',             emoji: '🇦🇪' },
+  QA: { name: 'Qatar',           emoji: '🇶🇦' },
+  BH: { name: 'Bahrain',         emoji: '🇧🇭' },
+  JO: { name: 'Jordan',          emoji: '🇯🇴' },
+  EG: { name: 'Egypt',           emoji: '🇪🇬' },
+  LB: { name: 'Lebanon',         emoji: '🇱🇧' },
+  SY: { name: 'Syria',           emoji: '🇸🇾' },
+  IQ: { name: 'Iraq',            emoji: '🇮🇶' },
+  YE: { name: 'Yemen',           emoji: '🇾🇪' },
+  TW: { name: 'Taiwan',          emoji: '🇹🇼' },
+  SG: { name: 'Singapore',       emoji: '🇸🇬' },
+  MY: { name: 'Malaysia',        emoji: '🇲🇾' },
+  TH: { name: 'Thailand',        emoji: '🇹🇭' },
+  ID: { name: 'Indonesia',       emoji: '🇮🇩' },
+  PH: { name: 'Philippines',     emoji: '🇵🇭' },
+  VN: { name: 'Vietnam',         emoji: '🇻🇳' },
+  NATO: { name: 'NATO',          emoji: '🔵' },
 };
+
+// Operator strings (ownOp field from ADS-B) → ISO-2 code
+const OPERATOR_TO_CODE = {
+  // USA
+  'USAF':            'US', 'US AIR FORCE':    'US', 'UNITED STATES AIR FORCE': 'US',
+  'USN':             'US', 'US NAVY':         'US', 'UNITED STATES NAVY':      'US',
+  'USMC':            'US', 'US MARINE CORPS': 'US', 'USARMY':                  'US',
+  'US ARMY':         'US', 'USCG':            'US', 'US COAST GUARD':          'US',
+  'AFSOC':           'US', 'ACC':             'US', 'AMC':                     'US',
+  'UNITED STATES':   'US',
+  // UK
+  'RAF':   'GB', 'ROYAL AIR FORCE': 'GB', 'RN': 'GB',
+  'ROYAL NAVY': 'GB', 'AAC': 'GB', 'ARMY AIR CORPS': 'GB',
+  'UNITED KINGDOM': 'GB',
+  // France
+  'FAF':  'FR', 'FRENCH AIR FORCE': 'FR', 'ARMEE DE L AIR': 'FR',
+  'MARINE NATIONALE': 'FR', 'FRENCH NAVY': 'FR',
+  // Germany
+  'LUFTWAFFE': 'DE', 'GERMAN AIR FORCE': 'DE', 'BUNDESWEHR': 'DE',
+  // Russia
+  'VKS': 'RU', 'RUSSIAN AIR FORCE': 'RU', 'VMF': 'RU',
+  'RUSSIAN NAVY': 'RU', 'RUSSIAN AEROSPACE': 'RU',
+  // China
+  'PLAAF': 'CN', 'PLAN': 'CN', 'PLA AIR FORCE': 'CN', 'PLA NAVY': 'CN',
+  // Israel
+  'IAF': 'IL', 'ISRAEL AIR FORCE': 'IL', 'IDF': 'IL',
+  // Turkey
+  'THK': 'TR', 'TURKISH AIR FORCE': 'TR',
+  // Iran
+  'IRIAF': 'IR', 'IRANIAN AIR FORCE': 'IR', 'IRGC': 'IR', 'IRIAF/IRGC': 'IR',
+  // Saudi Arabia
+  'RSAF': 'SA', 'ROYAL SAUDI AIR FORCE': 'SA',
+  // Australia
+  'RAAF': 'AU', 'ROYAL AUSTRALIAN AIR FORCE': 'AU',
+  // Canada
+  'RCAF': 'CA', 'ROYAL CANADIAN AIR FORCE': 'CA',
+  // India
+  'IAF IN': 'IN', 'INDIAN AIR FORCE': 'IN',
+  // Japan
+  'JASDF': 'JP', 'JMSDF': 'JP', 'JAPAN AIR SELF-DEFENSE FORCE': 'JP',
+  // South Korea
+  'ROKAF': 'KR', 'SOUTH KOREAN AIR FORCE': 'KR',
+  // Italy
+  'AMI': 'IT', 'ITALIAN AIR FORCE': 'IT',
+  // Spain
+  'EJERCITO DEL AIRE': 'ES', 'SPANISH AIR FORCE': 'ES',
+  // Netherlands
+  'RNLAF': 'NL', 'ROYAL NETHERLANDS AIR FORCE': 'NL',
+  // Norway
+  'RNoAF': 'NO', 'ROYAL NORWEGIAN AIR FORCE': 'NO',
+  // Poland
+  'POLISH AIR FORCE': 'PL',
+  // NATO
+  'NATO': 'NATO', 'NATO AWACS': 'NATO',
+};
+
+// Full country names → ISO-2 (for `origin_country` strings)
+const NAME_TO_CODE = {};
+for (const [code, { name }] of Object.entries(COUNTRY_DATA)) {
+  NAME_TO_CODE[name.toUpperCase()] = code;
+}
+// Common aliases
+NAME_TO_CODE['USA'] = 'US';
+NAME_TO_CODE['RUSSIA'] = 'RU';
+NAME_TO_CODE['CHINA'] = 'CN';
+NAME_TO_CODE['IRAN'] = 'IR';
+NAME_TO_CODE['UK'] = 'GB';
+NAME_TO_CODE['SOUTH KOREA'] = 'KR';
+NAME_TO_CODE['NORTH KOREA'] = 'KP';
+NAME_TO_CODE['SAUDI ARABIA'] = 'SA';
+
+/**
+ * Resolve any country/operator string to { code, name, emoji }.
+ * Returns unknown placeholder if nothing matches.
+ */
+export function resolveCountry(input = '') {
+  if (!input) return { code: '??', name: 'Unknown', emoji: '🏳' };
+  const upper = input.trim().toUpperCase();
+
+  // 1. Direct ISO-2 code (e.g. flag field on ships)
+  if (COUNTRY_DATA[upper]) {
+    const d = COUNTRY_DATA[upper];
+    return { code: upper, name: d.name, emoji: d.emoji };
+  }
+  // 2. Operator name
+  if (OPERATOR_TO_CODE[upper]) {
+    const code = OPERATOR_TO_CODE[upper];
+    const d = COUNTRY_DATA[code];
+    return { code, name: d?.name || code, emoji: d?.emoji || '🏳' };
+  }
+  // 3. Full country name
+  if (NAME_TO_CODE[upper]) {
+    const code = NAME_TO_CODE[upper];
+    const d = COUNTRY_DATA[code];
+    return { code, name: d?.name || input, emoji: d?.emoji || '🏳' };
+  }
+  // 4. Partial match in operator table
+  for (const [key, code] of Object.entries(OPERATOR_TO_CODE)) {
+    if (upper.includes(key) || key.includes(upper)) {
+      const d = COUNTRY_DATA[code];
+      return { code, name: d?.name || code, emoji: d?.emoji || '🏳' };
+    }
+  }
+  // 5. Return as-is with white flag
+  return { code: '??', name: input, emoji: '🏳' };
+}
+
+// Legacy exports kept for backward compatibility
+export const COUNTRY_FLAGS = Object.fromEntries(
+  Object.entries(COUNTRY_DATA).map(([, { name, emoji }]) => [name, emoji])
+);
 
 /**
  * Derive country name from ICAO24 hex prefix (military allocations).
  * Used as fallback when ownOp/origin_country is not set.
+ * Returns ISO-2 code.
  */
 export function icaoToCountry(hex = '') {
   const h = hex.toUpperCase();
-  if (h.startsWith('AE') || h.startsWith('AD'))          return 'United States';
-  if (h.startsWith('43C') || h.startsWith('43D') || h.startsWith('43E')) return 'United Kingdom';
-  if (h.startsWith('394') || h.startsWith('395') || h.startsWith('396')) return 'France';
-  if (h.startsWith('3C4') || h.startsWith('3C5') || h.startsWith('3C6') || h.startsWith('3C7')) return 'Germany';
-  if (h.startsWith('010') || h.startsWith('011') || h.startsWith('012') || h.startsWith('013') || h.startsWith('01')) return 'Russia';
-  if (h.startsWith('78')  || h.startsWith('79')  || h.startsWith('7A')  || h.startsWith('7B'))  return 'China';
-  if (h.startsWith('738') || h.startsWith('739')) return 'South Korea';
-  if (h.startsWith('840') || h.startsWith('841')) return 'Japan';
-  if (h.startsWith('710') || h.startsWith('711')) return 'India';
-  if (h.startsWith('76C') || h.startsWith('76D')) return 'Israel';
-  if (h.startsWith('74C') || h.startsWith('74D')) return 'Turkey';
-  if (h.startsWith('73C') || h.startsWith('73D')) return 'Iran';
-  if (h.startsWith('EB')  || h.startsWith('EC'))  return 'Belgium';
-  if (h.startsWith('484') || h.startsWith('485')) return 'Australia';
-  if (h.startsWith('C0')  || h.startsWith('C1'))  return 'Canada';
+  if (h.startsWith('AE') || h.startsWith('AD'))          return 'US';
+  if (h.startsWith('43C') || h.startsWith('43D') || h.startsWith('43E')) return 'GB';
+  if (h.startsWith('394') || h.startsWith('395') || h.startsWith('396')) return 'FR';
+  if (h.startsWith('3C4') || h.startsWith('3C5') || h.startsWith('3C6') || h.startsWith('3C7')) return 'DE';
+  if (h.startsWith('010') || h.startsWith('011') || h.startsWith('012') || h.startsWith('013') || h.startsWith('01')) return 'RU';
+  if (h.startsWith('78')  || h.startsWith('79')  || h.startsWith('7A')  || h.startsWith('7B'))  return 'CN';
+  if (h.startsWith('738') || h.startsWith('739')) return 'KR';
+  if (h.startsWith('840') || h.startsWith('841')) return 'JP';
+  if (h.startsWith('710') || h.startsWith('711')) return 'IN';
+  if (h.startsWith('76C') || h.startsWith('76D')) return 'IL';
+  if (h.startsWith('74C') || h.startsWith('74D')) return 'TR';
+  if (h.startsWith('73C') || h.startsWith('73D')) return 'IR';
+  if (h.startsWith('EB')  || h.startsWith('EC'))  return 'BE';
+  if (h.startsWith('484') || h.startsWith('485')) return 'AU';
+  if (h.startsWith('C0')  || h.startsWith('C1'))  return 'CA';
   return '';
 }
 

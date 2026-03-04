@@ -246,15 +246,28 @@ const SHIP_BY_TYPE = {
 };
 
 export function getShipImageUrl(shipData) {
-  const name = (shipData?.name || '');
+  const name = (shipData?.name || '').toUpperCase();
   const t    = (shipData?.type || shipData?.shipType || '').toLowerCase();
 
-  // 1. Match by vessel name
+  // 1. Match by vessel name (regex list)
   for (const [re, url] of SHIP_BY_NAME) {
     if (re.test(name)) return url;
   }
 
-  // 2. Match by type string
+  // 2. Infer type from the ship name itself (catches "CVN-78", "DDG-51", "LHD" etc.)
+  const nameAndType = name + ' ' + t;
+  if (/\bCVN\b|CVH|CARRIER|AIRCRAFT CARRIER/.test(nameAndType))      return SHIP_BY_TYPE.carrier;
+  if (/\bLHD\b|\bLHA\b|\bLPD\b|WASP|AMERICA|BATAAN|AMPHIB/.test(nameAndType)) return SHIP_BY_TYPE.amphibious;
+  if (/\bDDG\b|\bDD\b|DESTROYER|ARLEIGH|BURKE|COLE|CARNEY|PORTER|ROSS|THOMAS|DIAMOND|RICHMOND|DRAGON|ZUMWALT/.test(nameAndType)) return SHIP_BY_TYPE.destroyer;
+  if (/\bCG\b|CRUISER|MONTEREY|TICONDEROGA|SAN JACINTO|PHILIPPINE SEA|BUNKER/.test(nameAndType)) return SHIP_BY_TYPE.cruiser;
+  if (/SSBN|BALLISTIC/.test(nameAndType))    return SHIP_BY_TYPE.ssbn;
+  if (/\bSSN\b|SUBMARINE|VARSHAVYANKA/.test(nameAndType)) return SHIP_BY_TYPE.submarine;
+  if (/FRIGATE|FFG|\bF\d{3}\b|FORBIN|PROVENCE|SACHSEN|RICHMOND|JAMARAN|DENA|SAHAND|PETER WILLEMOES|HAMINA|LUIGI/.test(nameAndType)) return SHIP_BY_TYPE.frigate;
+  if (/CORVETTE|FAST ATTACK|PATROL BOAT|MINE LAYER|DHOW|IRGCN/.test(nameAndType)) return SHIP_BY_TYPE.patrol;
+  if (/SA.AR|EILAT/.test(nameAndType))       return SHIP_BY_TYPE.destroyer; // Israeli Sa'ar class
+  if (/TANKER|REPLENISH|AOE|AOR|KAISER/.test(nameAndType)) return SHIP_BY_TYPE.tanker;
+
+  // 3. Match by type string (original logic)
   if (/carrier|cvn|cvf|cva/.test(t))        return SHIP_BY_TYPE.carrier;
   if (/destroyer|ddg/.test(t))               return SHIP_BY_TYPE.destroyer;
   if (/cruiser|cg|clg/.test(t))              return SHIP_BY_TYPE.cruiser;
@@ -266,7 +279,8 @@ export function getShipImageUrl(shipData) {
   if (/patrol|pc/.test(t))                   return SHIP_BY_TYPE.patrol;
   if (/tanker|replenish|aoe|aor/.test(t))    return SHIP_BY_TYPE.tanker;
 
-  return null;
+  // 4. Default: use destroyer photo for any unmatched military vessel
+  return SHIP_BY_TYPE.destroyer;
 }
 
 // Military bases

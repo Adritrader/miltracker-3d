@@ -8,7 +8,7 @@ import {
   formatAltitude, formatSpeed, metersToFeet, msToKnots,
   headingToCompass, timeAgo
 } from '../utils/geoUtils.js';
-import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName } from '../utils/militaryFilter.js';
+import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry } from '../utils/militaryFilter.js';
 import {
   getAircraftImageUrl, getShipImageUrl, getBaseImageUrl, getConflictImageUrl,
 } from '../utils/mediaLookup.js';
@@ -203,8 +203,13 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
           </>
         )}
         {isAircraft && (() => {
-            const country  = entity.country || icaoToCountry(entity.icao24 || '');
-            const flag     = COUNTRY_FLAGS[country] || '🏳';
+            // Resolve country robustly: try ownOp/country field first, fall back to ICAO prefix
+            const rawCountry = entity.country || '';
+            const icaoCode   = icaoToCountry(entity.icao24 || '');
+            const resolved   = resolveCountry(rawCountry) ||
+                               (icaoCode ? resolveCountry(icaoCode) : null) ||
+                               { name: '—', emoji: '🏳' };
+            const countryDisplay = `${resolved.emoji} ${resolved.name}`;
             const typeName = getAircraftTypeName(entity.aircraftType || '');
             const altFt    = entity.altitudeFt != null
               ? entity.altitudeFt
@@ -219,7 +224,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
                 {entity.registration && <Row label="REG" value={entity.registration} highlight="text-hud-blue" />}
                 {entity.aircraftType  && <Row label="AC TYPE" value={typeName}       highlight="text-white" />}
                 <Row label="ICAO24"     value={entity.icao24} />
-                <Row label="COUNTRY"    value={`${flag} ${country || '—'}`} />
+                <Row label="COUNTRY"    value={countryDisplay} />
                 <Row label="ALTITUDE"   value={`${altFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
                 <Row label="SPEED"      value={`${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
                 <Row label="HEADING"    value={`${Math.round(entity.heading || 0)}° ${headingToCompass(entity.heading || 0)}`} />
@@ -232,19 +237,23 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
             );
           })()}
 
-        {isShip && (
-          <>
-            <Row label="NAME" value={entity.name} highlight="text-hud-blue" />
-            <Row label="MMSI" value={entity.mmsi} />
-            <Row label="FLAG" value={`${entity.flag || '?'}`} />
-            <Row label="TYPE" value={entity.type || 'Military'} />
-            <Row label="SPEED" value={`${Math.round(entity.velocity || 0)} kn`} highlight="text-hud-amber" />
-            <Row label="HEADING" value={`${Math.round(entity.heading || 0)}° ${headingToCompass(entity.heading || 0)}`} />
-            <Row label="DESTINATION" value={entity.destination || '—'} />
-            <Row label="POSITION" value={`${entity.lat?.toFixed(3)}°, ${entity.lon?.toFixed(3)}°`} />
-            <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
-          </>
-        )}
+        {isShip && (() => {
+          const resolved = resolveCountry(entity.flag || entity.country || '');
+          const flagDisplay = `${resolved.emoji} ${resolved.name}`;
+          return (
+            <>
+              <Row label="NAME"        value={entity.name}        highlight="text-hud-blue" />
+              <Row label="MMSI"        value={entity.mmsi} />
+              <Row label="FLAG"        value={flagDisplay} />
+              <Row label="TYPE"        value={entity.type || 'Military'} />
+              <Row label="SPEED"       value={`${Math.round(entity.velocity || 0)} kn`} highlight="text-hud-amber" />
+              <Row label="HEADING"     value={`${Math.round(entity.heading || 0)}° ${headingToCompass(entity.heading || 0)}`} />
+              <Row label="DESTINATION" value={entity.destination || '—'} />
+              <Row label="POSITION"    value={`${entity.lat?.toFixed(3)}°, ${entity.lon?.toFixed(3)}°`} />
+              <Row label="LAST SEEN"   value={timeAgo(entity.lastSeen)} />
+            </>
+          );
+        })()}
 
         {isConflict && (
           <>
