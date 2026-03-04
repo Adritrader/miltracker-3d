@@ -2,7 +2,7 @@
  * AlertPanel – sliding panel showing AI danger alerts on the right side
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { timeAgo } from '../utils/geoUtils.js';
 
@@ -214,6 +214,33 @@ const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, 
   const [open, setOpen] = useState(!isMobile);
   const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
   const [alertsExpanded, setAlertsExpanded] = useState(false);
+  const [notifPerm, setNotifPerm] = useState(
+    () => (typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
+  );
+  const seenAlertIds = useRef(new Set());
+
+  // §10.3 — fire browser push notification for new CRITICAL alerts
+  useEffect(() => {
+    if (notifPerm !== 'granted') return;
+    for (const alert of alerts) {
+      if (alert.severity !== 'critical') continue;
+      if (seenAlertIds.current.has(alert.id)) continue;
+      seenAlertIds.current.add(alert.id);
+      try {
+        new Notification(`⚠ CRITICAL — ${alert.title}`, {
+          body: alert.message || alert.source || '',
+          icon: '/favicon.ico',
+          tag:  alert.id, // deduplicates same alert across re-renders
+        });
+      } catch (_) {/* Safari / iframe sandbox */}
+    }
+  }, [alerts, notifPerm]);
+
+  const requestNotifPermission = async () => {
+    if (typeof Notification === 'undefined') return;
+    const result = await Notification.requestPermission();
+    setNotifPerm(result);
+  };
 
   // Only show CRITICAL alerts
   const criticalAlerts = alerts.filter(a => a.severity === 'critical');
@@ -252,6 +279,19 @@ const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, 
             <span className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded font-mono font-bold animate-pulse shrink-0">
               {criticalCount}{isMobile ? '' : ' CRITICAL'}
             </span>
+          )}
+          {/* §10.3 — notification bell */}
+          {criticalCount > 0 && notifPerm === 'default' && (
+            <button
+              onClick={e => { e.stopPropagation(); requestNotifPermission(); }}
+              title="Enable desktop notifications for critical alerts"
+              className="text-hud-amber text-sm shrink-0 hover:text-white transition-colors"
+            >
+              🔔
+            </button>
+          )}
+          {notifPerm === 'granted' && criticalCount > 0 && (
+            <span title="Desktop notifications ON" className="text-hud-green text-xs shrink-0">🔔</span>
           )}
         </div>
         <span className="text-hud-text text-sm">{open ? '▲' : '▼'}</span>

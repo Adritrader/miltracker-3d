@@ -106,6 +106,38 @@ const LOCATION_MAP = [
   ['sea of japan',40.00,135.00],['east china sea',29.00,125.00],
 ];
 
+// ─── Military-context filter ─────────────────────────────────────────────────
+const MILITARY_KEYWORDS = [
+  'airstrike','air strike','air raid','bombing','bomb','missile','ballistic','rocket',
+  'explosion','blast','detonation','artillery','mortar','shelling','sniper','gunfire',
+  'drone','uav','shahed','combat','troops','military','army','naval','warship','fleet',
+  'attack helicopter','fighter jet','warplane','offensive','battalion','brigade','regiment',
+  'insurgent','jihad','terrorist','ceasefire','killed','wounded','casualt','dead',
+  'idf','irgc','hamas','hezbollah','houthi','al-shabaab','isis','isil','taliban',
+  'nato','pentagon','airstrike','special forces','paratrooper','frontline',
+];
+function hasMilitaryContext(text = '') {
+  const t = text.toLowerCase();
+  return MILITARY_KEYWORDS.some(kw => t.includes(kw));
+}
+
+// ─── Batched fetch helper — prevents IP-ban from too many parallel GDELT reqs ─
+// Processes `queries` in groups of `batchSize` with `delayMs` pause between batches
+async function batchedFetch(queries, fetchOneFn, batchSize = 4, delayMs = 500) {
+  const results = [];
+  for (let i = 0; i < queries.length; i += batchSize) {
+    const batch = queries.slice(i, i + batchSize);
+    const settled = await Promise.allSettled(batch.map(fetchOneFn));
+    for (const r of settled) {
+      if (r.status === 'fulfilled') results.push(...r.value);
+    }
+    if (i + batchSize < queries.length) {
+      await new Promise(res => setTimeout(res, delayMs));
+    }
+  }
+  return results;
+}
+
 function geocodeTitle(title = '', sourcecountry = '') {
   const text = `${title} ${sourcecountry}`.toLowerCase();
   for (const [kw, lat, lon] of LOCATION_MAP) {
@@ -162,7 +194,7 @@ async function fetchGDELTGeoConflicts() {
     'Afghanistan Taliban explosion killed',
   ];
 
-  const fetches = queries.map(async q => {
+  const fetchGeoQuery = async q => {
     try {
       const url = `${GDELT_BASE}/geo/geo?query=${encodeURIComponent(q)}&mode=pointdata&maxpoints=60&timespan=48h&format=json`;
       const res  = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
@@ -190,10 +222,9 @@ async function fetchGDELTGeoConflicts() {
       }
       return items;
     } catch (_) { return []; }
-  });
+  };
 
-  const settled = await Promise.allSettled(fetches);
-  return settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  return batchedFetch(queries, fetchGeoQuery);
 }
 
 // ─── GDELT DOC geocoded articles ─────────────────────────────────────────────
@@ -232,7 +263,7 @@ async function fetchGDELTDocConflicts() {
     'Ukraine Kyiv drone Shahed interception missiles',
   ];
 
-  const fetches = queries.map(async q => {
+  const fetchDocQuery = async q => {
     try {
       const url = `${GDELT_BASE}/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=25&sort=DateDesc&format=json&timespan=24h`;
       const res  = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
@@ -242,6 +273,8 @@ async function fetchGDELTDocConflicts() {
       for (const a of data?.articles || []) {
         const title = a.title || '';
         if (!title) continue;
+        // §6.3 — skip articles without any military context
+        if (!hasMilitaryContext(title)) continue;
 
         // GDELT DOC artlist rarely includes lat/lon — geocode from title if missing
         let lat = a.lat != null ? +a.lat : null;
@@ -270,10 +303,9 @@ async function fetchGDELTDocConflicts() {
       }
       return items;
     } catch (_) { return []; }
-  });
+  };
 
-  const settled = await Promise.allSettled(fetches);
-  return settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  return batchedFetch(queries, fetchDocQuery);
 }
 
 // ─── ReliefWeb API (OCHA — free, no key required) ───────────────────────────

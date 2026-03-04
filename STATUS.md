@@ -33,8 +33,8 @@
 
 | # | Item | Estado |
 |---|------|--------|
-| 3.1 | ADS-B timeout agresivo por fuente | ❌ Pendiente |
-| 3.2 | GDELT límite de concurrencia | ❌ Pendiente |
+| 3.1 | ADS-B timeout agresivo por fuente | ✅ `a7d066b` |
+| 3.2 | GDELT límite de concurrencia | ✅ `batchedFetch` 4req/500ms — conflictService.js |
 | 3.3 | Disk cache TTL al leer | ✅ Hecho |
 | 3.4 | `analyzeLocalDanger` en worker thread | ❌ Pendiente |
 | 3.5 | Compresión HTTP Express | ✅ Hecho |
@@ -65,7 +65,7 @@
 |---|------|--------|
 | 6.1 | Ghost tracking (aviones stale 5 min) | ✅ Hecho |
 | 6.2 | Ships: fuente real AIS global | ✅ Hecho (AISStream 3-tier) |
-| 6.3 | News geocoding filtro militar | ❌ Pendiente |
+| 6.3 | News geocoding filtro militar | ✅ `hasMilitaryContext()` en fetchGDELTDocConflicts |
 | 6.4 | GDELT vacío vs error diferenciado | ❌ Pendiente |
 | 6.5 | Events `firstSeenAt` persist (no reset de timestamps) | ✅ Hecho |
 
@@ -75,7 +75,7 @@
 |---|------|--------|
 | 7.1 | AlertPanel diseño visual (pulso, bordes) | ✅ Hecho |
 | 7.2 | Indicador de carga inicial | ✅ Hecho |
-| 7.3 | AlertPanel límite visible + expandir | ❌ Pendiente |
+| 7.3 | AlertPanel límite visible + expandir | ✅ `a7d066b` |
 | 7.4 | Tema claro/oscuro | ❌ Pendiente (baja prioridad) |
 | 7.5 | Link FlightAware | ✅ Eliminado (no querido) |
 | 7.6 | Filtro por tipo de misión | ✅ Hecho |
@@ -104,7 +104,7 @@
 |---|------|--------|
 | 10.1 | Replay histórico (timeline) | ❌ Pendiente |
 | 10.2 | Heatmap de actividad | ❌ Pendiente |
-| 10.3 | Notificaciones push browser | ❌ Pendiente |
+| 10.3 | Notificaciones push browser | ✅ AlertPanel.jsx — Notification API, bell icon, dedup por id |
 | 10.4 | Dashboard estadísticas / gráficas | ❌ Pendiente |
 | 10.5 | Búsqueda global (callsign/MMSI) | ✅ Hecho (SearchBar) |
 | 10.6 | Exportar GeoJSON / KML | ❌ Pendiente |
@@ -118,7 +118,7 @@
 | # | Item | Estado |
 |---|------|--------|
 | 11.1 | `docker-compose.yml` | ❌ Pendiente |
-| 11.2 | Script `dev` unificado en raíz | ❌ Pendiente |
+| 11.2 | Script `dev` unificado en raíz | ✅ root package.json `dev` via concurrently |
 | 11.3 | Build producción documentado | ❌ Pendiente |
 | 11.4 | `.env.example` | ✅ Hecho |
 
