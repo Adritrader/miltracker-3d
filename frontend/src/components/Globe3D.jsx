@@ -117,6 +117,13 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     // blurry on mobile Retina / 3x screens. Cap at 2× for performance.
     viewer.resolutionScale = Math.min(window.devicePixelRatio || 1, 2);
 
+    // ── Continuous rendering for smooth entity position interpolation ─────
+    // Disabled requestRenderMode so CallbackProperty-driven entities animate
+    // smoothly every frame instead of only on user-interaction frames.
+    viewer.scene.requestRenderMode    = false;
+    viewer.clock.shouldAnimate        = true;
+    viewer.clock.multiplier           = 1;
+
     // ── Initial camera position (only on first mount) ─────────────────────
     if (!cameraInitialized.current) {
       cameraInitialized.current = true;

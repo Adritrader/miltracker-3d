@@ -10,6 +10,10 @@ import { isValidCoord } from '../utils/geoUtils.js';
 import { resolveCountry } from '../utils/militaryFilter.js';
 
 const MAX_TRAIL_POINTS = 60;         // ~30 min of history at 30-s intervals
+
+// Duration (ms) over which entity position is linearly interpolated.
+// Ships move slowly so a 20-second lerp window is smooth and realistic.
+const SMOOTH_MS = 20_000;
 const TRAIL_STORAGE_KEY = 'mlt_ship_trails_v1';
 
 function loadStoredTrails() {
@@ -150,14 +154,27 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
         // ── Billboard / label ───────────────────────────────────────────────
         if (entityMapRef.current.has(id)) {
           const entity = entityMapRef.current.get(id);
-          entity.position = position;
+          // Smooth position transition: lerp from current displayed position
+          const tr  = entity._transition;
+          const cur = entity.position?.getValue?.(Cesium.JulianDate.now());
+          tr.from   = (cur && isFinite(cur.x)) ? Cesium.Cartesian3.clone(cur) : tr.to;
+          tr.to     = position;
+          tr.start  = Date.now();
           if (entity.billboard) entity.billboard.image = iconUri;
           if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
           entity._milData = { ...ship, type_entity: 'ship' };
         } else {
+          // Create smooth-moving entity — position driven by a lerp CallbackProperty
+          const tr = { from: position, to: position, start: Date.now() };
+          const posCallback = new Cesium.CallbackProperty(() => {
+            const elapsed = Date.now() - tr.start;
+            const t = Math.min(elapsed / SMOOTH_MS, 1);
+            if (t >= 1) return tr.to;
+            return Cesium.Cartesian3.lerp(tr.from, tr.to, t, new Cesium.Cartesian3());
+          }, false);
           const entity = shipDS.entities.add({
             id: `ship-${id}`,
-            position,
+            position: posCallback,
             billboard: {
               image: iconUri,
               width:  46,
@@ -188,6 +205,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
             },
           });
           entity._milData = { ...ship, type_entity: 'ship' };
+          entity._transition = tr;
           entityMapRef.current.set(id, entity);
         }
       }
