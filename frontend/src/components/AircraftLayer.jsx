@@ -70,7 +70,7 @@ function getCachedIcon(heading, color, helicopter = false) {
   return _iconCache.get(key);
 }
 
-const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }) => {
+const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
   const trailPointsRef  = useRef(loadStoredTrails()); // icao24 → Cartesian3[] (persisted)
@@ -134,7 +134,8 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
 
         const altM     = Math.max(ac.altitude || 0, 100);
         const position = Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, altM);
-        const color    = getAircraftColor(ac.country);
+        const isTracked = trackedList?.has(ac.id);
+        const color    = isTracked ? '#FFD700' : getAircraftColor(ac.country);
         const helo     = isHelicopter(ac.aircraftType);
         const iconUri  = getCachedIcon(ac.heading, color, helo);
 
@@ -209,6 +210,8 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
           tr.start  = Date.now();
           if (entity.billboard) entity.billboard.image = iconUri;
           if (entity.label)     entity.label.text      = new Cesium.ConstantProperty(buildLabelText(ac));
+          if (entity.label && isTracked) entity.label.fillColor = Cesium.Color.fromCssColorString('#FFD700');
+          else if (entity.label)        entity.label.fillColor = Cesium.Color.fromCssColorString('#00ff88');
           entity._milData = ac;
         } else {
           // Create smooth-moving entity — position driven by a lerp CallbackProperty
@@ -236,7 +239,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
             label: {
               text: buildLabelText(ac),
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
-              fillColor: Cesium.Color.fromCssColorString('#00ff88'),
+              fillColor: Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00ff88'),
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -261,7 +264,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
       // Persist trail history to sessionStorage after each update
       saveTrails(trailPointsRef.current);
     }
-  }, [viewer, aircraft, getDS]);
+  }, [viewer, aircraft, trackedList, getDS]);
 
   // ── Click selection ────────────────────────────────────────────────────────
   useEffect(() => {

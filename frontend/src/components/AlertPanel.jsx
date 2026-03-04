@@ -83,9 +83,136 @@ const AlertItem = ({ alert, onFlyTo }) => {
   );
 };
 
+// ── Local SITREP generator — builds a military ops brief from alert data ──────
+function generateSitrep(alerts) {
+  const now = new Date();
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+  const regions = {};
+  const types   = {};
+
+  for (const a of alerts) {
+    counts[a.severity] = (counts[a.severity] || 0) + 1;
+    const src = a.source || 'Unknown';
+    regions[src] = (regions[src] || 0) + 1;
+    const t = (() => {
+      const title = (a.title || '').toLowerCase();
+      if (/missile|ballistic|rocket/.test(title))  return 'Missile Activity';
+      if (/airstrike|air strike|bomb/.test(title)) return 'Air Strikes';
+      if (/naval|warship|fleet/.test(title))       return 'Naval Ops';
+      if (/drone|uav|uas/.test(title))             return 'Drone Ops';
+      if (/troops|ground|infantry/.test(title))    return 'Ground Forces';
+      if (/nuclear|cbrn/.test(title))              return 'CBRN Threat';
+      if (/cyber|hack/.test(title))                return 'Cyber Ops';
+      return 'General Conflict';
+    })();
+    types[t] = (types[t] || 0) + 1;
+  }
+
+  const threatLevel =
+    counts.critical >= 3 ? 'CRITICAL — Immediate escalation risk' :
+    counts.critical >= 1 ? 'HIGH — Active conflict situations' :
+    counts.high >= 3     ? 'ELEVATED — Multiple hostile incidents' :
+                           'MODERATE — Routine surveillance posture';
+
+  const topTypes    = Object.entries(types).sort((a,b) => b[1]-a[1]).slice(0,4);
+  const topRegions  = Object.entries(regions).sort((a,b) => b[1]-a[1]).slice(0,4);
+
+  return { threatLevel, counts, topTypes, topRegions, total: alerts.length, asOf: now };
+}
+
+const SitrepView = ({ alerts, aiInsight }) => {
+  const s = generateSitrep(alerts);
+  const isCrit = s.counts.critical > 0;
+  return (
+    <div className="space-y-3 text-xs font-mono">
+      {/* Header */}
+      <div className="border border-hud-border/50 rounded p-2 bg-black/30">
+        <div className="hud-label mb-0.5">SITUATION REPORT</div>
+        <div className="text-hud-text text-[10px]">
+          {s.asOf.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' })}&nbsp;
+          {s.asOf.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' })} LOCAL
+        </div>
+      </div>
+
+      {/* Threat level */}
+      <div className={`p-2 rounded border ${isCrit ? 'border-red-600/60 bg-red-950/40' : 'border-hud-amber/40 bg-yellow-950/20'}`}>
+        <div className="hud-label mb-0.5">OVERALL THREAT LEVEL</div>
+        <div className={`font-bold ${isCrit ? 'text-red-400' : 'text-hud-amber'}`}>{s.threatLevel}</div>
+      </div>
+
+      {/* Alert counts */}
+      <div>
+        <div className="hud-label mb-1">INCIDENTS BY SEVERITY</div>
+        <div className="grid grid-cols-2 gap-1">
+          {[['CRITICAL', s.counts.critical,'text-red-400'],
+            ['HIGH',     s.counts.high,    'text-orange-400'],
+            ['MEDIUM',   s.counts.medium,  'text-yellow-400'],
+            ['LOW',      s.counts.low,     'text-green-400']
+          ].map(([label, count, cls]) => (
+            <div key={label} className="flex justify-between border border-hud-border/30 rounded px-2 py-1">
+              <span className={`${cls} font-bold`}>{label}</span>
+              <span className="text-white">{count || 0}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Incident types */}
+      {s.topTypes.length > 0 && (
+        <div>
+          <div className="hud-label mb-1">INCIDENT TYPES</div>
+          {s.topTypes.map(([type, cnt]) => (
+            <div key={type} className="flex justify-between text-hud-text py-0.5 border-b border-hud-border/20">
+              <span className="text-hud-blue">&#x25B6; {type}</span>
+              <span className="text-white font-bold">{cnt}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sources */}
+      {s.topRegions.length > 0 && (
+        <div>
+          <div className="hud-label mb-1">TOP SOURCES</div>
+          {s.topRegions.map(([src, cnt]) => (
+            <div key={src} className="flex justify-between text-hud-text py-0.5 border-b border-hud-border/20">
+              <span className="text-hud-green truncate max-w-[160px]">{src}</span>
+              <span className="text-white font-bold">{cnt}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Latest critical headlines */}
+      {s.counts.critical > 0 && (
+        <div>
+          <div className="hud-label mb-1">LATEST CRITICAL EVENTS</div>
+          {alerts.filter(a => a.severity === 'critical').slice(0,4).map((a,i) => (
+            <div key={i} className="text-red-300 py-0.5 border-b border-red-900/30 text-[10px] leading-snug">
+              &#x25A0; {a.title}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* AI assessment if available */}
+      {aiInsight?.summary && (
+        <div className="border border-hud-green/30 rounded p-2 bg-hud-green/5">
+          <div className="hud-label mb-1">AI ASSESSMENT</div>
+          <p className="text-hud-text leading-relaxed">{aiInsight.summary}</p>
+        </div>
+      )}
+
+      <div className="text-hud-text text-[10px] text-right">
+        {s.total} total events tracked
+      </div>
+    </div>
+  );
+};
+
 const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) => {
   const [open, setOpen] = useState(!isMobile);
-  const [tab, setTab] = useState('alerts'); // 'alerts' | 'ai'
+  const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
 
   // Only show CRITICAL alerts
   const criticalAlerts = alerts.filter(a => a.severity === 'critical');
@@ -132,7 +259,7 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
         <div className="hud-panel animate-fade-in">
           {/* Tabs */}
           <div className="flex border-b border-hud-border" style={{ overflowX: 'hidden' }}>
-            {['alerts', 'ai'].map(t => (
+            {['alerts', 'sitrep', 'ai'].map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -140,8 +267,10 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
                   ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
               >
                 {t === 'alerts'
-                  ? (isMobile ? `⚠ ${criticalCount}` : `⚠ CRITICAL (${criticalCount})`)
-                  : (isMobile ? '◈ AI' : '◈ AI INTEL')}
+                  ? (isMobile ? `⚠ ${criticalCount}` : `⚠ CRIT (${criticalCount})`)
+                  : t === 'sitrep'
+                  ? (isMobile ? '≡' : 'SITREP')
+                  : (isMobile ? '◈' : '◈ AI')}
               </button>
             ))}
           </div>
@@ -153,6 +282,12 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
                     <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
                   ))
                 : <div className="text-hud-text text-xs text-center py-4">No critical alerts</div>
+            )}
+
+            {tab === 'sitrep' && (
+              alerts.length > 0
+                ? <SitrepView alerts={alerts} aiInsight={aiInsight} />
+                : <div className="text-hud-text text-xs text-center py-4">Waiting for alert data…</div>
             )}
 
             {tab === 'ai' && (

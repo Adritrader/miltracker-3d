@@ -328,7 +328,7 @@ function buildIcon(type, severity) {
 
 // ── Geographic deduplication — keep only the highest-priority event within
 // minDeg degrees of any already-placed pin. Prevents icon pile-ups at global zoom.
-function deduplicateByProximity(items, minDeg = 1.2) {
+function deduplicateByProximity(items, minDeg = 0.3) {
   const PRIORITY = { critical: 4, high: 3, medium: 2, low: 1 };
   const sorted = [...items].sort((a, b) =>
     (PRIORITY[b.severity] || 0) - (PRIORITY[a.severity] || 0)
@@ -381,7 +381,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
 
     if (!visible || !conflicts.length) return;
 
-    const visibleConflicts = deduplicateByProximity(conflicts, 1.2);
+    const visibleConflicts = deduplicateByProximity(conflicts, 0.3);
 
     ds.entities.suspendEvents();
     try {

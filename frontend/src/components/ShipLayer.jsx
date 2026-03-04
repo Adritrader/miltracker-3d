@@ -39,7 +39,7 @@ function saveTrails(trailPointsMap) {
   } catch { /* storage full */ }
 }
 
-const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
+const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, trackedList = null }) => {
   const entityMapRef   = useRef(new Map());
   const trailEntityRef = useRef(new Map());
   const trailPointsRef = useRef(loadStoredTrails());
@@ -100,7 +100,8 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
         if (!isValidCoord(ship.lat, ship.lon)) continue;
         const id       = ship.mmsi || ship.id;
         const position = Cesium.Cartesian3.fromDegrees(ship.lon, ship.lat, 0);
-        const color    = getShipColor(ship.flag);
+        const isTracked = trackedList?.has(id);
+        const color    = isTracked ? '#FFD700' : getShipColor(ship.flag);
         const iconUri  = SHIP_SVG(ship.heading || 0, color);
         // Baseline vessels (no live AIS) get a dimmer appearance
         const isBase   = !!ship.isBaseline;
@@ -172,7 +173,11 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
           tr.to     = position;
           tr.start  = Date.now();
           if (entity.billboard) entity.billboard.image = iconUri;
+          if (entity.billboard) entity.billboard.color = isTracked
+            ? Cesium.Color.WHITE
+            : (isBase ? Cesium.Color.WHITE.withAlpha(0.45) : Cesium.Color.WHITE);
           if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
+          if (entity.label)     entity.label.fillColor = Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00aaff');
           entity._milData = { ...ship, type_entity: 'ship' };
         } else {
           // Create smooth-moving entity — position driven by a lerp CallbackProperty
@@ -191,7 +196,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
               width:  46,
               height: 46,
               // Baseline vessels dimmed to indicate "last known position"
-              color: isBase ? Cesium.Color.WHITE.withAlpha(0.45) : Cesium.Color.WHITE,
+              color: isBase && !isTracked ? Cesium.Color.WHITE.withAlpha(0.45) : Cesium.Color.WHITE,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
@@ -201,7 +206,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
             label: {
               text: shipLabel,
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
-              fillColor: Cesium.Color.fromCssColorString('#00aaff'),
+              fillColor: Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00aaff'),
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -225,7 +230,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
       trailDS.entities.resumeEvents();
       saveTrails(trailPointsRef.current);
     }
-  }, [viewer, ships, getDS]);
+  }, [viewer, ships, trackedList, getDS]);
 
   return null;
 };

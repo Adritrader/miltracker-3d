@@ -151,6 +151,7 @@ function App() {
           visible={filters.showAircraft}
           onSelect={handleEntityClick}
           isMobile={isMobile}
+          trackedList={trackedList}
         />
         </ErrorBoundary>
         <ErrorBoundary name="ShipLayer" silent>
@@ -160,6 +161,7 @@ function App() {
           visible={filters.showShips}
           onSelect={handleEntityClick}
           isMobile={isMobile}
+          trackedList={trackedList}
         />
         </ErrorBoundary>
         <ErrorBoundary name="DangerZoneLayer" silent>

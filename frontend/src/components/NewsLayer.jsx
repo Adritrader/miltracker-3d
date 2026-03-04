@@ -20,7 +20,7 @@ function getNewsColor(item) {
 
 // ── Geographic deduplication — prevent news pin pile-ups at global zoom.
 // Sort by category priority, then suppress pins within minDeg of a kept pin.
-function deduplicateNews(items, minDeg = 1.5) {
+function deduplicateNews(items, minDeg = 0.4) {
   const priority = (item) => {
     const t = (item.title || '').toLowerCase();
     if (/explosion|blast|strike|bomb|attack|missile|kill|dead/.test(t)) return 5;
@@ -81,7 +81,7 @@ const NewsLayer = ({ viewer, news, visible, onSelect }) => {
     // Filter only geolocated news
     const geoNews = deduplicateNews(
       news.map(geocodeNewsItem).filter(n => n.lat && n.lon),
-      1.5
+      0.4
     ).slice(0, 80); // limit to 80 pins for performance
 
     for (let _i = 0; _i < geoNews.length; _i++) {
