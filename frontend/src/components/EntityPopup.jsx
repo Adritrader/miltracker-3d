@@ -312,12 +312,17 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="COUNTRY"    value={entity.country || '\u2014'} />
               <Row label="POSITION"   value={`${entity.lat?.toFixed(2)}\u00b0, ${entity.lon?.toFixed(2)}\u00b0`} />
               <Row label="SOURCE"     value={entity.source || 'GDELT'} />
-              {entity.publishedAt && (
-                <Row label="DATE" value={new Date(entity.publishedAt).toLocaleString('es-ES', {
-                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                })} />
-              )}
-              <Row label="REPORTED"   value={timeAgo(entity.publishedAt)} />
+              {(() => {
+                const ts = entity.firstSeenAt || entity.publishedAt;
+                return ts ? (
+                  <>
+                    <Row label="DETECTED" value={new Date(ts).toLocaleString('es-ES', {
+                      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                    })} />
+                    <Row label="AGE" value={timeAgo(ts)} />
+                  </>
+                ) : null;
+              })()}
               <div className="pt-1">
                 <p className="text-white text-xs font-mono leading-relaxed line-clamp-4">{entity.title}</p>
               </div>
@@ -328,7 +333,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
           {isNews && (
             <>
               <Row label="SOURCE"    value={entity.source}            highlight="text-hud-amber" />
-              <Row label="PUBLISHED" value={timeAgo(entity.publishedAt)} />
+              <Row label="PUBLISHED" value={timeAgo(entity.firstSeenAt || entity.publishedAt)} />
               {entity.lat && <Row label="LOCATION" value={`${entity.lat?.toFixed(2)}\u00b0, ${entity.lon?.toFixed(2)}\u00b0`} />}
               <div className="pt-1">
                 <p className="text-white text-xs font-mono leading-relaxed">{entity.title}</p>

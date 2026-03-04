@@ -55,12 +55,63 @@ function hashArr(arr) {
   return arr.map(i => (i.id || i.mmsi || '') + '|' + (i.lat ?? '') + '|' + (i.lon ?? '')).join(',');
 }
 
+// ─── Conflict/news persistent accumulating stores ────────────────────────────
+// Events are ADDED (never replaced) and expire after 72h.
+// This preserves the original firstSeenAt so "1m ago" is accurate.
+const CONFLICT_TTL = 72 * 60 * 60_000;  // 72 hours in ms
+const NEWS_TTL     = 72 * 60 * 60_000;
+
+// Rebuild stores from disk cache (only keep non-expired events)
+function buildStore(diskItems, ttl) {
+  const now = Date.now();
+  const store = new Map();
+  for (const item of (diskItems || [])) {
+    const ts = item.firstSeenAt || item.publishedAt;
+    if (ts && now - new Date(ts).getTime() < ttl) {
+      store.set(item.id, item);
+    }
+  }
+  return store;
+}
+
+const conflictStore = buildStore(loadCache('conflicts', []), CONFLICT_TTL);
+const newsStore     = buildStore(loadCache('news',      []), NEWS_TTL);
+
+// Merge fresh events into a store; returns { changed, items[] }
+function mergeIntoStore(store, freshEvents, ttl) {
+  const now = Date.now();
+  const nowIso = new Date().toISOString();
+  let changed = false;
+
+  // Add events not yet seen
+  for (const ev of freshEvents) {
+    if (!ev.id) continue;
+    if (!store.has(ev.id)) {
+      store.set(ev.id, { ...ev, firstSeenAt: ev.publishedAt || nowIso });
+      changed = true;
+    }
+  }
+
+  // Expire events older than TTL
+  for (const [id, ev] of store.entries()) {
+    const ts = ev.firstSeenAt || ev.publishedAt;
+    if (!ts || now - new Date(ts).getTime() >= ttl) {
+      store.delete(id);
+      changed = true;
+    }
+  }
+
+  const items = [...store.values()]
+    .sort((a, b) => new Date(b.firstSeenAt || b.publishedAt || 0) - new Date(a.firstSeenAt || a.publishedAt || 0));
+  return { changed, items };
+}
+
 // ─── In-memory cache (pre-loaded from disk so first connect serves real data)
 let cache = {
   aircraft:           loadCache('aircraft',  []),
   ships:              loadCache('ships',     []),
-  news:               loadCache('news',      []),
-  conflicts:          loadCache('conflicts', []),
+  news:               [...newsStore.values()].sort((a,b) => new Date(b.firstSeenAt||b.publishedAt||0) - new Date(a.firstSeenAt||a.publishedAt||0)),
+  conflicts:          [...conflictStore.values()].sort((a,b) => new Date(b.firstSeenAt||b.publishedAt||0) - new Date(a.firstSeenAt||a.publishedAt||0)),
   alerts:             [],
   dangerZones:        [],
   lastAircraftUpdate: null,
@@ -138,16 +189,17 @@ async function pollShips() {
 // ─── Conflict events polling (every 10 minutes) ─────────────────────────────
 async function pollConflicts() {
   try {
-    const conflicts = await fetchConflictEvents();
-    cache.conflicts = conflicts;
-    cache.lastConflictUpdate = new Date().toISOString();
-    const conflictHash = hashArr(conflicts.map(c => ({ id: c.id, lat: c.lat, lon: c.lon })));
-    if (conflictHash !== prevHash.conflicts) {
+    const freshEvents = await fetchConflictEvents();
+    const { changed, items: conflicts } = mergeIntoStore(conflictStore, freshEvents, CONFLICT_TTL);
+    if (changed) {
+      cache.conflicts = conflicts;
+      cache.lastConflictUpdate = new Date().toISOString();
       io.emit('conflict_update', { conflicts, timestamp: cache.lastConflictUpdate });
-      prevHash.conflicts = conflictHash;
+      saveCache('conflicts', conflicts);
+      console.log(`[Conflicts] Store updated: ${conflicts.length} events total (${freshEvents.length} fetched)`);
+    } else {
+      console.log(`[Conflicts] No new events (${freshEvents.length} fetched, ${conflictStore.size} in store)`);
     }
-    console.log(`[Conflicts] ${conflicts.length} events emitted`);
-    if (conflicts.length > 0) saveCache('conflicts', conflicts);
   } catch (err) {
     console.error('[Conflicts] Poll error:', err.message);
   }
@@ -166,16 +218,24 @@ async function pollNews() {
     const rssItems   = rss.status   === 'fulfilled' ? rss.value   : [];
     console.log(`[News] GDELT:${gdeltItems.length} NewsAPI:${newsItems.length} RSS:${rssItems.length}`);
 
-    // Merge and deduplicate by url — RSS first (has photos)
+    // Dedup by url / title across sources, assign stable id
     const merged = [...rssItems, ...gdeltItems, ...newsItems];
-    const seen = new Set();
-    cache.news = merged.filter(n => {
-      if (seen.has(n.url)) return false;
-      seen.add(n.url);
+    const seenUrl = new Set();
+    const freshNews = merged.filter(n => {
+      const key = n.url || n.title;
+      if (!key || seenUrl.has(key)) return false;
+      seenUrl.add(key);
+      if (!n.id) n.id = `news-${encodeURIComponent(key).slice(0, 80)}`;
       return true;
-    }).slice(0, 100);
+    }).slice(0, 200);
 
-    cache.lastNewsUpdate = new Date().toISOString();
+    // Merge into persistent store — only add new items, preserve firstSeenAt
+    const { changed, items: news } = mergeIntoStore(newsStore, freshNews, NEWS_TTL);
+    if (changed) {
+      cache.news = news.slice(0, 100);
+      cache.lastNewsUpdate = new Date().toISOString();
+      saveCache('news', cache.news);
+    }
 
     // AI analysis on top headlines (if Gemini key present)
     if (process.env.GEMINI_API_KEY && cache.news.length > 0) {
@@ -193,14 +253,13 @@ async function pollNews() {
     cache.alerts = alertsFromNews(cache.news);
     console.log(`[Alerts] ${cache.alerts.length} news-driven alerts generated (critical:${cache.alerts.filter(a=>a.severity==='critical').length})`);
 
-    const newsHash = hashArr(cache.news.map(n => ({ id: n.url, lat: n.lat, lon: n.lon })));
-    if (newsHash !== prevHash.news) {
+    if (changed) {
       io.emit('news_update', { news: cache.news, timestamp: cache.lastNewsUpdate });
-      prevHash.news = newsHash;
+      console.log(`[News] Store updated: ${cache.news.length} items total`);
+    } else {
+      console.log(`[News] No new items (${freshNews.length} fetched, ${newsStore.size} in store)`);
     }
     io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
-    console.log(`[News] ${cache.news.length} items emitted`);
-    if (cache.news.length > 0) saveCache('news', cache.news);
   } catch (err) {
     console.error('[News] Poll error:', err.message);
   }
