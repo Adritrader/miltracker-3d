@@ -18,6 +18,7 @@ import AlertPanel from './components/AlertPanel.jsx';
 import NewsPanel from './components/NewsPanel.jsx';
 import SearchBar from './components/SearchBar.jsx';
 import CoordinateHUD from './components/CoordinateHUD.jsx';
+import NewsClusterModal from './components/NewsClusterModal.jsx';
 import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
 import TrackingPanel from './components/TrackingPanel.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
@@ -43,6 +44,7 @@ function App() {
   const viewerRef = useRef(null);
   const [viewer, setViewer] = useState(null);
   const [selectedEntity, setSelectedEntity] = useState(null);
+  const [newsCluster, setNewsCluster] = useState(null); // array of news items for cluster modal
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [spaceView, setSpaceView]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -57,6 +59,7 @@ function App() {
       if (e.key === 'Escape') {
         setSelectedEntity(null);
         setSearchOpen(false);
+        setNewsCluster(null);
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
@@ -91,6 +94,10 @@ function App() {
   const handleViewerReady = useCallback((v) => {
     viewerRef.current = v;
     setViewer(v);
+  }, []);
+
+  const handleClusterSelect = useCallback((items) => {
+    setNewsCluster(items);
   }, []);
 
   const handleEntityClick = useCallback((entity) => {
@@ -179,6 +186,7 @@ function App() {
           news={filteredNews}
           visible={filters.showNews}
           onSelect={handleEntityClick}
+          onClusterSelect={handleClusterSelect}
         />
         </ErrorBoundary>
         <ErrorBoundary name="ConflictLayer" silent>
@@ -256,6 +264,15 @@ function App() {
 
       {/* Bottom-right: Map layer switcher */}
       <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
+
+      {/* News cluster modal — shown when multiple items share a map area */}
+      {newsCluster && (
+        <NewsClusterModal
+          items={newsCluster}
+          onSelect={handleNewsSelect}
+          onClose={() => setNewsCluster(null)}
+        />
+      )}
 
       {/* Bottom-right: Entity detail popup */}
       <EntityPopup
