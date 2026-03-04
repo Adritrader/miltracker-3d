@@ -19,6 +19,7 @@ import NewsPanel from './components/NewsPanel.jsx';
 import SearchBar from './components/SearchBar.jsx';
 import CoordinateHUD from './components/CoordinateHUD.jsx';
 import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
+import TrackingPanel from './components/TrackingPanel.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { filterAircraft, filterShips, filterNews } from './utils/militaryFilter.js';
@@ -45,9 +46,8 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [basemap, setBasemap]       = useState(() => localStorage.getItem('milt_basemap') || 'dark');
 
-  // Tracking state — follows an aircraft/ship with the camera
-  const [trackedId, setTrackedId]     = useState(null); // entity id being tracked
-  const [trackedType, setTrackedType] = useState(null); // 'aircraft' | 'ship'
+  // Tracking state — Map<id, { id, type }> supports multiple simultaneous entities
+  const [trackedList, setTrackedList] = useState(new Map());
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -116,45 +116,24 @@ function App() {
 
   // ── Entity tracking ──────────────────────────────────────────────────────────────────
   const handleTrack = useCallback((id, type) => {
-    setTrackedId(id);
-    setTrackedType(type);
+    setTrackedList(prev => new Map(prev).set(id, { id, type }));
   }, []);
 
-  const handleUntrack = useCallback(() => {
-    setTrackedId(null);
-    setTrackedType(null);
-  }, []);
-
-  useEffect(() => {
-    if (!trackedId || !viewer) return;
-    const INTERVAL_MS = 800;
-    const ALTITUDE_AC = 180_000;  // camera height when following aircraft
-    const ALTITUDE_SH = 280_000;  // camera height when following ships
-
-    const follow = () => {
-      const v = viewerRef.current;
-      if (!v || v.isDestroyed()) return;
-
-      let entity = null;
-      if (trackedType === 'aircraft') {
-        entity = aircraft.find(a => a.id === trackedId || a.icao24 === trackedId);
-      } else if (trackedType === 'ship') {
-        entity = ships.find(s => (s.mmsi || s.id) === trackedId);
-      }
-      if (!entity || entity.lat == null) return;
-
-      const alt = trackedType === 'ship' ? ALTITUDE_SH : ALTITUDE_AC;
-      // Use setView (instant) instead of flyTo (animated) so camera stays glued
-      v.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(entity.lon, entity.lat, alt),
-        orientation: { heading: 0, pitch: -Math.PI / 2.5, roll: 0 },
+  const handleUntrack = useCallback((id) => {
+    if (id) {
+      setTrackedList(prev => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
       });
-    };
+    } else {
+      setTrackedList(new Map());
+    }
+  }, []);
 
-    follow(); // snap immediately
-    const timer = setInterval(follow, INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [trackedId, trackedType, aircraft, ships, viewer]);
+  const handleUntrackAll = useCallback(() => {
+    setTrackedList(new Map());
+  }, []);
 
   return (
     <div className="w-screen h-screen overflow-hidden" style={{ background: '#050810' }}>
@@ -246,68 +225,16 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Tracking panel — live telemetry for tracked entity */}
-      {trackedId && (() => {
-        const trackedAc   = trackedType === 'aircraft' ? aircraft.find(a => a.id === trackedId || a.icao24 === trackedId) : null;
-        const trackedShip = trackedType === 'ship'     ? ships.find(s => (s.mmsi || s.id) === trackedId) : null;
-        const subject     = trackedAc || trackedShip;
-        const label       = trackedAc?.callsign || trackedShip?.name || trackedId;
-        const altFt       = trackedAc
-          ? (trackedAc.altitudeFt ?? Math.round((trackedAc.altitude || 0) * 3.28084))
-          : null;
-        const speed       = subject ? Math.round(subject.velocity || 0) : null;
-        const hdg         = subject ? Math.round(subject.heading  || 0) : null;
-        const onGround    = trackedAc?.on_ground;
-        return (
-          <div
-            className="fixed z-30 hud-panel text-xs font-mono"
-            style={{
-              top: isMobile ? 56 : 12,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              borderColor: trackedAc ? '#4af766' : '#00aaff',
-              minWidth: 220,
-            }}
-          >
-            {/* Header row */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-hud-border/50">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-              <span className="text-green-400 font-bold tracking-widest text-xs">TRACKING</span>
-              <span className="text-white font-bold ml-1 truncate max-w-[120px]">{label}</span>
-              <button
-                onClick={handleUntrack}
-                className="ml-auto text-hud-text hover:text-red-400 font-bold transition-colors pl-2"
-                title="Stop tracking"
-              >&times;</button>
-            </div>
-            {/* Telemetry row */}
-            {subject && (
-              <div className="flex items-center gap-3 px-3 py-1.5 text-hud-text">
-                {altFt != null && (
-                  <span title="Altitude">
-                    <span className="text-hud-amber font-bold">{onGround ? 'GND' : `${Math.round(altFt / 100) * 100}ft`}</span>
-                  </span>
-                )}
-                {speed != null && (
-                  <span title="Speed">
-                    <span className="text-hud-green font-bold">{speed}{trackedAc ? 'kt' : 'kn'}</span>
-                  </span>
-                )}
-                {hdg != null && (
-                  <span title="Heading">
-                    <span className="text-hud-blue font-bold">{hdg}&deg;</span>
-                  </span>
-                )}
-                {trackedAc && (
-                  <span className={trackedAc.on_ground ? 'text-green-400' : 'text-blue-400'}>
-                    {trackedAc.on_ground ? '\ud83d\udfe2 GND' : '\ud83d\udd35 AIR'}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Tracking panel — right-side floating, multi-entity */}
+      <TrackingPanel
+        trackedList={trackedList}
+        aircraft={aircraft}
+        ships={ships}
+        viewer={viewer}
+        onUntrack={handleUntrack}
+        onUntrackAll={handleUntrackAll}
+        isMobile={isMobile}
+      />
 
       {/* Bottom-right: Map layer switcher */}
       <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
@@ -318,7 +245,7 @@ function App() {
         viewer={viewer}
         onClose={() => setSelectedEntity(null)}
         isMobile={isMobile}
-        trackedId={trackedId}
+        trackedList={trackedList}
         onTrack={handleTrack}
         onUntrack={handleUntrack}
       />

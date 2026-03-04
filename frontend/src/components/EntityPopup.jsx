@@ -59,7 +59,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = null, onTrack, onUntrack }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -137,7 +137,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
   const trackableId = isAircraft
     ? (entity.icao24 || entity.id)
     : isShip ? (entity.mmsi || entity.id) : null;
-  const isTracking = !!trackableId && trackedId === trackableId;
+  const isTracking = !!trackableId && (trackedList?.has(trackableId) ?? false);
 
   // ── Image URL ─────────────────────────────────────────────────────────────
   let imageUrl = null;
@@ -346,7 +346,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = nu
                   ? 'bg-red-900/40 border-red-500/70 text-red-400 hover:bg-red-900/60 animate-pulse'
                   : 'bg-hud-accent/10 border-hud-accent/50 text-hud-accent hover:bg-hud-accent/20'
               }`}
-              onClick={() => isTracking ? onUntrack?.() : onTrack?.(trackableId, isAircraft ? 'aircraft' : 'ship')}
+              onClick={() => isTracking ? onUntrack?.(trackableId) : onTrack?.(trackableId, isAircraft ? 'aircraft' : 'ship')}
             >
               {isTracking ? '\u23f9 UNTRACK' : '\ud83d\udce1 TRACK'}
             </button>
