@@ -98,9 +98,9 @@ function mergeIntoStore(store, freshEvents, ttl) {
     }
   }
 
-  // Expire events older than TTL
+  // Expire events older than TTL — anchor on publishedAt (real article time) with firstSeenAt as fallback
   for (const [id, ev] of store.entries()) {
-    const ts = ev.firstSeenAt || ev.publishedAt;
+    const ts = ev.publishedAt || ev.firstSeenAt;
     if (!ts || now - new Date(ts).getTime() >= ttl) {
       store.delete(id);
       changed = true;
@@ -108,7 +108,7 @@ function mergeIntoStore(store, freshEvents, ttl) {
   }
 
   const items = [...store.values()]
-    .sort((a, b) => new Date(b.firstSeenAt || b.publishedAt || 0) - new Date(a.firstSeenAt || a.publishedAt || 0));
+    .sort((a, b) => new Date(b.publishedAt || b.firstSeenAt || 0) - new Date(a.publishedAt || a.firstSeenAt || 0));
   return { changed, items };
 }
 
@@ -116,8 +116,8 @@ function mergeIntoStore(store, freshEvents, ttl) {
 let cache = {
   aircraft:           loadCache('aircraft',  []),
   ships:              loadCache('ships',     []),
-  news:               [...newsStore.values()].sort((a,b) => new Date(b.firstSeenAt||b.publishedAt||0) - new Date(a.firstSeenAt||a.publishedAt||0)),
-  conflicts:          [...conflictStore.values()].sort((a,b) => new Date(b.firstSeenAt||b.publishedAt||0) - new Date(a.firstSeenAt||a.publishedAt||0)),
+  news:               [...newsStore.values()].sort((a,b) => new Date(b.publishedAt||b.firstSeenAt||0) - new Date(a.publishedAt||a.firstSeenAt||0)),
+  conflicts:          [...conflictStore.values()].sort((a,b) => new Date(b.publishedAt||b.firstSeenAt||0) - new Date(a.publishedAt||a.firstSeenAt||0)),
   alerts:             [],
   dangerZones:        [],
   lastAircraftUpdate: null,

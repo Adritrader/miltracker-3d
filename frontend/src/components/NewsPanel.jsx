@@ -5,9 +5,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { timeAgo } from '../utils/geoUtils.js';
 
-/** Pick the best available timestamp for display: firstSeenAt > publishedAt */
+/** Pick the best available timestamp for display: publishedAt (real article time) > firstSeenAt (poll time) */
 function bestTs(item) {
-  return item.firstSeenAt || item.publishedAt || null;
+  // publishedAt comes from GDELT seendate — unique per article.
+  // firstSeenAt is the server poll time — same for every article in the same batch, so useless for display.
+  const pub = item.publishedAt ? new Date(item.publishedAt) : null;
+  if (pub && !isNaN(pub)) return item.publishedAt;
+  return item.firstSeenAt || null;
 }
 
 /** Format a date string to compact date/time */
@@ -24,7 +28,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
   const [visibleCount, setVisibleCount] = useState(0);
   const prevLenRef = useRef(0);
 
-  // Sort newest first — use firstSeenAt so items ingested in different polls spread naturally
+  // Sort newest first — use publishedAt (real article time) so each article shows its actual age
   const recentNews = [...news]
     .sort((a, b) => new Date(bestTs(b) || 0) - new Date(bestTs(a) || 0))
     .slice(0, 30);
