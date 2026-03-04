@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
@@ -36,6 +37,16 @@ const io = new Server(httpServer, {
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
+
+// Rate limit REST endpoints — 60 req/min per IP
+const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+app.use('/api/', apiLimiter);
 
 // ─── WebSocket change detection — avoid re-emitting identical data ───────────
 const prevHash = { aircraft: '', ships: '', news: '', conflicts: '' };
@@ -216,6 +227,13 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`[Socket] Client disconnected: ${socket.id}`);
   });
+});
+
+// ─── Global error handler ────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[Express] Unhandled error:', err.message);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // ─── Start polling ────────────────────────────────────────────────────────────

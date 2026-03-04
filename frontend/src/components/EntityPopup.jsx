@@ -348,18 +348,29 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               }`}
               onClick={() => isTracking ? onUntrack?.(trackableId) : onTrack?.(trackableId, isAircraft ? 'aircraft' : 'ship')}
             >
-              {isTracking ? '\u23f9 UNTRACK' : '\ud83d\udce1 TRACK'}
+              {isTracking ? '&#x23F9; UNTRACK' : '&#x25CF; TRACK'}
             </button>
+          )}
+
+          {isAircraft && entity.callsign && entity.callsign !== 'UNKNOWN' && (
+            <a
+              href={`https://www.flightaware.com/live/flight/${entity.callsign.trim()}`}
+              target="_blank" rel="noopener noreferrer"
+              className="hud-btn flex-1 text-center"
+              title="Track on FlightAware"
+            >
+              &#x21D7; FLIGHTAWARE
+            </a>
           )}
 
           {isNews && entity.url && (
             <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
-              \ud83d\udd17 OPEN
+              &#x21D7; OPEN
             </a>
           )}
           {isConflict && entity.url && (
             <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
-              \ud83d\udd17 SOURCE
+              &#x21D7; SOURCE
             </a>
           )}
         </div>

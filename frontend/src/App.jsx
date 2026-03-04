@@ -23,6 +23,7 @@ import TrackingPanel from './components/TrackingPanel.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { filterAircraft, filterShips, filterNews } from './utils/militaryFilter.js';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const DEFAULT_FILTERS = {
   showAircraft:  true,
@@ -142,7 +143,8 @@ function App() {
 
       {/* 3D Globe */}
       <Globe3D onViewerReady={handleViewerReady} onEntityClick={handleEntityClick} spaceView={spaceView} basemap={basemap}>
-        {/* Data layers */}
+        {/* Data layers — each wrapped in ErrorBoundary so a crash in one layer doesn't kill the globe */}
+        <ErrorBoundary name="AircraftLayer" silent>
         <AircraftLayer
           viewer={viewer}
           aircraft={filteredAircraft}
@@ -150,6 +152,8 @@ function App() {
           onSelect={handleEntityClick}
           isMobile={isMobile}
         />
+        </ErrorBoundary>
+        <ErrorBoundary name="ShipLayer" silent>
         <ShipLayer
           viewer={viewer}
           ships={filteredShips}
@@ -157,29 +161,38 @@ function App() {
           onSelect={handleEntityClick}
           isMobile={isMobile}
         />
+        </ErrorBoundary>
+        <ErrorBoundary name="DangerZoneLayer" silent>
         <DangerZoneLayer
           viewer={viewer}
           dangerZones={dangerZones}
           alerts={alerts}
           visible={filters.showDanger}
         />
+        </ErrorBoundary>
+        <ErrorBoundary name="NewsLayer" silent>
         <NewsLayer
           viewer={viewer}
           news={filteredNews}
           visible={filters.showNews}
           onSelect={handleEntityClick}
         />
+        </ErrorBoundary>
+        <ErrorBoundary name="ConflictLayer" silent>
         <ConflictLayer
           viewer={viewer}
           conflicts={conflicts}
           visible={filters.showConflicts}
           onSelect={handleEntityClick}
         />
+        </ErrorBoundary>
+        <ErrorBoundary name="MilitaryBasesLayer" silent>
         <MilitaryBasesLayer
           viewer={viewer}
           visible={filters.showBases}
           onSelect={handleEntityClick}
         />
+        </ErrorBoundary>
       </Globe3D>
 
       {/* UI Overlay layers (rendered outside Viewer for performance) */}
