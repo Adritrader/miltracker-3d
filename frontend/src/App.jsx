@@ -68,7 +68,7 @@ function App() {
   }, []);
 
   const {
-    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad,
+    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData,
   } = useRealTimeData();
 
   // Filtered data — deps split per-layer to avoid cross-layer re-renders (§2.3)
@@ -285,7 +285,7 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Initial load overlay */}
+      {/* Full blocking overlay — only when there's truly nothing cached to show */}
       {isInitialLoad && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center pointer-events-none"
@@ -296,6 +296,16 @@ function App() {
           </div>
           <div className="font-mono text-hud-text text-xs tracking-widest opacity-60">
             CONNECTING TO LIVE FEEDS
+          </div>
+        </div>
+      )}
+
+      {/* Non-blocking reconnecting badge — shown when cached data is displayed but socket is down */}
+      {!connected && !isInitialLoad && hasCachedData && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="hud-panel px-3 py-1.5 flex items-center gap-2 text-xs font-mono border border-hud-amber/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-hud-amber animate-pulse" />
+            <span className="text-hud-amber">RECONNECTING — SHOWING CACHED DATA</span>
           </div>
         </div>
       )}

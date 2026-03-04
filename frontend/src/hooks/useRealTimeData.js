@@ -9,12 +9,13 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 // ── LocalStorage cache helpers ───────────────────────────────────────────────
 const CACHE = {
-  aircraft:    { key: 'milt_ac',  ttl: 5  * 60 * 1000 },
-  ships:       { key: 'milt_sh',  ttl: 10 * 60 * 1000 },
-  news:        { key: 'milt_nw',  ttl: 30 * 60 * 1000 },
-  alerts:      { key: 'milt_al',  ttl: 60 * 60 * 1000 },
-  dangerZones: { key: 'milt_dz',  ttl: 60 * 60 * 1000 },
-  aiInsight:   { key: 'milt_ai',  ttl: 6  * 60 * 60 * 1000 }, // 6h — matches backend TTL
+  aircraft:    { key: 'milt_ac',  ttl: 30 * 60 * 1000  },  // 30 min
+  ships:       { key: 'milt_sh',  ttl: 30 * 60 * 1000  },  // 30 min
+  news:        { key: 'milt_nw',  ttl: 2  * 60 * 60 * 1000 }, // 2 h
+  conflicts:   { key: 'milt_cf',  ttl: 2  * 60 * 60 * 1000 }, // 2 h
+  alerts:      { key: 'milt_al',  ttl: 4  * 60 * 60 * 1000 }, // 4 h
+  dangerZones: { key: 'milt_dz',  ttl: 24 * 60 * 60 * 1000 }, // 24 h (static zones)
+  aiInsight:   { key: 'milt_ai',  ttl: 6  * 60 * 60 * 1000 }, // 6 h
 };
 function cacheLoad(type) {
   try {
@@ -38,14 +39,18 @@ export function useRealTimeData() {
   const [aircraftSource, setAircraftSource] = useState(() => cacheLoad('aircraft') ? 'cached' : 'loading');
   const [ships, setShips] = useState(() => cacheLoad('ships') || []);
   const [news, setNews] = useState(() => cacheLoad('news') || []);
-  const [conflicts, setConflicts] = useState([]);
+  const [conflicts, setConflicts] = useState(() => cacheLoad('conflicts') || []);
   const [alerts, setAlerts] = useState(() => cacheLoad('alerts') || []);
   const [dangerZones, setDangerZones] = useState(() => cacheLoad('dangerZones') || []);
   const [aiInsight, setAiInsight] = useState(() => cacheLoad('aiInsight'));
   const [aiError, setAiError] = useState(null);
   const [geminiEnabled, setGeminiEnabled] = useState(null); // null = unknown until server_info arrives
   const [lastUpdate, setLastUpdate] = useState({ aircraft: null, ships: null, news: null });
-  const [isInitialLoad, setIsInitialLoad] = useState(() => !cacheLoad('aircraft') && !cacheLoad('ships'));
+  // hasCachedData: computed once at mount — true if any data was available before socket connects
+  const hasCachedData = useRef(
+    !!(cacheLoad('aircraft') || cacheLoad('ships') || cacheLoad('news') || cacheLoad('conflicts'))
+  ).current;
+  const [isInitialLoad, setIsInitialLoad] = useState(() => !hasCachedData);
 
   const reconnect = useCallback(() => {
     socketRef.current?.connect();
@@ -96,7 +101,9 @@ export function useRealTimeData() {
     });
 
     socket.on('conflict_update', ({ conflicts: cf }) => {
-      setConflicts(cf || []);
+      const list = cf || [];
+      setConflicts(list);
+      cacheSave('conflicts', list);
     });
 
     socket.on('danger_update', ({ dangerZones: dz, alerts: al }) => {
@@ -125,5 +132,5 @@ export function useRealTimeData() {
     return () => socket.disconnect();
   }, []);
 
-  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, reconnect };
+  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, reconnect };
 }
