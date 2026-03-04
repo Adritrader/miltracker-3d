@@ -128,7 +128,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
                       {item.lat && (
                         <>
                           <span className="text-hud-border">·</span>
-                          <span className="text-hud-green text-xs">📍</span>
+                          <span className="text-hud-green text-xs">&#x25C9;</span>
                         </>
                       )}
                     </div>
