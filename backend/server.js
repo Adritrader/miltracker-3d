@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
@@ -32,8 +33,16 @@ const io = new Server(httpServer, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] }
 });
 
+app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
+
+// ─── WebSocket change detection — avoid re-emitting identical data ───────────
+const prevHash = { aircraft: '', ships: '', news: '', conflicts: '' };
+function hashArr(arr) {
+  if (!arr || arr.length === 0) return '';
+  return arr.map(i => (i.id || i.mmsi || '') + '|' + (i.lat ?? '') + '|' + (i.lon ?? '')).join(',');
+}
 
 // ─── In-memory cache (pre-loaded from disk so first connect serves real data)
 let cache = {
@@ -82,7 +91,11 @@ async function pollAircraft() {
     const zones = analyzeLocalDanger(aircraft, cache.ships, cache.news);
     cache.dangerZones = zones.dangerZones;
 
-    io.emit('aircraft_update', { aircraft, timestamp: cache.lastAircraftUpdate });
+    const acHash = hashArr(aircraft);
+    if (acHash !== prevHash.aircraft) {
+      io.emit('aircraft_update', { aircraft, timestamp: cache.lastAircraftUpdate });
+      prevHash.aircraft = acHash;
+    }
     io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
     const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
     const isReal = aircraft.length > 0 && knownSources.includes(aircraft[0]?.source);
@@ -99,7 +112,11 @@ async function pollShips() {
     const ships = await fetchShips();
     cache.ships = ships;
     cache.lastShipUpdate = new Date().toISOString();
-    io.emit('ship_update', { ships, timestamp: cache.lastShipUpdate });
+    const shipHash = hashArr(ships);
+    if (shipHash !== prevHash.ships) {
+      io.emit('ship_update', { ships, timestamp: cache.lastShipUpdate });
+      prevHash.ships = shipHash;
+    }
     console.log(`[Ships] ${ships.length} vessels emitted`);
     if (ships.length > 0) saveCache('ships', ships);
   } catch (err) {
@@ -113,7 +130,11 @@ async function pollConflicts() {
     const conflicts = await fetchConflictEvents();
     cache.conflicts = conflicts;
     cache.lastConflictUpdate = new Date().toISOString();
-    io.emit('conflict_update', { conflicts, timestamp: cache.lastConflictUpdate });
+    const conflictHash = hashArr(conflicts.map(c => ({ id: c.id, lat: c.lat, lon: c.lon })));
+    if (conflictHash !== prevHash.conflicts) {
+      io.emit('conflict_update', { conflicts, timestamp: cache.lastConflictUpdate });
+      prevHash.conflicts = conflictHash;
+    }
     console.log(`[Conflicts] ${conflicts.length} events emitted`);
     if (conflicts.length > 0) saveCache('conflicts', conflicts);
   } catch (err) {
@@ -161,7 +182,11 @@ async function pollNews() {
     cache.alerts = alertsFromNews(cache.news);
     console.log(`[Alerts] ${cache.alerts.length} news-driven alerts generated (critical:${cache.alerts.filter(a=>a.severity==='critical').length})`);
 
-    io.emit('news_update',   { news: cache.news,     timestamp: cache.lastNewsUpdate });
+    const newsHash = hashArr(cache.news.map(n => ({ id: n.url, lat: n.lat, lon: n.lon })));
+    if (newsHash !== prevHash.news) {
+      io.emit('news_update', { news: cache.news, timestamp: cache.lastNewsUpdate });
+      prevHash.news = newsHash;
+    }
     io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
     console.log(`[News] ${cache.news.length} items emitted`);
     if (cache.news.length > 0) saveCache('news', cache.news);

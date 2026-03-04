@@ -21,9 +21,17 @@ function cachePath(key) {
   return join(DATA_DIR, `${key}.cache.json`);
 }
 
+// Default max age: 1 hour. Conflicts and news change often; aircraft are fresh from live ADS-B.
+const CACHE_TTLS = {
+  aircraft:  30 * 60_000,  // 30 min — ADS-B can go stale quickly
+  ships:     60 * 60_000,  // 1 hour
+  news:      60 * 60_000,  // 1 hour
+  conflicts: 2 * 60 * 60_000, // 2 hours
+};
+
 /**
  * Load a cache file from disk. Returns the parsed value or `fallback` if the
- * file doesn't exist or is corrupt.
+ * file doesn't exist, is corrupt, or is older than its TTL.
  */
 export function loadCache(key, fallback = []) {
   const file = cachePath(key);
@@ -31,6 +39,12 @@ export function loadCache(key, fallback = []) {
   try {
     const raw = readFileSync(file, 'utf8');
     const parsed = JSON.parse(raw);
+    const maxAge = CACHE_TTLS[key] ?? 60 * 60_000;
+    const age = Date.now() - new Date(parsed.savedAt).getTime();
+    if (age > maxAge) {
+      console.log(`[Cache] ${key} cache expired (${Math.round(age / 60_000)}min old, max ${Math.round(maxAge / 60_000)}min) — ignoring`);
+      return fallback;
+    }
     console.log(`[Cache] Loaded ${key}: ${Array.isArray(parsed.data) ? parsed.data.length : '?'} items from disk (saved ${parsed.savedAt})`);
     return parsed.data ?? fallback;
   } catch (e) {
