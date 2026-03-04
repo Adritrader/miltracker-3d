@@ -65,6 +65,8 @@ function normalise(ac, sourceName) {
     squawk:       ac.squawk || '',
     type:         'aircraft',
     source:       sourceName,
+    dep_airport:  ac.origin      || ac.dep   || ac.departure   || '',
+    arr_airport:  ac.destination || ac.dest  || ac.arrival     || '',
     lastSeen:     new Date().toISOString(),
   };
 }

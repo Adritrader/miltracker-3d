@@ -274,8 +274,10 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="HEADING"   value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
               <Row label="VERT RATE" value={acVrStr} />
               <Row label="SQUAWK"    value={entity.squawk || '\u2014'} />
-              <Row label="STATUS"    value={entity.on_ground ? '\ud83d\udfe2 ON GROUND' : '\ud83d\udd35 AIRBORNE'} />
-              <Row label="SOURCE"    value={entity.source || 'adsb'}               highlight="text-hud-text" />
+              <Row label="STATUS"    value={entity.on_ground ? '\u25cf ON GROUND' : '\u25cf AIRBORNE'}
+                highlight={entity.on_ground ? 'text-green-400' : 'text-hud-blue'} />
+              <Row label="ORIGIN"    value={entity.dep_airport || '\u2014'} />
+              <Row label="DEST"      value={entity.arr_airport || '\u2014'} />
               <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
             </>
           )}
@@ -354,19 +356,8 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               }`}
               onClick={() => isTracking ? onUntrack?.(trackableId) : onTrack?.(trackableId, isAircraft ? 'aircraft' : 'ship')}
             >
-              {isTracking ? '&#x23F9; UNTRACK' : '&#x25CF; TRACK'}
+              {isTracking ? '\u25a0 UNTRACK' : '\u25cf TRACK'}
             </button>
-          )}
-
-          {isAircraft && entity.callsign && entity.callsign !== 'UNKNOWN' && (
-            <a
-              href={`https://www.flightaware.com/live/flight/${entity.callsign.trim()}`}
-              target="_blank" rel="noopener noreferrer"
-              className="hud-btn flex-1 text-center"
-              title="Track on FlightAware"
-            >
-              &#x21D7; FLIGHTAWARE
-            </a>
           )}
 
           {isNews && entity.url && (
