@@ -86,11 +86,12 @@ function mergeIntoStore(store, freshEvents, ttl) {
   const nowIso = new Date().toISOString();
   let changed = false;
 
-  // Add events not yet seen
+  // Add events not yet seen — firstSeenAt = NOW (poll time) so articles added in
+  // different polls get naturally different ages in the UI
   for (const ev of freshEvents) {
     if (!ev.id) continue;
     if (!store.has(ev.id)) {
-      store.set(ev.id, { ...ev, firstSeenAt: ev.publishedAt || nowIso });
+      store.set(ev.id, { ...ev, firstSeenAt: nowIso });
       changed = true;
     }
   }

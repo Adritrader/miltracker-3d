@@ -5,7 +5,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { timeAgo } from '../utils/geoUtils.js';
 
-/** Format a publishedAt string to a compact date/time */
+/** Pick the best available timestamp for display: firstSeenAt > publishedAt */
+function bestTs(item) {
+  return item.firstSeenAt || item.publishedAt || null;
+}
+
+/** Format a date string to compact date/time */
 function fmtDate(d) {
   if (!d) return '';
   const dt = new Date(d);
@@ -19,9 +24,9 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
   const [visibleCount, setVisibleCount] = useState(0);
   const prevLenRef = useRef(0);
 
-  // Sort newest first
+  // Sort newest first — use firstSeenAt so items ingested in different polls spread naturally
   const recentNews = [...news]
-    .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
+    .sort((a, b) => new Date(bestTs(b) || 0) - new Date(bestTs(a) || 0))
     .slice(0, 30);
 
   // When new items arrive, reveal them one by one with a small delay
@@ -120,9 +125,9 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
                       {item.title}
                     </p>
                     <div className="flex flex-wrap gap-x-2 gap-y-0 mt-0.5 items-center">
-                      <span className="text-hud-amber text-xs font-mono">{fmtDate(item.publishedAt)}</span>
+                      <span className="text-hud-amber text-xs font-mono">{fmtDate(bestTs(item))}</span>
                       <span className="text-hud-border">·</span>
-                      <span className="text-hud-text text-xs">{timeAgo(item.publishedAt)}</span>
+                      <span className="text-hud-text text-xs">{timeAgo(bestTs(item))}</span>
                       <span className="text-hud-border">·</span>
                       <span className="text-hud-text text-xs">{item.source}</span>
                       {item.lat && (
