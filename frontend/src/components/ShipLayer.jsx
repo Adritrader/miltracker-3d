@@ -45,10 +45,10 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
   const trailPointsRef = useRef(loadStoredTrails());
   const prevIdsRef     = useRef(new Set());
 
-  // LOD constants
-  const MAX_RANGE   = isMobile ? 3e6 : 5.5e6;
-  const LABEL_RANGE = isMobile ? 1e6 : 2.5e6;
-  const TRAIL_RANGE = isMobile ? 0 : 1.8e6;   // disable trails on mobile
+  // LOD constants — ships are always visible regardless of zoom level
+  const MAX_RANGE   = 2e7;                    // 20 000 km (full-globe visibility)
+  const LABEL_RANGE = isMobile ? 1.2e6 : 3e6;
+  const TRAIL_RANGE = isMobile ? 0 : 2.5e6;  // disable trails on mobile
 
   const getDS = useCallback((name) => {
     if (!viewer || viewer.isDestroyed()) return null;

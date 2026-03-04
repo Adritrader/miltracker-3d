@@ -24,21 +24,35 @@ const WS_COLLECT_MS = 18_000;  // listen window per MMSI batch
 const WS_BATCH_SIZE = 50;      // AISStream hard limit per subscription
 
 // ── Normalise a Norwegian AIS GeoJSON feature ─────────────────────────────────
+// The Norwegian Coastal AIS API returns LineString geometries (last two positions)
+// rather than Point, so coordinates is [[lon,lat],[lon,lat]] not [lon,lat].
 function normNorwAIS(f) {
   const p = f.properties || {};
   const id = String(p.mmsi || '');
   if (!id) return null;
-  const lat = f.geometry?.coordinates?.[1];
-  const lon = f.geometry?.coordinates?.[0];
-  if (lat == null || lon == null) return null;
+
+  const coords = f.geometry?.coordinates;
+  let lon, lat;
+  if (Array.isArray(coords?.[0])) {
+    // LineString / MultiPoint: take the most recent (last) position
+    const pt = coords[coords.length - 1];
+    lon = parseFloat(pt?.[0]);
+    lat = parseFloat(pt?.[1]);
+  } else {
+    // Point geometry
+    lon = parseFloat(coords?.[0]);
+    lat = parseFloat(coords?.[1]);
+  }
+  if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+
   return {
     id,
     mmsi:        id,
     name:        p.ship_name || p.name || 'UNKNOWN',
     lat,
     lon,
-    heading:     p.cog ?? p.true_heading ?? 0,
-    velocity:    p.speed ?? 0,
+    heading:     parseFloat(p.cog ?? p.true_heading ?? 0) || 0,
+    velocity:    parseFloat(p.speed ?? 0) || 0,
     type:        'Military',
     flag:        p.flag || p.country || 'NO',
     destination: p.destination || '',
@@ -241,25 +255,34 @@ export async function fetchShips() {
     }
   }
 
-  if (realShips.length > 0) {
-    // Deduplicate by MMSI — prefer MMSI-catalog vessels (richer name/flag data),
-    // then REST/other sources. Insertion order: MMSI WS results first.
-    const seen = new Map();
-    for (const s of realShips) {
-      if (!seen.has(s.mmsi)) {
-        seen.set(s.mmsi, s);
-      } else if (s.source === 'aisstream_mmsi') {
-        // MMSI catalog beats generic REST for the same vessel
-        seen.set(s.mmsi, s);
-      }
+  // Deduplicate live ships by MMSI — prefer MMSI-catalog entries (richer metadata)
+  const seen = new Map();
+  for (const s of realShips) {
+    if (!seen.has(s.mmsi)) {
+      seen.set(s.mmsi, s);
+    } else if (s.source === 'aisstream_mmsi') {
+      seen.set(s.mmsi, s);
     }
+  }
+
+  // Always supplement with catalog ships for MMSIs not covered by live AIS.
+  // This ensures global coverage even when only regional AIS (e.g. Norwegian) is available.
+  const baseline = getCatalogBaseline();
+  let baselineAdded = 0;
+  for (const base of baseline) {
+    if (!seen.has(base.mmsi)) {
+      seen.set(base.mmsi, base);
+      baselineAdded++;
+    }
+  }
+
+  if (seen.size > 0) {
     const merged = [...seen.values()];
-    console.log(`[Ships] ${merged.length} unique vessels from live AIS`);
+    console.log(`[Ships] ${merged.length} total vessels (${merged.length - baselineAdded} live + ${baselineAdded} catalog supplement)`);
     return merged;
   }
 
-  // All AIS sources failed — serve the full catalog with last-known positions
-  const baseline = getCatalogBaseline();
+  // All sources failed — serve the full catalog
   console.log(`[Ships] No live AIS — serving ${baseline.length} catalog vessels (last known positions)`);
   return baseline;
 }
