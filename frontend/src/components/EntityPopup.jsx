@@ -279,6 +279,19 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="ORIGIN"    value={entity.dep_airport || '\u2014'} />
               <Row label="DEST"      value={entity.arr_airport || '\u2014'} />
               <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
+              {entity.carrierOps && (
+                <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2 space-y-1">
+                  <div className="text-[9px] sm:text-[10px] font-mono font-bold text-amber-300/80 tracking-widest uppercase mb-1">
+                    ✈ Carrier Air Wing
+                  </div>
+                  <Row label="CARRIER"  value={entity.carrierOps.carrier}  highlight="text-amber-300" />
+                  {entity.carrierOps.cvw !== 'UNKNOWN CVW' &&
+                    <Row label="CVW"    value={entity.carrierOps.cvw}      highlight="text-hud-blue" />}
+                  {entity.carrierOps.squadron !== 'CARRIER OPS' &&
+                    <Row label="SQ"     value={entity.carrierOps.squadron} highlight="text-hud-green" />}
+                  <Row label="MATCH"    value={entity.carrierOps.matchType === 'callsign' ? 'Callsign' : entity.carrierOps.matchType === 'hex_range' ? 'ICAO Hex Range' : `Proximity ${entity.carrierOps.distanceKm}km`} />
+                </div>
+              )}
             </>
           )}
 

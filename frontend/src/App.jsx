@@ -21,8 +21,10 @@ import CoordinateHUD from './components/CoordinateHUD.jsx';
 import NewsClusterModal from './components/NewsClusterModal.jsx';
 import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
 import TrackingPanel from './components/TrackingPanel.jsx';
+import TimelinePanel from './components/TimelinePanel.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
+import { useTimeline } from './hooks/useTimeline.js';
 import { filterAircraft, filterShips, filterNews } from './utils/militaryFilter.js';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
@@ -52,6 +54,8 @@ function App() {
 
   // Tracking state — Map<id, { id, type }> supports multiple simultaneous entities
   const [trackedList, setTrackedList] = useState(new Map());
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const didFetchHistory = useRef(false);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -71,19 +75,44 @@ function App() {
   }, []);
 
   const {
-    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData,
+    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef,
   } = useRealTimeData();
+
+  // Timeline replay
+  const timeline = useTimeline(socketRef);
+
+  // Fetch history when timeline panel is opened for the first time
+  useEffect(() => {
+    if (timelineOpen && !didFetchHistory.current) {
+      didFetchHistory.current = true;
+      timeline.controls.requestHistory();
+    }
+  }, [timelineOpen, timeline.controls]);
+
+  // When ESC pressed in replay mode, stop and go live
+  useEffect(() => {
+    if (!timeline.replayMode) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') timeline.controls.stop();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [timeline.replayMode, timeline.controls]);
+
+  // Data used by layers: replay data overrides live when in replay mode
+  const effectiveAircraft = timeline.replayAircraft ?? aircraft;
+  const effectiveShips    = timeline.replayShips    ?? ships;
 
   // Filtered data — deps split per-layer to avoid cross-layer re-renders (§2.3)
   const filteredAircraft = useMemo(
-    () => filterAircraft(aircraft, filters),
+    () => filterAircraft(effectiveAircraft, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aircraft, filters.showAircraft, filters.country, filters.alliance, filters.showOnGround, filters.missionType]
+    [effectiveAircraft, filters.showAircraft, filters.country, filters.alliance, filters.showOnGround, filters.missionType]
   );
   const filteredShips = useMemo(
-    () => filterShips(ships, filters),
+    () => filterShips(effectiveShips, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ships, filters.showShips, filters.country]
+    [effectiveShips, filters.showShips, filters.country]
   );
   const filteredNews = useMemo(
     () => filterNews(news, filters),
@@ -160,6 +189,8 @@ function App() {
           onSelect={handleEntityClick}
           isMobile={isMobile}
           trackedList={trackedList}
+          replayMode={timeline.replayMode}
+          historyTrack={timeline.historyTrack}
         />
         </ErrorBoundary>
         <ErrorBoundary name="ShipLayer" silent>
@@ -170,6 +201,8 @@ function App() {
           onSelect={handleEntityClick}
           isMobile={isMobile}
           trackedList={trackedList}
+          replayMode={timeline.replayMode}
+          historyTrack={timeline.historyTrack}
         />
         </ErrorBoundary>
         <ErrorBoundary name="DangerZoneLayer" silent>
@@ -262,8 +295,40 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Bottom-right: Map layer switcher */}
-      <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
+      {/* Bottom-center: Timeline panel (replay mode) */}
+      {timelineOpen && (
+        <TimelinePanel
+          snapshots={timeline.snapshots}
+          currentIndex={timeline.currentIndex}
+          playing={timeline.playing}
+          speed={timeline.speed}
+          replayMode={timeline.replayMode}
+          currentTs={timeline.currentTs}
+          controls={timeline.controls}
+        />
+      )}
+
+      {/* Bottom-right: Map layer switcher + Timeline toggle */}
+      <div className="absolute bottom-8 right-4 z-30 flex flex-col gap-2 items-end pointer-events-auto">
+        <button
+          onClick={() => setTimelineOpen(v => !v)}
+          title="Timeline replay"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold
+                       border transition shadow-lg
+                       ${ timelineOpen
+                          ? 'bg-amber-400/25 border-amber-400/60 text-amber-200'
+                          : 'bg-black/60 border-white/15 text-white/50 hover:text-white/80 hover:border-white/30' }`}
+        >
+          <span>⏱</span>
+          <span>{timelineOpen ? 'CLOSE' : 'TIMELINE'}</span>
+          {timeline.replayMode && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] bg-amber-400/30 text-amber-300 border border-amber-400/30">
+              REPLAY
+            </span>
+          )}
+        </button>
+        <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
+      </div>
 
       {/* News cluster modal — shown when multiple items share a map area */}
       {newsCluster && (

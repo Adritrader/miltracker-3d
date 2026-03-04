@@ -39,7 +39,7 @@ function saveTrails(trailPointsMap) {
   } catch { /* storage full */ }
 }
 
-const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, trackedList = null }) => {
+const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {} }) => {
   const entityMapRef   = useRef(new Map());
   const trailEntityRef = useRef(new Map());
   const trailPointsRef = useRef(loadStoredTrails());
@@ -68,6 +68,48 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     if (shipDS)  shipDS.show  = visible;
     if (trailDS) trailDS.show = visible;
   }, [viewer, visible, getDS]);
+
+  // ── Replay trail overlay ───────────────────────────────────────────────────
+  // Renders full historical track for each ship when timeline replay is active.
+  useEffect(() => {
+    if (!viewer) return;
+    const ds = getDS('ship-replay-trails');
+    if (!ds) return;
+
+    if (!replayMode || !historyTrack || Object.keys(historyTrack).length === 0) {
+      ds.entities.removeAll();
+      return;
+    }
+
+    ds.entities.suspendEvents();
+    try {
+      ds.entities.removeAll();
+      const CYAN = Cesium.Color.fromCssColorString('#22d3ee');
+      for (const [id, points] of Object.entries(historyTrack)) {
+        if (!points || points.length < 2) continue;
+        const validPoints = points
+          .filter(p => p.lat != null && p.lon != null)
+          .map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 10));
+        if (validPoints.length < 2) continue;
+        ds.entities.add({
+          id: `replay-ship-${id}`,
+          polyline: {
+            positions: new Cesium.ConstantProperty(validPoints),
+            width: 2.5,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.2,
+              taperPower: 0.9,
+              color: CYAN.withAlpha(0.80),
+            }),
+            clampToGround: true,
+            followSurface: true,
+          },
+        });
+      }
+    } finally {
+      ds.entities.resumeEvents();
+    }
+  }, [viewer, replayMode, historyTrack, getDS]);
 
   // ── Main update loop ───────────────────────────────────────────────────────
   useEffect(() => {

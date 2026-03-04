@@ -72,7 +72,7 @@ function getCachedIcon(heading, color, helicopter = false) {
   return _iconCache.get(key);
 }
 
-const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null }) => {
+const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {} }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
   const trailPointsRef  = useRef(loadStoredTrails()); // icao24 → Cartesian3[] (persisted)
@@ -128,7 +128,53 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     return () => clearInterval(id);
   }, [viewer, getDS]);
 
-  // ── main update loop ───────────────────────────────────────────────────────
+  // ── Replay trail overlay ──────────────────────────────────────────────
+  // When replayMode is active, draw the full historical track for each entity
+  // as a bright amber polyline so the entire path is visible at once.
+  useEffect(() => {
+    if (!viewer) return;
+    const ds = getDS('aircraft-replay-trails');
+    if (!ds) return;
+
+    if (!replayMode || !historyTrack || Object.keys(historyTrack).length === 0) {
+      // Clear replay trails when not in replay mode
+      ds.entities.removeAll();
+      return;
+    }
+
+    ds.entities.suspendEvents();
+    try {
+      ds.entities.removeAll();
+      const AMBER = Cesium.Color.fromCssColorString('#fbbf24');
+      for (const [id, points] of Object.entries(historyTrack)) {
+        // Only aircraft tracks (ships handled in ShipLayer)
+        if (!points || points.length < 2) continue;
+        // Check if this id belongs to an aircraft in current snapshot
+        const validPoints = points
+          .filter(p => p.lat != null && p.lon != null)
+          .map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, Math.max((p.alt || 0) * 0.3048, 150)));
+        if (validPoints.length < 2) continue;
+        ds.entities.add({
+          id: `replay-ac-${id}`,
+          polyline: {
+            positions: new Cesium.ConstantProperty(validPoints),
+            width: 2,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.25,
+              taperPower: 0.8,
+              color: AMBER.withAlpha(0.85),
+            }),
+            clampToGround: false,
+            followSurface: false,
+          },
+        });
+      }
+    } finally {
+      ds.entities.resumeEvents();
+    }
+  }, [viewer, replayMode, historyTrack, getDS]);
+
+  // ── main update loop ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!viewer) return;
     const acDS    = getDS('aircraft');

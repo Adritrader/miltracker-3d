@@ -143,5 +143,5 @@ export function useRealTimeData() {
     return () => socket.disconnect();
   }, []);
 
-  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, reconnect };
+  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, reconnect, socketRef };
 }

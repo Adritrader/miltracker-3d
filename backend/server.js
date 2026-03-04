@@ -11,6 +11,8 @@ import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds } from './services/newsServ
 import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews, probeGeminiModel } from './services/aiDanger.js';
 import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
+import { recordSnapshot, getHistory, getTimeRange } from './services/positionTracker.js';
+import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 
 dotenv.config();
 
@@ -151,13 +153,21 @@ app.get('/api/conflicts',(req, res) => res.json(cache.conflicts));
 // ─── Aircraft polling (every 15 seconds) ────────────────────────────────────
 async function pollAircraft() {
   try {
-    const aircraft = await fetchAircraft();
+    const raw = await fetchAircraft();
+    // Enrich with carrier air wing detection
+    const aircraft = enrichWithCarrierOps(raw, cache.ships);
+    const carrierCount = aircraft.filter(a => a.carrierOps).length;
+    if (carrierCount > 0) console.log(`[Carrier] ${carrierCount} aircraft tagged with carrier ops`);
+
     cache.aircraft = aircraft;
     cache.lastAircraftUpdate = new Date().toISOString();
 
     // Refresh danger zones (static — no alert generation from positions)
     const zones = analyzeLocalDanger(aircraft, cache.ships, cache.news);
     cache.dangerZones = zones.dangerZones;
+
+    // Record position snapshot for timeline replay
+    recordSnapshot(aircraft, cache.ships);
 
     const acHash = hashArr(aircraft);
     if (acHash !== prevHash.aircraft) {
@@ -310,6 +320,14 @@ io.on('connection', (socket) => {
     socket.emit('ship_update',     { ships: cache.ships,       timestamp: cache.lastShipUpdate });
     socket.emit('news_update',     { news: cache.news,         timestamp: cache.lastNewsUpdate });
     socket.emit('conflict_update', { conflicts: cache.conflicts, timestamp: cache.lastConflictUpdate });
+  });
+
+  // Timeline history: client requests full snapshot buffer
+  socket.on('request_history', () => {
+    const snapshots = getHistory();
+    const range     = getTimeRange();
+    socket.emit('history_data', { snapshots, range });
+    console.log(`[History] Sent ${snapshots.length} snapshots to ${socket.id}`);
   });
 
   socket.on('disconnect', () => {
