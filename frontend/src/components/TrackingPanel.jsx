@@ -122,7 +122,7 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
                       bg-hud-accent/10 border-hud-accent/40 text-hud-accent hover:bg-hud-accent/25
                       disabled:opacity-25 disabled:cursor-not-allowed w-full text-center mt-auto"
                   >
-                    📍 FLY TO
+                    &#x25B6; FLY TO
                   </button>
                 </div>
               );
