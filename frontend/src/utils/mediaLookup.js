@@ -218,36 +218,127 @@ export function getAircraftImageUrl(typeCode) {
 
 // Ships: name-matched first, type-matched second
 const SHIP_BY_NAME = [
-  // US carriers
-  [/FORD|CVN.?78/i,              W('USS_Gerald_R._Ford_(CVN-78).jpg')],
-  [/TRUMAN|CVN.?75/i,            W('USS_Harry_S._Truman_underway_2013.jpg')],
-  [/EISENHOWER|CVN.?69/i,        W('USS_Dwight_D._Eisenhower_(CVN-69).jpg')],
-  [/NIMITZ|CVN.?68/i,            W('USS_Nimitz_(CVN-68)_underway.jpg')],
-  [/REAGAN|CVN.?76/i,            W('USS_Ronald_Reagan_CVN-76_at_sea.jpg')],
-  [/LINCOLN|CVN.?72/i,           W('USS_Abraham_Lincoln_(CVN-72)_underway.jpg')],
-  [/WASHINGTON|CVN.?73/i,        W('USS_George_Washington_(CVN-73)_underway.jpg')],
-  [/STENNIS|CVN.?74/i,           W('USS_John_C_Stennis_(CVN74)_underway.jpg')],
-  [/AMERICA|LHA.?6/i,            W('USS_America_(LHA-6)_underway.jpg')],
-  [/WASP|LHD.?1/i,               W('USS_Wasp_(LHD-1).jpg')],
-  [/ZUMWALT|DDG.?1000/i,         W('USS_Zumwalt_(DDG-1000).jpg')],
-  [/ARLEIGH.?BURKE|DDG.?51/i,    W('USS_Arleigh_Burke_(DDG-51).jpg')],
-  [/TICONDEROGA|CG.?47/i,        W('USS_Ticonderoga_(CG-47).jpg')],
-  // UK
-  [/QUEEN.?ELIZABETH/i,          W('HMS_Queen_Elizabeth_(R08)_in_the_English_Channel,_August_2020.jpg')],
-  [/PRINCE.?OF.?WALES/i,         W('HMS_Prince_of_Wales_(R09)_in_the_North_Atlantic.jpg')],
-  // France
-  [/DE.?GAULLE/i,                W('Charles_de_Gaulle_(R91)_underway.jpg')],
-  // Russia
-  [/KUZNETSOV/i,                 W('Kuznetsov_class_aircraft_carrier.jpg')],
-  [/MOSKVA/i,                    W('Moskva_(cruiser,_1983).jpg')],
-  [/PETER.?THE.?GREAT|PYOTR/i,   W('Pyotr_Velikiy_2004.jpg')],
-  // China
-  [/LIAONING|CV.?16/i,           W('CNS_Liaoning_(CV-16).jpg')],
-  [/SHANDONG|CV.?17/i,           W('Chinese_aircraft_carrier_Shandong.jpg')],
-  [/FUJIAN|CV.?18/i,             W('Chinese_aircraft_carrier_Fujian.jpg')],
-  // NATO
-  [/ROTTERDAM/i,                 W('HNLMS_Rotterdam_(L800).jpg')],
-  [/SACHSEN/i,                   W('FGS_Sachsen_(F219).jpg')],
+  // ── US carriers ──────────────────────────────────────────────────────────
+  [/FORD|CVN.?78/i,                    W('USS_Gerald_R._Ford_(CVN-78).jpg')],
+  [/TRUMAN|CVN.?75/i,                  W('USS_Harry_S._Truman_underway_2013.jpg')],
+  [/EISENHOWER|CVN.?69/i,              W('USS_Dwight_D._Eisenhower_(CVN-69).jpg')],
+  [/NIMITZ|CVN.?68/i,                  W('USS_Nimitz_(CVN-68)_underway.jpg')],
+  [/REAGAN|CVN.?76/i,                  W('USS_Ronald_Reagan_CVN-76_at_sea.jpg')],
+  [/LINCOLN|CVN.?72/i,                 W('USS_Abraham_Lincoln_(CVN-72)_underway.jpg')],
+  [/GEORGE.?WASHINGTON|CVN.?73/i,      W('USS_George_Washington_(CVN-73)_underway.jpg')],
+  [/STENNIS|CVN.?74/i,                 W('USS_John_C_Stennis_(CVN74)_underway.jpg')],
+  [/THEODORE.?ROOSEVELT|CVN.?71/i,     W('USS_Theodore_Roosevelt_(CVN-71).jpg')],
+  [/CARL.?VINSON|CVN.?70/i,            W('USS_Carl_Vinson_(CVN-70)_underway.jpg')],
+  [/JOHN.?KENNEDY|CVN.?79/i,           W('USS_John_F_Kennedy_CVN-79.jpg')],
+  // ── US amphibious ─────────────────────────────────────────────────────────
+  [/\bAMERICA\b|LHA.?6/i,              W('USS_America_(LHA-6)_underway.jpg')],
+  [/WASP|LHD.?1/i,                     W('USS_Wasp_(LHD-1).jpg')],
+  [/BATAAN|LHD.?5/i,                   W('USS_Bataan_(LHD-5).jpg')],
+  [/IWO.?JIMA|LHD.?7/i,               W('USS_Iwo_Jima_(LHD-7).jpg')],
+  [/MESA.?VERDE|LPD.?19/i,             W('USS_Mesa_Verde_(LPD-19).jpg')],
+  [/MOUNT.?WHITNEY|LCC.?20/i,          W('USS_Mount_Whitney_(LCC-20)_underway.jpg')],
+  // ── US destroyers / cruisers ──────────────────────────────────────────────
+  [/ZUMWALT|DDG.?1000/i,               W('USS_Zumwalt_(DDG-1000).jpg')],
+  [/ARLEIGH.?BURKE|DDG.?51/i,          W('USS_Arleigh_Burke_(DDG-51).jpg')],
+  [/\bCOLE\b|DDG.?67/i,                W('USS_Cole_(DDG-67)_underway.jpg')],
+  [/\bROSS\b|DDG.?71/i,                W('USS_Ross_(DDG-71)_underway.jpg')],
+  [/\bCARNEY\b|DDG.?64/i,              W('USS_Carney_(DDG-64).jpg')],
+  [/PORTER|DDG.?78/i,                  W('USS_Porter_(DDG-78)_underway.jpg')],
+  [/THOMAS.?HUDNER|DDG.?116/i,         W('USS_Thomas_Hudner_(DDG-116).jpg')],
+  [/TICONDEROGA|CG.?47/i,              W('USS_Ticonderoga_(CG-47).jpg')],
+  [/MONTEREY|CG.?61/i,                 W('USS_Monterey_(CG-61)_underway.jpg')],
+  [/SAN.?JACINTO|CG.?56/i,             W('USS_San_Jacinto_(CG-56).jpg')],
+  [/PHILIPPINE.?SEA|CG.?58/i,          W('USS_Philippine_Sea_(CG-58).jpg')],
+  // ── Royal Navy (UK) ───────────────────────────────────────────────────────
+  [/HMS.?QUEEN.?ELIZABETH|R08/i,       W('HMS_Queen_Elizabeth_(R08)_in_the_English_Channel,_August_2020.jpg')],
+  [/HMS.?PRINCE.?OF.?WALES|R09/i,      W('HMS_Prince_of_Wales_(R09)_in_the_North_Atlantic.jpg')],
+  [/HMS.?DIAMOND|D34/i,                W('HMS_Diamond_(D34)_MOD_45153521.jpg')],
+  [/HMS.?DRAGON|D35/i,                 W('HMS_Dragon_(D35).jpg')],
+  [/HMS.?DAUNTLESS|D33/i,              W('HMS_Dauntless_(D33).jpg')],
+  [/HMS.?DARING|D32/i,                 W('HMS_Daring_(D32).jpg')],
+  [/HMS.?DEFENDER|D36/i,               W('HMS_Defender_(D36).jpg')],
+  [/HMS.?RICHMOND|F239/i,              W('HMS_Richmond_(F239)_MOD_45148958.jpg')],
+  [/HMS.?WESTMINSTER|F237/i,           W('HMS_Westminster_(F237).jpg')],
+  [/HMS.?MONTROSE|F236/i,              W('HMS_Montrose_(F236).jpg')],
+  [/HMS.?KENT|F78/i,                   W('HMS_Kent_(F78).jpg')],
+  [/HMS.?PORTLAND|F79/i,               W('HMS_Portland_(F79).jpg')],
+  [/HMS.?SOMERSET|F82/i,               W('HMS_Somerset_(F82).jpg')],
+  [/HMS.?ASTUTE|S119/i,                W('HMS_Astute_(S119).jpg')],
+  [/HMS.?AMBUSH|S120/i,                W('HMS_Ambush_(S120).jpg')],
+  [/HMS.?ARTFUL|S121/i,                W('HMS_Artful_(S121).jpg')],
+  // ── French Navy (Marine Nationale) ───────────────────────────────────────
+  [/CHARLES.?DE.?GAULLE|R91/i,         W('Charles_de_Gaulle_(R91)_underway.jpg')],
+  [/FS.?FORBIN|D620/i,                 W('FS_Forbin_(D620)_March_2014.jpg')],
+  [/CHEVALIER.?PAUL|D621/i,            W('FS_Chevalier_Paul_(D621).jpg')],
+  [/LANGUEDOC|D653/i,                  W('FS_Languedoc_(D653).jpg')],
+  [/FS.?PROVENCE|D652/i,               W('FS_Provence_(D652).jpg')],
+  [/FS.?DIXMUDE|L9015/i,               W('Mistral_class_amphibious_assault_ship_French_Navy.jpg')],
+  // ── German Navy (Deutsche Marine) ────────────────────────────────────────
+  [/FGS.?SACHSEN|F219/i,               W('FGS_Sachsen_(F219).jpg')],
+  [/FGS.?HAMBURG|F220/i,               W('FGS_Hamburg_(F220).jpg')],
+  [/FGS.?HESSEN|F221/i,                W('FGS_Hessen_(F221).jpg')],
+  [/FGS.?SCHLESWIG.?HOLSTEIN|F216/i,   W('FGS_Schleswig-Holstein_(F216).jpg')],
+  [/FGS.?BAVARIA|F217/i,               W('FGS_Bayern_(F217).jpg')],
+  [/FGS.?Brandenburg|F215/i,           W('FGS_Brandenburg_(F215).jpg')],
+  // ── Italian Navy (Marina Militare) ───────────────────────────────────────
+  [/ITS.?CAVOUR|CVH.?550/i,            W('Cavour_(aircraft_carrier).jpg')],
+  [/ANDREA.?DORIA|D553/i,              W('ITS_Andrea_Doria_(D553).jpg')],
+  [/CAIO.?DUILIO|D554/i,               W('ITS_Caio_Duilio_(D554).jpg')],
+  [/LUIGI.?RIZZO|F574/i,               W('ITS_Luigi_Rizzo_(F574).jpg')],
+  [/CARLO.?BERGAMINI|F590/i,           W('ITS_Carlo_Bergamini_(F590).jpg')],
+  [/LUIGI.?DURAND|D560/i,              W('ITS_Luigi_Durand_de_la_Penne_(D560).jpg')],
+  // ── Spanish Navy (Armada Española) ───────────────────────────────────────
+  [/JUAN.?CARLOS|L61/i,                W('Juan_Carlos_I_(aircraft_carrier).jpg')],
+  [/ALVARO.?DE.?BAZAN|F101/i,          W('Álvaro_de_Bazán_(F101).jpg')],
+  [/BLAS.?DE.?LEZO|F103/i,             W('ESPS_Blas_de_Lezo_(F103).jpg')],
+  [/CANARIAS|F86/i,                    W('ESPS_Canarias_(F86).jpg')],
+  // ── Russian Navy ─────────────────────────────────────────────────────────
+  [/KUZNETSOV/i,                       W('Kuznetsov_class_aircraft_carrier.jpg')],
+  [/PYOTR|PETER.?THE.?GREAT/i,         W('Pyotr_Velikiy_2004.jpg')],
+  [/\bMOSKVA\b/i,                      W('Moskva_(cruiser,_1983).jpg')],
+  [/MARSHAL.?USTINOV/i,                W('Marshal_Ustinov_cruiser_2016.jpg')],
+  [/ADMIRAL.?GORSHKOV|GORSHKOV/i,      W('Admiral_Gorshkov_frigate.jpg')],
+  [/ADMIRAL.?KASATONOV/i,              W('Frigate_Admiral_Kasatonov.jpg')],
+  [/SOOBRAZITELNY/i,                   W('Soobrazitelny_corvette.jpg')],
+  [/STEREGUSHCHY/i,                    W('Steregushchiy_corvette.jpg')],
+  [/PAVLOVSK/i,                        W('Steregushchiy_corvette.jpg')],
+  [/VARSHAVYANKA/i,                    W('Kilo-class_submarine.jpg')],
+  [/JAMARAN/i,                         W('IRIN_Jamaran_(76).jpg')],
+  [/\bDENA\b/i,                        W('IRIN_Dena_Frigate.jpg')],
+  [/SAHAND/i,                          W('IRIN_Sahand_(74).jpg')],
+  // ── Chinese Navy (PLAN) ───────────────────────────────────────────────────
+  [/LIAONING|CV.?16/i,                 W('CNS_Liaoning_(CV-16).jpg')],
+  [/SHANDONG|CV.?17/i,                 W('Chinese_aircraft_carrier_Shandong.jpg')],
+  [/FUJIAN|CV.?18/i,                   W('Chinese_aircraft_carrier_Fujian.jpg')],
+  [/NANCHANG|DDG.?101/i,               W('Type_055_destroyer_Nanchang.jpg')],
+  [/\bWUXI\b|DDG.?109/i,               W('Type_052D_destroyer.jpg')],
+  // ── JMSDF (Japan) ─────────────────────────────────────────────────────────
+  [/IZUMO|DDH.?183/i,                  W('JS_Izumo_(DDH-183).jpg')],
+  [/\bKAGA\b|DDH.?184/i,               W('JS_Kaga_(DDH-184).jpg')],
+  [/JS.?MAYA|DDG.?179/i,               W('JS_Maya_(DDG-179).jpg')],
+  [/JS.?HAGURO|DDG.?180/i,             W('JS_Haguro_(DDG-180).jpg')],
+  // ── ROK Navy (South Korea) ────────────────────────────────────────────────
+  [/SEJONG.?DAEWANG/i,                 W('ROKS_Sejong_the_Great_(DDG-991).jpg')],
+  [/YI.?SUN.?SIN/i,                    W('ROKS_Yulgok_Yi_I_(DDG-992).jpg')],
+  // ── Indian Navy ──────────────────────────────────────────────────────────
+  [/INS.?VIKRANT/i,                    W('INS_Vikrant_(R11)_(2021).jpg')],
+  [/INS.?VIKRAMADITYA/i,               W('INS_Vikramaditya_underway.jpg')],
+  [/INS.?KOLKATA/i,                    W('INS_Kolkata_(D63).jpg')],
+  [/INS.?KAMORTA/i,                    W('INS_Kamorta_(P28).jpg')],
+  [/INS.?VISAKHAPATNAM/i,              W('INS_Visakhapatnam_(D66).jpg')],
+  // ── Israeli Navy ──────────────────────────────────────────────────────────
+  [/SA.?AR.?6|MAGEN|OZ\b/i,            W('INS_Magen.jpg')],
+  [/SA.?AR.?5|EILAT/i,                 W('INS_Eilat_(501).jpg')],
+  // ── Netherlands ───────────────────────────────────────────────────────────
+  [/ROTTERDAM|L800/i,                  W('HNLMS_Rotterdam_(L800).jpg')],
+  [/PETER.?WILLEMOES|F362/i,           W('HDMS_Peter_Willemoes_(F362).jpg')],
+  // ── Turkish Navy ──────────────────────────────────────────────────────────
+  [/TCG.?ANADOLU/i,                    W('TCG_Anadolu_(L400).jpg')],
+  [/TCG.?BARBAROS/i,                   W('TCG_Barbaros_(F244).jpg')],
+  // ── Australian Navy ──────────────────────────────────────────────────────
+  [/HMAS.?CANBERRA/i,                  W('HMAS_Canberra_(L02)_underway.jpg')],
+  [/HMAS.?ADELAIDE/i,                  W('HMAS_Adelaide_(L01).jpg')],
+  [/HMAS.?HOBART/i,                    W('HMAS_Hobart_(DDG_39)_underway.jpg')],
 ];
 
 const SHIP_BY_TYPE = {
@@ -263,29 +354,58 @@ const SHIP_BY_TYPE = {
   tanker:     W('USNS_Henry_J._Kaiser_(T-AO-187).jpg'),
 };
 
+// Country-specific ship fallback (when name not matched but flag/country is known)
+const SHIP_COUNTRY_FALLBACK = {
+  US:  W('USS_Arleigh_Burke_(DDG-51).jpg'),
+  UK:  W('HMS_Diamond_(D34)_MOD_45153521.jpg'),
+  GB:  W('HMS_Diamond_(D34)_MOD_45153521.jpg'),
+  FR:  W('FS_Forbin_(D620)_March_2014.jpg'),
+  DE:  W('FGS_Sachsen_(F219).jpg'),
+  IT:  W('ITS_Carlo_Bergamini_(F590).jpg'),
+  ES:  W('Álvaro_de_Bazán_(F101).jpg'),
+  RU:  W('Admiral_Gorshkov_frigate.jpg'),
+  CN:  W('Type_052D_destroyer.jpg'),
+  JP:  W('JS_Maya_(DDG-179).jpg'),
+  KR:  W('ROKS_Sejong_the_Great_(DDG-991).jpg'),
+  IN:  W('INS_Kolkata_(D63).jpg'),
+  AU:  W('HMAS_Hobart_(DDG_39)_underway.jpg'),
+  NL:  W('HNLMS_Rotterdam_(L800).jpg'),
+  DK:  W('HDMS_Peter_Willemoes_(F362).jpg'),
+  NO:  W('HNoMS_Fridtjof_Nansen_(F310).jpg'),
+  TR:  W('TCG_Barbaros_(F244).jpg'),
+  IL:  W('INS_Eilat_(501).jpg'),
+  IR:  W('IRIN_Jamaran_(76).jpg'),
+  SA:  W('HMS_Diamond_(D34)_MOD_45153521.jpg'), // Saudi frigates similar silhouette
+  YE:  W('USS_Hurricane_(PC-3).jpg'),
+};
+
 export function getShipImageUrl(shipData) {
   const name = (shipData?.name || '').toUpperCase();
   const t    = (shipData?.type || shipData?.shipType || '').toLowerCase();
+  const flag = (shipData?.flag || shipData?.country || '').toUpperCase();
 
   // 1. Match by vessel name (regex list)
   for (const [re, url] of SHIP_BY_NAME) {
     if (re.test(name)) return url;
   }
 
-  // 2. Infer type from the ship name itself (catches "CVN-78", "DDG-51", "LHD" etc.)
+  // 2. Infer type from the ship name/type string
   const nameAndType = name + ' ' + t;
-  if (/\bCVN\b|CVH|CARRIER|AIRCRAFT CARRIER/.test(nameAndType))      return SHIP_BY_TYPE.carrier;
-  if (/\bLHD\b|\bLHA\b|\bLPD\b|WASP|AMERICA|BATAAN|AMPHIB/.test(nameAndType)) return SHIP_BY_TYPE.amphibious;
-  if (/\bDDG\b|\bDD\b|DESTROYER|ARLEIGH|BURKE|COLE|CARNEY|PORTER|ROSS|THOMAS|DIAMOND|RICHMOND|DRAGON|ZUMWALT/.test(nameAndType)) return SHIP_BY_TYPE.destroyer;
-  if (/\bCG\b|CRUISER|MONTEREY|TICONDEROGA|SAN JACINTO|PHILIPPINE SEA|BUNKER/.test(nameAndType)) return SHIP_BY_TYPE.cruiser;
-  if (/SSBN|BALLISTIC/.test(nameAndType))    return SHIP_BY_TYPE.ssbn;
-  if (/\bSSN\b|SUBMARINE|VARSHAVYANKA/.test(nameAndType)) return SHIP_BY_TYPE.submarine;
-  if (/FRIGATE|FFG|\bF\d{3}\b|FORBIN|PROVENCE|SACHSEN|RICHMOND|JAMARAN|DENA|SAHAND|PETER WILLEMOES|HAMINA|LUIGI/.test(nameAndType)) return SHIP_BY_TYPE.frigate;
-  if (/CORVETTE|FAST ATTACK|PATROL BOAT|MINE LAYER|DHOW|IRGCN/.test(nameAndType)) return SHIP_BY_TYPE.patrol;
-  if (/SA.AR|EILAT/.test(nameAndType))       return SHIP_BY_TYPE.destroyer; // Israeli Sa'ar class
-  if (/TANKER|REPLENISH|AOE|AOR|KAISER/.test(nameAndType)) return SHIP_BY_TYPE.tanker;
+  if (/\bCVN\b|CVH|CARRIER|AIRCRAFT CARRIER/.test(nameAndType))                 return SHIP_BY_TYPE.carrier;
+  if (/\bLHD\b|\bLHA\b|\bLPD\b|WASP|BATAAN|AMPHIB|MISTRAL|ANADOLU/.test(nameAndType)) return SHIP_BY_TYPE.amphibious;
+  if (/\bDDG\b|\bDD\b|DESTROYER|ARLEIGH|BURKE|ZUMWALT/.test(nameAndType))       return SHIP_BY_TYPE.destroyer;
+  if (/\bCG\b|CRUISER|TICONDEROGA|SAN.?JACINTO|PHILIPPINE.?SEA|USTINOV/.test(nameAndType)) return SHIP_BY_TYPE.cruiser;
+  if (/SSBN|BALLISTIC/.test(nameAndType))                                        return SHIP_BY_TYPE.ssbn;
+  if (/\bSSN\b|SUBMARINE|VARSHAVYANKA|ASTUTE|AMBUSH|ARTFUL/.test(nameAndType))  return SHIP_BY_TYPE.submarine;
+  if (/FRIGATE|FFG|\bF\d{3}\b|GORSHKOV|KASATONOV|SACHSEN|HAMBURG|HESSEN|FORBIN|PROVENCE|JAMARAN|DENA|SAHAND|PETER.?WILLEMOES|BERGAMINI|RIZZO/.test(nameAndType)) return SHIP_BY_TYPE.frigate;
+  if (/CORVETTE|FAST.?ATTACK|PATROL.?BOAT|MINE.?LAYER|DHOW|IRGCN|STEREGUSHCHY|SOOBRAZITELNY/.test(nameAndType)) return SHIP_BY_TYPE.corvette;
+  if (/SA.?AR|EILAT/.test(nameAndType))                                          return SHIP_BY_TYPE.destroyer;
+  if (/TANKER|REPLENISH|AOE|AOR|KAISER/.test(nameAndType))                      return SHIP_BY_TYPE.tanker;
 
-  // 3. Match by type string (original logic)
+  // 3. Country-specific ship image (better than a totally generic photo)
+  if (flag && SHIP_COUNTRY_FALLBACK[flag]) return SHIP_COUNTRY_FALLBACK[flag];
+
+  // 4. Match by type string (original logic)
   if (/carrier|cvn|cvf|cva/.test(t))        return SHIP_BY_TYPE.carrier;
   if (/destroyer|ddg/.test(t))               return SHIP_BY_TYPE.destroyer;
   if (/cruiser|cg|clg/.test(t))              return SHIP_BY_TYPE.cruiser;
@@ -297,7 +417,7 @@ export function getShipImageUrl(shipData) {
   if (/patrol|pc/.test(t))                   return SHIP_BY_TYPE.patrol;
   if (/tanker|replenish|aoe|aor/.test(t))    return SHIP_BY_TYPE.tanker;
 
-  // 4. Default: use destroyer photo for any unmatched military vessel
+  // 5. Default: use destroyer photo for any unmatched military vessel
   return SHIP_BY_TYPE.destroyer;
 }
 
