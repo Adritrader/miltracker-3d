@@ -17,6 +17,7 @@ import AlertPanel from './components/AlertPanel.jsx';
 import NewsPanel from './components/NewsPanel.jsx';
 import SearchBar from './components/SearchBar.jsx';
 import CoordinateHUD from './components/CoordinateHUD.jsx';
+import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { filterAircraft, filterShips, filterNews } from './utils/militaryFilter.js';
@@ -41,6 +42,11 @@ function App() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [spaceView, setSpaceView]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [basemap, setBasemap]       = useState('dark');
+
+  // Tracking state — follows an aircraft/ship with the camera
+  const [trackedId, setTrackedId]     = useState(null); // entity id being tracked
+  const [trackedType, setTrackedType] = useState(null); // 'aircraft' | 'ship'
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -110,13 +116,55 @@ function App() {
     setSelectedEntity(alert.entity || alert);
   }, []);
 
+  // ── Entity tracking ──────────────────────────────────────────────────────────────────
+  const handleTrack = useCallback((id, type) => {
+    setTrackedId(id);
+    setTrackedType(type);
+  }, []);
+
+  const handleUntrack = useCallback(() => {
+    setTrackedId(null);
+    setTrackedType(null);
+  }, []);
+
+  useEffect(() => {
+    if (!trackedId || !viewer) return;
+    const INTERVAL_MS = 800;
+    const ALTITUDE_AC = 180_000;  // camera height when following aircraft
+    const ALTITUDE_SH = 280_000;  // camera height when following ships
+
+    const follow = () => {
+      const v = viewerRef.current;
+      if (!v || v.isDestroyed()) return;
+
+      let entity = null;
+      if (trackedType === 'aircraft') {
+        entity = aircraft.find(a => a.id === trackedId);
+      } else if (trackedType === 'ship') {
+        entity = ships.find(s => (s.mmsi || s.id) === trackedId);
+      }
+      if (!entity || entity.lat == null) return;
+
+      const alt = trackedType === 'ship' ? ALTITUDE_SH : ALTITUDE_AC;
+      // Use setView (instant) instead of flyTo (animated) so camera stays glued
+      v.camera.setView({
+        destination: window.Cesium?.Cartesian3.fromDegrees(entity.lon, entity.lat, alt),
+        orientation: { heading: 0, pitch: -Math.PI / 2.5, roll: 0 },
+      });
+    };
+
+    follow(); // snap immediately
+    const timer = setInterval(follow, INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [trackedId, trackedType, aircraft, ships, viewer]);
+
   return (
     <div className="w-screen h-screen overflow-hidden" style={{ background: '#050810' }}>
       {/* Scanlines overlay only */}
       <div className="scan-overlay" aria-hidden="true" />
 
       {/* 3D Globe */}
-      <Globe3D onViewerReady={handleViewerReady} onEntityClick={handleEntityClick} spaceView={spaceView}>
+      <Globe3D onViewerReady={handleViewerReady} onEntityClick={handleEntityClick} spaceView={spaceView} basemap={basemap}>
         {/* Data layers */}
         <AircraftLayer
           viewer={viewer}
@@ -200,12 +248,38 @@ function App() {
         isMobile={isMobile}
       />
 
+      {/* Tracking indicator badge */}
+      {trackedId && (
+        <div
+          className="fixed z-30 flex items-center gap-2 hud-panel px-3 py-1.5 text-xs font-mono"
+          style={{ top: isMobile ? 56 : 16, left: '50%', transform: 'translateX(-50%)' }}
+        >
+          <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-green-400 font-bold">TRACKING</span>
+          <span className="text-white">
+            {trackedType === 'aircraft'
+              ? aircraft.find(a => a.id === trackedId)?.callsign || trackedId
+              : ships.find(s => (s.mmsi || s.id) === trackedId)?.name || trackedId}
+          </span>
+          <button
+            onClick={handleUntrack}
+            className="ml-1 text-hud-text hover:text-red-400 font-bold transition-colors"
+          >✕</button>
+        </div>
+      )}
+
+      {/* Bottom-right: Map layer switcher */}
+      <MapLayerSwitcher basemap={basemap} onBasemapChange={setBasemap} isMobile={isMobile} />
+
       {/* Bottom-right: Entity detail popup */}
       <EntityPopup
         entity={selectedEntity}
         viewer={viewer}
         onClose={() => setSelectedEntity(null)}
         isMobile={isMobile}
+        trackedId={trackedId}
+        onTrack={handleTrack}
+        onUntrack={handleUntrack}
       />
 
       {/* Bottom: News ticker (sits above CoordinateHUD) */}

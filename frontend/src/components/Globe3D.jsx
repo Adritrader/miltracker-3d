@@ -26,19 +26,60 @@ const CREDIT_CONTAINER = window._milCreditContainer;
 const CONTEXT_OPTIONS  = window._milContextOptions;
 const TERRAIN_PROVIDER = window._milTerrainProvider;
 
-// CartoDB Dark Matter — free, no API key, reliable CORS, dark military aesthetic.
-// Use {s} + subdomains to rotate across a/b/c/d CDN nodes and avoid throttling.
+// ── Basemap providers (all free, no API key) ─────────────────────────────────
+function buildImageryProvider(basemap) {
+  switch (basemap) {
+    case 'satellite':
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        minimumLevel: 0, maximumLevel: 19,
+        credit: new Cesium.Credit('\u00a9 Esri, Maxar, Earthstar Geographics'),
+      });
+    case 'relief':
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c'],
+        minimumLevel: 0, maximumLevel: 17,
+        credit: new Cesium.Credit('\u00a9 OpenTopoMap contributors'),
+      });
+    case 'street':
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c'],
+        minimumLevel: 0, maximumLevel: 19,
+        credit: new Cesium.Credit('\u00a9 OpenStreetMap contributors'),
+      });
+    case 'light':
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c', 'd'],
+        minimumLevel: 0, maximumLevel: 18,
+        credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
+      });
+    case 'night':
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c', 'd'],
+        minimumLevel: 0, maximumLevel: 18,
+        credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
+      });
+    case 'dark':
+    default:
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c', 'd'],
+        minimumLevel: 0, maximumLevel: 18,
+        credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
+      });
+  }
+}
+
+// CartoDB Dark Matter — initial provider (stable ref for first render)
 const IMAGERY_PROVIDER = ION_TOKEN
   ? new Cesium.IonImageryProvider({ assetId: 2 })
-  : new Cesium.UrlTemplateImageryProvider({
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-      subdomains: ['a', 'b', 'c', 'd'],
-      minimumLevel: 0,
-      maximumLevel: 18,
-      credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
-    });
+  : buildImageryProvider('dark');
 
-const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, children }) => {
+const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'dark', children }) => {
   const viewerRef = useRef(null);
   const cameraInitialized = useRef(false);
   const [globeReady, setGlobeReady] = useState(false);
@@ -150,6 +191,14 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, children }) 
     };
     viewer.scene.postRender.addEventListener(removeOnce);
   }, [onViewerReady, onEntityClick]);
+
+  // ── Basemap switching ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !globeReady || viewer.isDestroyed() || ION_TOKEN) return;
+    viewer.imageryLayers.removeAll();
+    viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(basemap)));
+  }, [basemap, globeReady]);
 
   // ── Space View (realistic lighting + atmosphere) reactive to prop ────────
   useEffect(() => {

@@ -57,7 +57,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedId = null, onTrack, onUntrack }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -333,10 +333,35 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
       </div>
 
       {/* Footer actions */}
-      <div className="flex gap-2 px-3 pb-3 pt-1">
+      <div className="flex gap-2 px-3 pb-3 pt-1 flex-wrap">
         <button className="hud-btn-primary flex-1 text-center" onClick={flyTo}>
           📍 FLY TO
         </button>
+
+        {/* TRACK button — only for aircraft and ships */}
+        {(isAircraft || isShip) && (() => {
+          const entityId = isAircraft ? (entity.icao24 || entity.id) : (entity.mmsi || entity.id);
+          const isTracking = trackedId === entityId;
+          return (
+            <button
+              className={`flex-1 text-center text-xs font-mono font-bold px-2 py-1 rounded border transition-colors ${
+                isTracking
+                  ? 'bg-red-900/40 border-red-500/70 text-red-400 hover:bg-red-900/60 animate-pulse'
+                  : 'bg-hud-accent/10 border-hud-accent/50 text-hud-accent hover:bg-hud-accent/20'
+              }`}
+              onClick={() => {
+                if (isTracking) {
+                  onUntrack?.();
+                } else {
+                  onTrack?.(entityId, isAircraft ? 'aircraft' : 'ship');
+                }
+              }}
+            >
+              {isTracking ? '⏹ UNTRACK' : '📶 TRACK'}
+            </button>
+          );
+        })()}
+
         {isNews && entity.url && (
           <a href={entity.url} target="_blank" rel="noopener noreferrer"
              className="hud-btn flex-1 text-center">
