@@ -25,6 +25,14 @@ const EVENT_PATTERNS = [
   { type: 'drone',     pat: /drone|UAV|kamikaze.?drone|shahed/i },
   { type: 'naval',     pat: /naval|warship|submarine|torpedo|sea.?mine|vessel/i },
   { type: 'troops',    pat: /troops|soldiers|infantry|advance|offensive|ground.?assault/i },
+  { type: 'casualties',pat: /killed|dead|casualties|fatalities|wounded|injured|victims|civilian.?death|massacre/i },
+  { type: 'collapse',  pat: /building.?collapse|collapse|rubble|destroyed|leveled|flattened|demolish/i },
+  { type: 'fire',      pat: /fire|burning|ablaze|wildfire|arson|ignit/i },
+  { type: 'siege',     pat: /siege|besieged|encircled|blockade|surrounded|cut.?off/i },
+  { type: 'cyber',     pat: /cyber.?attack|hack|ransomware|infrastructure.?attack|power.?grid/i },
+  { type: 'cbrn',      pat: /chemical.?weapon|nuclear|radiolog|biological.?weapon|chlorine|sarin|novichok/i },
+  { type: 'hostage',   pat: /hostage|kidnap|abduct|taken.?captive|prisoner/i },
+  { type: 'unrest',    pat: /protest|riot|uprising|demonstration|civil.?unrest|coup/i },
 ];
 
 function classifyEvent(text = '') {
@@ -155,6 +163,10 @@ async function fetchGDELTGeoConflicts() {
     'airstrike missile explosion artillery killed',
     'military attack bomb blast wounded',
     'drone strike UAV attack explosion',
+    // Casualties / mass-casualty
+    'civilians killed dead mass casualty attack',
+    'building collapse rubble victims explosion',
+    'fire burning attack killed wounded civilians',
     // Iran / Israel MISSILES — highest priority
     'Iran Israel missile strike ballistic attack',
     'IRGC ballistic missile launch test Israel',
@@ -234,6 +246,13 @@ async function fetchGDELTDocConflicts() {
     'airstrike killed explosion military strike',
     'missile attack rocket launched ballistic',
     'explosion blast bomb killed wounded',
+    // Casualties / building collapse / fire
+    'civilians dead killed mass casualties attack',
+    'building collapse explosion dead trapped rubble',
+    'fire explosion attack killed wounded arson',
+    'hostage kidnapping abducted militants',
+    'cyber attack infrastructure power grid hacked',
+    'chemical weapon biological attack CBRN',
     // Iran / Israel MISSILES — highest priority
     'Iran IRGC ballistic missile launch attack Israel',
     'Iran nuclear strike Natanz Fordow Isfahan facility',
@@ -265,7 +284,7 @@ async function fetchGDELTDocConflicts() {
 
   const fetchDocQuery = async q => {
     try {
-      const url = `${GDELT_BASE}/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=25&sort=DateDesc&format=json&timespan=24h`;
+      const url = `${GDELT_BASE}/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=25&sort=DateDesc&format=json&timespan=24h&sourcelang=eng`;
       const res  = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
       if (!res.ok) return [];
       const data = await res.json();

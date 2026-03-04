@@ -79,7 +79,7 @@ const newsStore     = buildStore(loadCache('news',      []), NEWS_TTL);
 
 // Load persisted AI insight (served immediately on connect, refreshed every ~30min)
 let cachedAiInsight = loadCache('ai_insight', null);
-const GEMINI_COOLDOWN_MS = 30 * 60_000; // 30 minutes — free tier: 1500 req/day = max 48/day
+const GEMINI_COOLDOWN_MS = 60 * 60_000; // 60 minutes — conserve free-tier quota
 let lastGeminiCallAt = 0; // epoch ms of last successful Gemini request
 
 // Merge fresh events into a store; returns { changed, items[] }

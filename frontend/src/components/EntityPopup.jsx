@@ -323,8 +323,8 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                   </>
                 ) : null;
               })()}
-              <div className="pt-1">
-                <p className="text-white text-xs font-mono leading-relaxed line-clamp-4">{entity.title}</p>
+              <div className="pt-2">
+                <p className="text-white text-sm font-mono leading-relaxed">{entity.title}</p>
               </div>
             </>
           )}

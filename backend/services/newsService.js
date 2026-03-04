@@ -54,7 +54,7 @@ export async function fetchGDELTNews() {
   for (const q of queries) {
     try {
       const encoded = encodeURIComponent(q);
-      const url = `${GDELT_BASE}/doc/doc?query=${encoded}&mode=artlist&maxrecords=20&sort=DateDesc&format=json&timespan=24h`;
+      const url = `${GDELT_BASE}/doc/doc?query=${encoded}&mode=artlist&maxrecords=20&sort=DateDesc&format=json&timespan=24h&sourcelang=eng`;
       const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
       if (!res.ok) continue;
       const data = await res.json();

@@ -16,6 +16,14 @@ const EVENT_STYLE = {
   drone:      { color: '#cc44ff', scale: 0.95 },
   naval:      { color: '#0099ff', scale: 0.9 },
   troops:     { color: '#ffdd00', scale: 0.85 },
+  casualties: { color: '#ff0055', scale: 0.9 },
+  collapse:   { color: '#cc8800', scale: 0.9 },
+  fire:       { color: '#ff6600', scale: 0.9 },
+  siege:      { color: '#ff3300', scale: 0.85 },
+  cyber:      { color: '#00ffcc', scale: 0.85 },
+  cbrn:       { color: '#aaff00', scale: 0.9 },
+  hostage:    { color: '#ff88aa', scale: 0.85 },
+  unrest:     { color: '#ffaa33', scale: 0.85 },
   conflict:   { color: '#ff6600', scale: 0.8 },
 };
 
@@ -247,6 +255,81 @@ function drawSymbol(ctx, type, cx, cy, r, color) {
       ctx.moveTo(cx + bw, cy - bh);
       ctx.lineTo(cx - bw, cy + bh);
       ctx.stroke();
+      break;
+    }
+
+    // ── Casualties: red cross (medical / KIA marker) ───────────────────────
+    case 'casualties': {
+      const hw = r * 0.22, hh = r * 0.72;
+      ctx.beginPath();
+      ctx.rect(cx - hw, cy - hh, hw * 2, hh * 2); // vertical bar
+      ctx.rect(cx - hh, cy - hw, hh * 2, hw * 2); // horizontal bar
+      ctx.fill();
+      break;
+    }
+
+    // ── Collapse: building with rubble lines underneath ──────────────────
+    case 'collapse': {
+      // Building outline (top half)
+      ctx.beginPath();
+      ctx.rect(cx - r * 0.55, cy - r * 0.75, r * 1.1, r * 0.9);
+      ctx.stroke();
+      // Windows (2x2 grid)
+      const ww = r * 0.22, wh = r * 0.22;
+      for (const [wx, wy] of [[cx - r*0.38, cy - r*0.58],[cx + r*0.14, cy - r*0.58],
+                               [cx - r*0.38, cy - r*0.2], [cx + r*0.14, cy - r*0.2]]) {
+        ctx.beginPath(); ctx.rect(wx, wy, ww, wh); ctx.fill();
+      }
+      // Rubble / debris zigzag at bottom
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.75, cy + r * 0.2);
+      for (const [dx, dy] of [[-0.4,0.6],[-0.1,0.2],[0.2,0.65],[0.5,0.2],[0.75,0.55]]) {
+        ctx.lineTo(cx + r * dx, cy + r * dy);
+      }
+      ctx.stroke();
+      break;
+    }
+
+    // ── Fire: teardrop flame ────────────────────────────────────────
+    case 'fire': {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r * 0.95);
+      ctx.bezierCurveTo(cx + r*0.6, cy - r*0.4, cx + r*0.65, cy + r*0.4, cx, cy + r*0.9);
+      ctx.bezierCurveTo(cx - r*0.65, cy + r*0.4, cx - r*0.6, cy - r*0.4, cx, cy - r*0.95);
+      ctx.closePath();
+      ctx.fill();
+      // Inner lighter core
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#fff8c0';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - r*0.5);
+      ctx.bezierCurveTo(cx+r*0.3, cy-r*0.1, cx+r*0.3, cy+r*0.35, cx, cy+r*0.58);
+      ctx.bezierCurveTo(cx-r*0.3, cy+r*0.35, cx-r*0.3, cy-r*0.1, cx, cy-r*0.5);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+
+    // ── Unrest: raised fist outline ───────────────────────────────
+    case 'unrest': {
+      // Fist body
+      ctx.beginPath();
+      ctx.roundRect(cx - r*0.42, cy - r*0.35, r*0.84, r*0.72, r*0.15);
+      ctx.fill();
+      // Finger ridges (3 lines)
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = r * 0.08;
+      for (const fx of [cx - r*0.22, cx, cx + r*0.22]) {
+        ctx.beginPath();
+        ctx.moveTo(fx, cy - r*0.35);
+        ctx.lineTo(fx, cy - r*0.1);
+        ctx.stroke();
+      }
+      // Arm
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.rect(cx - r*0.28, cy + r*0.33, r*0.56, r*0.55);
+      ctx.fill();
       break;
     }
 
