@@ -43,7 +43,7 @@ function App() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [spaceView, setSpaceView]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [basemap, setBasemap]       = useState('dark');
+  const [basemap, setBasemap]       = useState(() => localStorage.getItem('milt_basemap') || 'dark');
 
   // Tracking state — follows an aircraft/ship with the camera
   const [trackedId, setTrackedId]     = useState(null); // entity id being tracked
@@ -267,7 +267,7 @@ function App() {
       )}
 
       {/* Bottom-right: Map layer switcher */}
-      <MapLayerSwitcher basemap={basemap} onBasemapChange={setBasemap} isMobile={isMobile} />
+      <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
 
       {/* Bottom-right: Entity detail popup */}
       <EntityPopup

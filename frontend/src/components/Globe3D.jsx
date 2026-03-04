@@ -111,6 +111,11 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     viewer.scene.globe.preloadAncestors = true;   // prevents tile holes during pan
     viewer.scene.globe.preloadSiblings = false;
 
+    // ── HiDPI / Retina sharpness ──────────────────────────────────────────
+    // By default Cesium renders at 1 CSS-pixel per device pixel, which looks
+    // blurry on mobile Retina / 3x screens. Cap at 2× for performance.
+    viewer.resolutionScale = Math.min(window.devicePixelRatio || 1, 2);
+
     // ── Initial camera position (only on first mount) ─────────────────────
     if (!cameraInitialized.current) {
       cameraInitialized.current = true;
