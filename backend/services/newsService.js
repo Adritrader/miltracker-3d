@@ -49,23 +49,32 @@ export async function fetchGDELTNews() {
     'Sudan Somalia Ethiopia armed attack killed',
     'North Korea missile launch test ICBM',
   ];
-  const allArticles = [];
-
-  for (const q of queries) {
+  // Fetch all queries in parallel (batches of 4) with 10s timeout each
+  const fetchOne = async (q) => {
     try {
-      const encoded = encodeURIComponent(q);
-      const url = `${GDELT_BASE}/doc/doc?query=${encoded}&mode=artlist&maxrecords=20&sort=DateDesc&format=json&timespan=24h&sourcelang=eng`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
-      if (!res.ok) continue;
+      const url = `${GDELT_BASE}/doc/doc?query=${encodeURIComponent(q)}&mode=artlist&maxrecords=20&sort=DateDesc&format=json&timespan=24h&sourcelang=eng`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) { console.warn(`[GDELT-NEWS] ${res.status} for "${q.slice(0,40)}"`); return []; }
       const data = await res.json();
-      if (data?.articles) allArticles.push(...data.articles);
-    } catch (_) { /* continue */ }
+      return data?.articles || [];
+    } catch (e) {
+      console.warn(`[GDELT-NEWS] timeout/error for "${q.slice(0,40)}": ${e.message}`);
+      return [];
+    }
+  };
+
+  // Run in batches of 4 to avoid hammering GDELT
+  const allArticles = [];
+  for (let i = 0; i < queries.length; i += 4) {
+    const batch = await Promise.all(queries.slice(i, i + 4).map(fetchOne));
+    batch.forEach(arr => allArticles.push(...arr));
   }
 
   if (allArticles.length === 0) {
-    // Fallback: return seeded static current events (regularly updated on redeploy)
+    console.warn('[GDELT-NEWS] All queries failed — serving seed fallback');
     return getSeedNews();
   }
+  console.log(`[GDELT-NEWS] Got ${allArticles.length} raw articles from GDELT`);
 
   return allArticles.map(a => ({
     id: `gdelt-${encodeURIComponent(a.url || a.title || '').slice(0, 60)}`,
