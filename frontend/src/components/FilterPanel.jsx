@@ -70,7 +70,7 @@ const FilterPanel = ({
 
   return (
     <div
-      className={`fixed top-4 left-4 z-50 space-y-2 ${isMobile ? 'max-w-[52vw]' : 'w-56'}`}
+      className={`fixed top-4 left-4 z-50 space-y-2 ${isMobile ? 'max-w-[48vw]' : 'w-56'}`}
       style={isMobile ? { maxHeight: 'calc(100dvh - 180px)', overflowY: 'auto' } : {}}
     >
       {/* Status bar */}

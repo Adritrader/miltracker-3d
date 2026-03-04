@@ -106,8 +106,8 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
       className="fixed top-4 z-50 transition-all duration-300"
       style={{
         right: isMobile ? 8 : 16,
-        // On mobile: never go wider than 48vw so FilterPanel (left) has room
-        maxWidth: isMobile ? 'min(44vw, 240px)' : 320,
+        // On mobile: never go wider than 42vw so FilterPanel (left 48vw + gap) has room
+        maxWidth: isMobile ? 'min(42vw, 220px)' : 320,
         width: isMobile ? undefined : (open ? 320 : 'auto'),
       }}
     >
@@ -136,10 +136,12 @@ const AlertPanel = ({ alerts, aiInsight, viewer, onFlyTo, isMobile = false }) =>
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors
+                className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wide transition-colors
                   ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
               >
-                {t === 'alerts' ? `⚠ CRITICAL (${criticalCount})` : '◈ AI INTEL'}
+                {t === 'alerts'
+                  ? (isMobile ? `⚠ ${criticalCount}` : `⚠ CRITICAL (${criticalCount})`)
+                  : (isMobile ? '◈ AI' : '◈ AI INTEL')}
               </button>
             ))}
           </div>
