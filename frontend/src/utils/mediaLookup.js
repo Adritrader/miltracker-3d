@@ -188,10 +188,28 @@ const AIRCRAFT_IMAGES = {
   WC135: W('WC-135W_Constant_Phoenix_nose.jpg'),
 };
 
-// Fallback by broad category keyword
-const AIRCRAFT_FALLBACK = W('F-16_June_2008.jpg');
+// Country-generic fallback images (when no specific aircraft type is known)
+const COUNTRY_FALLBACK = {
+  US:  W('F-22_Raptor_edit1_(cropped).jpg'),
+  GB:  W('Eurofighter_Typhoon.jpg'),
+  FR:  W('Dassault_Rafale_02.jpg'),
+  DE:  W('Eurofighter_DA5_in_flight.jpg'),
+  RU:  W('Su-35S_cropped.jpg'),
+  CN:  W('J-20_at_2016_Zhuhai_Airshow_(cropped).jpg'),
+  IL:  W('F-16I_Sufa_-_Israel.jpg'),
+  TR:  W('Turkish_Air_Force_F-16C_Fighting_Falcon.jpg'),
+  IR:  W('IRIAF_F-14_Tomcat.jpg'),
+  AU:  W('F-35A_AF_Serial_No._09-5000_during_flight_(2).jpg'),
+  CA:  W('CF-18_Hornet_2.jpg'),
+  JP:  W('JASDF_F-15J_(02-8803)_006.jpg'),
+  KR:  W('KAI_T-50_Golden_Eagle_of_the_ROKAF.jpg'),
+  IN:  W('Su-30MKI_in_2009.jpg'),
+  NATO:W('E-3_Sentry_over_Iraq.jpg'),
+};
 
-/** Return image URL for a given ICAO type code, or null if not in catalogue */
+export function getCountryFallbackImage(isoCode) {
+  return COUNTRY_FALLBACK[isoCode] || W('F-16_June_2008.jpg');
+}
 export function getAircraftImageUrl(typeCode) {
   if (!typeCode) return null;
   const key = typeCode.toUpperCase().replace(/[-\s/]/g, '');

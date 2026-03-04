@@ -10,7 +10,7 @@ import {
 } from '../utils/geoUtils.js';
 import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry } from '../utils/militaryFilter.js';
 import {
-  getAircraftImageUrl, getShipImageUrl, getBaseImageUrl, getConflictImageUrl,
+  getAircraftImageUrl, getShipImageUrl, getBaseImageUrl, getConflictImageUrl, getCountryFallbackImage,
 } from '../utils/mediaLookup.js';
 
 const Row = ({ label, value, highlight }) => (
@@ -102,12 +102,21 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
                      (entity.type === 'news' || entity.type === 'geo_event' || !!entity.source);
 
   // ── Resolve media image ─────────────────────────────────────────────────
-  const imageUrl = isNews     ? (entity.imageUrl || entity.urlToImage || null)
-                 : isAircraft ? getAircraftImageUrl(entity.aircraftType)
-                 : isShip     ? getShipImageUrl(entity)
-                 : isBase     ? getBaseImageUrl(entity.baseType)
-                 : isConflict ? getConflictImageUrl(entity.type || entity.eventType)
-                 : null;
+  // For aircraft: try specific type image, then country-generic fallback
+  let imageUrl = null;
+  if (isNews)     imageUrl = entity.imageUrl || entity.urlToImage || null;
+  else if (isAircraft) {
+    imageUrl = getAircraftImageUrl(entity.aircraftType);
+    // Fallback: country-generic image based on resolved country
+    if (!imageUrl) {
+      const raw = entity.country || icaoToCountry(entity.icao24 || '');
+      const r   = raw ? resolveCountry(raw) : null;
+      imageUrl  = r && r.code !== '??' ? getCountryFallbackImage(r.code) : null;
+    }
+  }
+  else if (isShip)     imageUrl = getShipImageUrl(entity);
+  else if (isBase)     imageUrl = getBaseImageUrl(entity.baseType);
+  else if (isConflict) imageUrl = getConflictImageUrl(entity.type || entity.eventType);
 
   const flyTo = () => {
     if (!viewer || !entity.lat || !entity.lon) return;
@@ -203,13 +212,44 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false }) => {
           </>
         )}
         {isAircraft && (() => {
-            // Resolve country robustly: try ownOp/country field first, fall back to ICAO prefix
+            // Resolve country: try ownOp/country first, then ICAO prefix, then unknown
             const rawCountry = entity.country || '';
             const icaoCode   = icaoToCountry(entity.icao24 || '');
-            const resolved   = resolveCountry(rawCountry) ||
-                               (icaoCode ? resolveCountry(icaoCode) : null) ||
-                               { name: '—', emoji: '🏳' };
-            const countryDisplay = `${resolved.emoji} ${resolved.name}`;
+            let resolved = rawCountry ? resolveCountry(rawCountry) : null;
+            // Only accept if it actually resolved (not the ??-unknown fallback)
+            if (!resolved || resolved.code === '??') {
+              resolved = icaoCode ? resolveCountry(icaoCode) : null;
+            }
+            if (!resolved || resolved.code === '??') {
+              resolved = { name: rawCountry || 'Unknown', emoji: '\u2753' };
+            }
+            const countryDisplay = `${resolved.emoji}\u00a0${resolved.name}`;
+            const typeName = getAircraftTypeName(entity.aircraftType || '');
+            const altFt    = entity.altitudeFt != null
+              ? entity.altitudeFt
+              : Math.round((entity.altitude || 0) * 3.28084);
+            const vr = entity.vertical_rate;
+            const vrStr = vr
+              ? `${vr > 0 ? '\u25b2' : '\u25bc'} ${Math.abs(Math.round(vr * 196.85)).toLocaleString()} fpm`
+              : '\u2014';
+            return (
+              <>
+                <Row label="CALLSIGN"    value={entity.callsign}                   highlight="text-hud-green" />
+                {entity.registration && <Row label="REG" value={entity.registration} highlight="text-hud-blue" />}
+                {entity.aircraftType  && <Row label="AC TYPE" value={typeName}       highlight="text-white" />}
+                <Row label="ICAO24"     value={entity.icao24} />
+                <Row label="COUNTRY"    value={countryDisplay} />
+                <Row label="ALTITUDE"   value={`${altFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
+                <Row label="SPEED"      value={`${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
+                <Row label="HEADING"    value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
+                <Row label="VERT RATE"  value={vrStr} />
+                <Row label="SQUAWK"     value={entity.squawk || '\u2014'} />
+                <Row label="STATUS"     value={entity.on_ground ? '\ud83d\udfe2 ON GROUND' : '\ud83d\udd35 AIRBORNE'} />
+                <Row label="SOURCE"     value={entity.source || 'adsb'} highlight="text-hud-text" />
+                <Row label="LAST SEEN"  value={timeAgo(entity.lastSeen)} />
+              </>
+            );
+          })()}
             const typeName = getAircraftTypeName(entity.aircraftType || '');
             const altFt    = entity.altitudeFt != null
               ? entity.altitudeFt
