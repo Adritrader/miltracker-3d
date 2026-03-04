@@ -17,8 +17,8 @@ import {
 
 const Row = ({ label, value, highlight }) => (
   <div className="flex justify-between items-center py-0.5 border-b border-hud-border/40">
-    <span className="hud-label text-xs">{label}</span>
-    <span className={`font-mono text-xs font-bold ${highlight || 'text-white'}`}>{value ?? '—'}</span>
+    <span className="hud-label text-xs sm:text-sm">{label}</span>
+    <span className={`font-mono text-xs sm:text-sm font-bold ${highlight || 'text-white'}`}>{value ?? '—'}</span>
   </div>
 );
 
@@ -191,7 +191,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
             ? { top: pos.top, left: pos.left, transform: 'none' }
             : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
           ),
-          width: isMobile ? 'min(340px, calc(100vw - 24px))' : 'min(460px, calc(100vw - 32px))',
+          width: isMobile ? 'min(340px, calc(100vw - 24px))' : 'min(520px, calc(100vw - 32px))',
           maxHeight: 'calc(100vh - 120px)',
           overflowY: 'auto',
           userSelect: dragging ? 'none' : undefined,
@@ -208,11 +208,11 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               {isAircraft ? '\u25b2' : isShip ? '\u25ac' : isConflict ? '\u25c6' : isBase ? '\u2b21' : isAlert ? '\u26a0' : '\u25a0'}
             </span>
             <div>
-              <div className="hud-title text-xs">
+              <div className="hud-title text-xs sm:text-sm">
                 {isAircraft ? 'AIRCRAFT INTEL' : isShip ? 'VESSEL INTEL' : isConflict ? 'CONFLICT EVENT'
                  : isBase ? 'MILITARY FACILITY' : isAlert ? 'THREAT ALERT' : 'NEWS EVENT'}
               </div>
-              <div className="text-white font-mono font-bold text-sm truncate max-w-[160px]">
+              <div className="text-white font-mono font-bold text-sm sm:text-base truncate max-w-[160px] sm:max-w-[220px]">
                 {isAircraft ? (entity.callsign || 'UNKNOWN')
                  : isShip    ? (entity.name || entity.mmsi)
                  : isConflict? (entity.eventType || entity.type || 'EVENT').toUpperCase()
@@ -240,8 +240,8 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               {entity.entityId && <Row label="ENTITY ID" value={entity.entityId} />}
               <Row label="TIME" value={timeAgo(entity.timestamp)} />
               <div className="pt-1">
-                <p className="text-white text-xs font-mono leading-relaxed">{entity.title}</p>
-                <p className="text-hud-text text-xs mt-1 leading-relaxed">{entity.message}</p>
+                <p className="text-white text-xs sm:text-sm font-mono leading-relaxed">{entity.title}</p>
+                <p className="text-hud-text text-xs sm:text-sm mt-1 leading-relaxed">{entity.message}</p>
               </div>
             </>
           )}
@@ -254,7 +254,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="LAT"     value={entity.lat?.toFixed(4)}     highlight="text-hud-green" />
               <Row label="LON"     value={entity.lon?.toFixed(4)}     highlight="text-hud-green" />
               {entity.note && (
-                <p className="text-hud-text text-xs mt-1 leading-relaxed border-t border-hud-border/40 pt-1">
+                <p className="text-hud-text text-xs sm:text-sm mt-1 leading-relaxed border-t border-hud-border/40 pt-1">
                   {entity.note}
                 </p>
               )}
@@ -296,7 +296,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="SOURCE"      value={entity.source || 'AIS'} />
               <Row label="LAST SEEN"   value={timeAgo(entity.lastSeen)} />
               {entity.isBaseline && (
-                <div className="mt-1 px-1 py-1 rounded bg-amber-900/30 border border-amber-500/40 text-amber-300 text-[10px] font-mono leading-tight">
+                <div className="mt-1 px-1 py-1 rounded bg-amber-900/30 border border-amber-500/40 text-amber-300 text-[10px] sm:text-xs font-mono leading-tight">
                   &#x26A0; No live AIS available &mdash; showing last known homeport / deployment position
                 </div>
               )}
@@ -324,7 +324,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                 ) : null;
               })()}
               <div className="pt-2">
-                <p className="text-white text-sm font-mono leading-relaxed">{entity.title}</p>
+                <p className="text-white text-sm sm:text-base font-mono leading-relaxed">{entity.title}</p>
               </div>
             </>
           )}
@@ -336,9 +336,9 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="PUBLISHED" value={timeAgo(entity.firstSeenAt || entity.publishedAt)} />
               {entity.lat && <Row label="LOCATION" value={`${entity.lat?.toFixed(2)}\u00b0, ${entity.lon?.toFixed(2)}\u00b0`} />}
               <div className="pt-1">
-                <p className="text-white text-xs font-mono leading-relaxed">{entity.title}</p>
+                <p className="text-white text-xs sm:text-sm font-mono leading-relaxed">{entity.title}</p>
                 {entity.description && (
-                  <p className="text-hud-text text-xs mt-1 leading-relaxed line-clamp-3">{entity.description}</p>
+                  <p className="text-hud-text text-xs sm:text-sm mt-1 leading-relaxed line-clamp-3">{entity.description}</p>
                 )}
               </div>
             </>
