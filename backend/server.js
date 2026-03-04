@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
 import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds } from './services/newsService.js';
-import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews } from './services/aiDanger.js';
+import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews, probeGeminiModel } from './services/aiDanger.js';
 import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
 
@@ -324,6 +324,9 @@ httpServer.listen(PORT, () => {
   pollShips();
   pollNews();
   pollConflicts();
+
+  // Probe Gemini on startup — logs which model is available (or why it failed)
+  if (process.env.GEMINI_API_KEY) probeGeminiModel(process.env.GEMINI_API_KEY);
 
   // Intervals
   setInterval(pollAircraft,   30_000);
