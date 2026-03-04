@@ -23,10 +23,11 @@ function cachePath(key) {
 
 // Default max age: 1 hour. Conflicts and news change often; aircraft are fresh from live ADS-B.
 const CACHE_TTLS = {
-  aircraft:  30 * 60_000,  // 30 min — ADS-B can go stale quickly
-  ships:     60 * 60_000,  // 1 hour
-  news:      60 * 60_000,  // 1 hour
-  conflicts: 2 * 60 * 60_000, // 2 hours
+  aircraft:   30 * 60_000,         // 30 min
+  ships:      60 * 60_000,         // 1 hour
+  news:        60 * 60_000,         // 1 hour
+  conflicts:   2 * 60 * 60_000,    // 2 hours
+  ai_insight:  6 * 60 * 60_000,    // 6 hours — Gemini quota is limited
 };
 
 /**

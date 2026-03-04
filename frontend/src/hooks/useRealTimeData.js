@@ -14,6 +14,7 @@ const CACHE = {
   news:        { key: 'milt_nw',  ttl: 30 * 60 * 1000 },
   alerts:      { key: 'milt_al',  ttl: 60 * 60 * 1000 },
   dangerZones: { key: 'milt_dz',  ttl: 60 * 60 * 1000 },
+  aiInsight:   { key: 'milt_ai',  ttl: 6  * 60 * 60 * 1000 }, // 6h — matches backend TTL
 };
 function cacheLoad(type) {
   try {
@@ -40,7 +41,7 @@ export function useRealTimeData() {
   const [conflicts, setConflicts] = useState([]);
   const [alerts, setAlerts] = useState(() => cacheLoad('alerts') || []);
   const [dangerZones, setDangerZones] = useState(() => cacheLoad('dangerZones') || []);
-  const [aiInsight, setAiInsight] = useState(null);
+  const [aiInsight, setAiInsight] = useState(() => cacheLoad('aiInsight'));
   const [geminiEnabled, setGeminiEnabled] = useState(null); // null = unknown until server_info arrives
   const [lastUpdate, setLastUpdate] = useState({ aircraft: null, ships: null, news: null });
   const [isInitialLoad, setIsInitialLoad] = useState(() => !cacheLoad('aircraft') && !cacheLoad('ships'));
@@ -108,6 +109,7 @@ export function useRealTimeData() {
 
     socket.on('ai_insight', (insight) => {
       setAiInsight(insight);
+      cacheSave('aiInsight', insight);
     });
 
     socket.on('server_info', ({ geminiEnabled: ge }) => {

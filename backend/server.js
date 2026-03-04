@@ -77,6 +77,9 @@ function buildStore(diskItems, ttl) {
 const conflictStore = buildStore(loadCache('conflicts', []), CONFLICT_TTL);
 const newsStore     = buildStore(loadCache('news',      []), NEWS_TTL);
 
+// Load persisted AI insight (served immediately on connect, refreshed every ~5min poll)
+let cachedAiInsight = loadCache('ai_insight', null);
+
 // Merge fresh events into a store; returns { changed, items[] }
 function mergeIntoStore(store, freshEvents, ttl) {
   const now = Date.now();
@@ -242,6 +245,8 @@ async function pollNews() {
       try {
         const aiInsights = await analyzeWithGemini(cache.news.slice(0, 10), cache.aircraft, cache.ships);
         if (aiInsights) {
+          cachedAiInsight = aiInsights;
+          saveCache('ai_insight', aiInsights);
           io.emit('ai_insight', aiInsights);
         }
       } catch (e) {
@@ -282,6 +287,8 @@ io.on('connection', (socket) => {
   socket.emit('news_update',     { news: cache.news,         timestamp: cache.lastNewsUpdate });
   socket.emit('conflict_update', { conflicts: cache.conflicts, timestamp: cache.lastConflictUpdate });
   socket.emit('danger_update',   { dangerZones: cache.dangerZones, alerts: cache.alerts });
+  // Serve persisted AI insight immediately — no need to wait for next Gemini poll
+  if (cachedAiInsight) socket.emit('ai_insight', cachedAiInsight);
 
   socket.on('request_data', () => {
     socket.emit('aircraft_update', { aircraft: cache.aircraft, timestamp: cache.lastAircraftUpdate });

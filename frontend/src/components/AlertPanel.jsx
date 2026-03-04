@@ -213,10 +213,12 @@ const SitrepView = ({ alerts, aiInsight }) => {
 const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, isMobile = false }) => {
   const [open, setOpen] = useState(!isMobile);
   const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
+  const [alertsExpanded, setAlertsExpanded] = useState(false);
 
   // Only show CRITICAL alerts
   const criticalAlerts = alerts.filter(a => a.severity === 'critical');
   const criticalCount  = criticalAlerts.length;
+  const visibleAlerts  = alertsExpanded ? criticalAlerts : criticalAlerts.slice(0, 5);
 
   const flyToAlert = (alert) => {
     if (viewer && !viewer.isDestroyed() && alert.lat != null && alert.lon != null) {
@@ -278,9 +280,23 @@ const AlertPanel = ({ alerts, aiInsight, geminiEnabled = null, viewer, onFlyTo, 
           <div className="p-2 overflow-y-auto" style={{ maxHeight: 'min(28rem, 55vh)' }}>
             {tab === 'alerts' && (
               criticalAlerts.length > 0
-                ? criticalAlerts.slice(0, 20).map(a => (
-                    <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
-                  ))
+                ? (
+                  <>
+                    {visibleAlerts.map(a => (
+                      <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
+                    ))}
+                    {criticalAlerts.length > 5 && (
+                      <button
+                        onClick={() => setAlertsExpanded(e => !e)}
+                        className="w-full text-center text-xs font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"
+                      >
+                        {alertsExpanded
+                          ? '▲ COLLAPSE'
+                          : `▼ SEE ALL (${criticalAlerts.length})`}
+                      </button>
+                    )}
+                  </>
+                )
                 : <div className="text-hud-text text-xs text-center py-4">No critical alerts</div>
             )}
 
