@@ -37,9 +37,9 @@ const DEMO_SHIPS = [
   { mmsi:'338234671', name:'USS ABRAHAM LINCOLN CVN-72',       lat:32.70, lon:-117.20,heading:270,velocity:12, type:'Military', flag:'US', destination:'SAN DIEGO' },
   // ── US NAVY – PACIFIC ─────────────────────────────────────────────────────
   { mmsi:'338234675', name:'USS RONALD REAGAN CVN-76',         lat:35.40, lon:139.60,heading:90,  velocity:14, type:'Military', flag:'US', destination:'YOKOSUKA OPS' },
-  { mmsi:'338234676', name:'USS NIMITZ CVN-68',                lat:21.30, lon:157.90,heading:0,   velocity:0,  type:'Military', flag:'US', destination:'PEARL HARBOR' },
+  { mmsi:'338234676', name:'USS NIMITZ CVN-68',                lat:21.35, lon:-157.97,heading:0,   velocity:0,  type:'Military', flag:'US', destination:'PEARL HARBOR' },
   // ── ROYAL NAVY (UK) – Cyprus / Gulf support ──────────────────────────────
-  { mmsi:'232001000', name:'HMS QUEEN ELIZABETH R08',           lat:34.62, lon:33.10, heading:200, velocity:10, type:'Military', flag:'UK', destination:'AKROTIRI SUPPORT' },
+  { mmsi:'232001000', name:'HMS QUEEN ELIZABETH R08',           lat:34.52, lon:32.80, heading:200, velocity:10, type:'Military', flag:'UK', destination:'AKROTIRI SUPPORT' },
   { mmsi:'232001001', name:'HMS PRINCE OF WALES R09',           lat:37.00, lon:24.50, heading:90,  velocity:14, type:'Military', flag:'UK', destination:'MED TRANSIT' },
   { mmsi:'232001010', name:'HMS DIAMOND D34',                   lat:34.90, lon:32.00, heading:160, velocity:18, type:'Military', flag:'UK', destination:'CYPRUS PATROL' },
   { mmsi:'232001011', name:'HMS RICHMOND F239',                 lat:35.50, lon:28.00, heading:95,  velocity:20, type:'Military', flag:'UK', destination:'ASW PATROL' },
@@ -48,7 +48,7 @@ const DEMO_SHIPS = [
   { mmsi:'227123001', name:'FS CHARLES DE GAULLE R91',          lat:33.70, lon:34.10, heading:180, velocity:12, type:'Military', flag:'FR', destination:'BEIRUT OFFSHORE' },
   { mmsi:'227123002', name:'FS FORBIN D620',                    lat:33.40, lon:33.80, heading:90,  velocity:16, type:'Military', flag:'FR', destination:'AAW ESCORT' },
   { mmsi:'227123003', name:'FS PROVENCE D652',                  lat:33.10, lon:34.20, heading:270, velocity:14, type:'Military', flag:'FR', destination:'MED PATROL' },
-  { mmsi:'227123010', name:'FS DIXMUDE L9015',                  lat:43.10, lon:5.80,  heading:180, velocity:0,  type:'Military', flag:'FR', destination:'TOULON' },
+  { mmsi:'227123010', name:'FS DIXMUDE L9015',                  lat:43.04, lon:5.95,  heading:180, velocity:0,  type:'Military', flag:'FR', destination:'TOULON' },
   // ── ISRAELI NAVY ──────────────────────────────────────────────────────────
   { mmsi:'428000001', name:"INS SA'AR 6 MAGEN",                 lat:33.30, lon:33.00, heading:330, velocity:28, type:'Military', flag:'IL', destination:'MARITIME PATROL' },
   { mmsi:'428000002', name:"INS SA'AR 6 OZ",                    lat:32.60, lon:33.20, heading:270, velocity:25, type:'Military', flag:'IL', destination:'BLOCKADE PATROL' },
@@ -61,7 +61,7 @@ const DEMO_SHIPS = [
   { mmsi:'422000005', name:'IRIN SAHAND FRIGATE',               lat:27.18, lon:56.27, heading:135, velocity:15, type:'Military', flag:'IR', destination:'BANDAR ABBAS' },
   { mmsi:'422000006', name:'IRGCN MINE LAYER GROUP',            lat:26.60, lon:56.40, heading:180, velocity:6,  type:'Military', flag:'IR', destination:'MINING OPS' },
   // ── RUSSIAN NAVY ──────────────────────────────────────────────────────────
-  { mmsi:'273123001', name:'RFS ADMIRAL KUZNETSOV',             lat:69.10, lon:33.60, heading:180, velocity:5,  type:'Military', flag:'RU', destination:'SEVEROMORSK' },
+  { mmsi:'273123001', name:'RFS ADMIRAL KUZNETSOV',             lat:68.92, lon:34.20, heading:180, velocity:5,  type:'Military', flag:'RU', destination:'SEVEROMORSK' },
   { mmsi:'273123002', name:'RFS MARSHAL USTINOV',               lat:35.10, lon:24.30, heading:90,  velocity:14, type:'Military', flag:'RU', destination:'MED GROUP' },
   { mmsi:'273123003', name:'RFS VARSHAVYANKA S-375',            lat:42.80, lon:32.00, heading:270, velocity:8,  type:'Military', flag:'RU', destination:'BLACK SEA' },
   { mmsi:'273123004', name:'RFS PAVLOVSK CORVETTE',             lat:44.50, lon:33.20, heading:90,  velocity:12, type:'Military', flag:'RU', destination:'CRIMEA PATROL' },
@@ -72,12 +72,12 @@ const DEMO_SHIPS = [
   { mmsi:'412123010', name:'CNS NANCHANG DDG-101',              lat:22.50, lon:114.50,heading:90,  velocity:20, type:'Military', flag:'CN', destination:'CARRIER ESCORT' },
   { mmsi:'412123011', name:'CNS WUXI DDG-109',                  lat:23.80, lon:119.80,heading:180, velocity:22, type:'Military', flag:'CN', destination:'STRAIT PATROL' },
   // ── NATO / EUROPEAN NAVIES ────────────────────────────────────────────────
-  { mmsi:'244123001', name:'HNLMS ROTTERDAM LPD-800',           lat:51.90, lon:4.50,  heading:270, velocity:0,  type:'Military', flag:'NL', destination:'ROTTERDAM' },
-  { mmsi:'245123001', name:'FGS SACHSEN F219',                  lat:54.30, lon:10.10, heading:90,  velocity:7,  type:'Military', flag:'DE', destination:'KIEL' },
-  { mmsi:'247123001', name:'ITS CAVOUR CVH-550',                lat:40.60, lon:14.30, heading:180, velocity:12, type:'Military', flag:'IT', destination:'NAPLES' },
+  { mmsi:'244123001', name:'HNLMS ROTTERDAM LPD-800',           lat:52.00, lon:3.80,  heading:270, velocity:0,  type:'Military', flag:'NL', destination:'ROTTERDAM' },
+  { mmsi:'245123001', name:'FGS SACHSEN F219',                  lat:54.50, lon:10.20, heading:90,  velocity:7,  type:'Military', flag:'DE', destination:'KIEL' },
+  { mmsi:'247123001', name:'ITS CAVOUR CVH-550',                lat:40.85, lon:14.20, heading:180, velocity:12, type:'Military', flag:'IT', destination:'NAPLES' },
   { mmsi:'247123002', name:'ITS LUIGI DURAND DE LA PENNE',      lat:37.50, lon:14.80, heading:90,  velocity:18, type:'Military', flag:'IT', destination:'MED PATROL' },
   { mmsi:'219123001', name:'HDMS PETER WILLEMOES F362',         lat:56.00, lon:12.60, heading:270, velocity:14, type:'Military', flag:'DK', destination:'NATO BALTIC' },
-  { mmsi:'230123001', name:'FNS HAMINA 80',                     lat:59.90, lon:24.90, heading:0,   velocity:0,  type:'Military', flag:'FI', destination:'HELSINKI' },
+  { mmsi:'230123001', name:'FNS HAMINA 80',                     lat:59.85, lon:25.00, heading:0,   velocity:0,  type:'Military', flag:'FI', destination:'HELSINKI' },
   // ── NATO BALTIC GROUP (Russian border) ───────────────────────────────────
   { mmsi:'338234680', name:'USS MOUNT WHITNEY LCC-20',          lat:57.00, lon:19.50, heading:90,  velocity:10, type:'Military', flag:'US', destination:'NATO BALTIC CMD' },
   { mmsi:'338234681', name:'USS PORTER DDG-78',                 lat:58.00, lon:20.40, heading:180, velocity:18, type:'Military', flag:'US', destination:'BALTIC PATROL' },
@@ -91,20 +91,25 @@ let driftState = {};
 
 function applyDrift(ship) {
   if (!driftState[ship.mmsi]) {
-    const speed    = ship.velocity || 0;
-    const headRad  = ((ship.heading || 0) * Math.PI) / 180;
+    const speed   = ship.velocity || 0;
+    const headRad = ((ship.heading || 0) * Math.PI) / 180;
     driftState[ship.mmsi] = {
-      dlat: Math.cos(headRad) * speed * 0.00003 + (Math.random() - 0.5) * 0.0008,
-      dlon: Math.sin(headRad) * speed * 0.00003 + (Math.random() - 0.5) * 0.0008,
+      // In-port ships (velocity <= 1) get only tiny anchor jitter
+      dlat: speed <= 1
+        ? (Math.random() - 0.5) * 0.0003
+        : Math.cos(headRad) * speed * 0.00003 + (Math.random() - 0.5) * 0.0006,
+      dlon: speed <= 1
+        ? (Math.random() - 0.5) * 0.0003
+        : Math.sin(headRad) * speed * 0.00003 + (Math.random() - 0.5) * 0.0006,
     };
   }
   const d = driftState[ship.mmsi];
   return {
     ...ship,
-    lat:      +(ship.lat + d.dlat).toFixed(5),
-    lon:      +(ship.lon + d.dlon).toFixed(5),
-    heading:  (ship.heading + (Math.random() - 0.5) * 3 + 360) % 360,
-    id:       ship.mmsi,
+    lat:     +(ship.lat + d.dlat).toFixed(5),
+    lon:     +(ship.lon + d.dlon).toFixed(5),
+    heading: (ship.heading + (Math.random() - 0.5) * 2 + 360) % 360,
+    id:      ship.mmsi,
     type_entity: 'ship',
     lastSeen: new Date().toISOString(),
   };
