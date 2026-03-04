@@ -146,4 +146,62 @@
 
 ---
 
-**Resumen: 26 ✅ hechos · 33 ❌ pendientes**
+## §12 — Estrategia: Producción Real, SEO y Monetización
+
+### 12.1 — Valoración SEO
+
+CesiumJS renderiza en WebGL — el DOM está casi vacío. El SEO orgánico no funcionará bien.  
+**Mejor enfoque:**
+- OG / Twitter Card meta tags (`og:title`, `og:description`, `og:image` con screenshot del globo)
+- Página estática `/about` en Vercel (indexable, sin WebGL)
+- `document.title` dinámico con contadores en vivo: `"MilTracker 3D — 124 aircraft · 37 ships · 18 conflicts"`
+- Distribución directa: Reddit (r/geopolitics, r/flightradar, r/OpenData), Twitter/X, Product Hunt
+
+### 12.2 — Monetización (ordenada por viabilidad)
+
+| Opción | Esfuerzo | POtencial | Notas |
+|--------|----------|-----------|-------|
+| **Ko-fi / Patreon** | ~1h | Bajo-medio | Botón en HUD, comunidad paga herramientas que usa — el más rápido |
+| **Tier Premium** ($4.99/mes) | 1-2 días | Alto | Stripe + JWT: datos en tiempo real vs 30-min delay, alertas ilimitadas, SITREP completo |
+| **Acceso API** ($20-50/mes) | 1-2 días | Medio | Para analistas/periodistas una vez acumulen datos históricos |
+| **Google AdSense** | 1h | Bajo | CPM bajo en este nicho + arruina la estética del HUD militar |
+
+### 12.3 — Features de Alto Impacto No Planificadas
+
+| Feature | Por qué importa |
+|---------|----------------|
+| **Share link** `?fly=lat,lon,alt` | Viralidad en Twitter/X — cada usuario comparte una vista del globo |
+| **Timeline / Replay histórico** | Feature más pedida en apps de tracking — ver el desarrollo de un evento |
+| **Email / Telegram alertas por región** | Diferenciador fuerte frente a OpenSky/MarineTraffic |
+| **Iframe embeddable** | Backlinks desde medios/blogs, más tráfico |
+
+### 12.4 — Hardening de Seguridad (antes de publicar)
+
+| # | Item | Riesgo si no se hace |
+|---|------|---------------------|
+| §8.1 | CORS restrictivo por origen | Cualquiera puede consumir el backend de Railway y quemar la cuota Gemini |
+| §8.2 | Socket.io con token de auth | Bots pueden conectarse y saturar el server gratuito |
+| §8.3 | Sanitizar errores en producción | Stack traces con rutas internas llegan al frontend |
+
+### 12.5 — Top 5 Recomendaciones (prioridad)
+
+```
+1. PWA (§10.8)           — manifest.json + service worker → retención móvil
+2. Share link            — ?fly=lat,lon,alt → viralidad, ~2h de trabajo
+3. Ko-fi en HUD          — botón discreto, monetización en 1h
+4. CORS + Socket auth    — §8.1 + §8.2 → protege cuota Gemini y Railway
+5. Timeline / Replay     — §10.1 → mayor driver de retención de usuarios
+```
+
+### 12.6 — Opciones de Dirección
+
+| Opción | Items | Tiempo estimado |
+|--------|-------|----------------|
+| **A — Producción segura** | §8.1 CORS + §8.2 Socket auth + §8.3 sanitizar + §10.8 PWA | ~4-6h |
+| **B — Monetización primero** | Ko-fi (1h) + Share link (2h) + Stripe Premium (1-2 días) | 1h → 2 días |
+| **C — Roadmap en orden** | §1.9 dedup + §4.5 env validation + §6.4 GDELT errors + §7.7 lat/lon grid | ~3-4h |
+| **D — Features de impacto** | Timeline/replay (§10.1) + Email/Telegram alerts | 1-3 días |
+
+---
+
+**Resumen: 34 ✅ hechos · 28 ❌ pendientes**
