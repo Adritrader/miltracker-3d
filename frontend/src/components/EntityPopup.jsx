@@ -336,7 +336,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
         {/* Footer actions */}
         <div className="flex gap-2 px-3 pb-3 pt-1 flex-wrap">
           <button className="hud-btn-primary flex-1 text-center" onClick={flyTo}>
-            \ud83d\udccd FLY TO
+            &#x25B6; FLY TO
           </button>
 
           {(isAircraft || isShip) && trackableId && (
