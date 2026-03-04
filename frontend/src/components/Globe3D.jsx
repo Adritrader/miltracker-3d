@@ -26,14 +26,15 @@ const CREDIT_CONTAINER = window._milCreditContainer;
 const CONTEXT_OPTIONS  = window._milContextOptions;
 const TERRAIN_PROVIDER = window._milTerrainProvider;
 
-// ── Basemap providers (all free, no API key) ─────────────────────────────────
+// ── Basemap providers (all free, CORS-compatible) ───────────────────────────
 function buildImageryProvider(basemap) {
   switch (basemap) {
     case 'satellite':
+      // Stadia Maps alidade_satellite – proper CORS headers, no API key needed
       return new Cesium.UrlTemplateImageryProvider({
-        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        minimumLevel: 0, maximumLevel: 19,
-        credit: new Cesium.Credit('\u00a9 Esri, Maxar, Earthstar Geographics'),
+        url: 'https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}.jpg',
+        minimumLevel: 0, maximumLevel: 20,
+        credit: new Cesium.Credit('\u00a9 Stadia Maps \u00a9 CNES/Airbus DS \u00a9 OpenStreetMap contributors'),
       });
     case 'relief':
       return new Cesium.UrlTemplateImageryProvider({

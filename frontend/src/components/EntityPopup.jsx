@@ -1,6 +1,7 @@
 /**
  * EntityPopup – HUD-style info panel for selected aircraft, ship, or news item
  * All logic pre-computed before JSX return to avoid IIFE-in-JSX issues.
+ * v3 – no orphaned block-scope variables, no IIFEs in JSX
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';

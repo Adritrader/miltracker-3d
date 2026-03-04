@@ -137,7 +137,7 @@ function App() {
 
       let entity = null;
       if (trackedType === 'aircraft') {
-        entity = aircraft.find(a => a.id === trackedId);
+        entity = aircraft.find(a => a.id === trackedId || a.icao24 === trackedId);
       } else if (trackedType === 'ship') {
         entity = ships.find(s => (s.mmsi || s.id) === trackedId);
       }
@@ -246,25 +246,68 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Tracking indicator badge */}
-      {trackedId && (
-        <div
-          className="fixed z-30 flex items-center gap-2 hud-panel px-3 py-1.5 text-xs font-mono"
-          style={{ top: isMobile ? 56 : 16, left: '50%', transform: 'translateX(-50%)' }}
-        >
-          <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-green-400 font-bold">TRACKING</span>
-          <span className="text-white">
-            {trackedType === 'aircraft'
-              ? aircraft.find(a => a.id === trackedId)?.callsign || trackedId
-              : ships.find(s => (s.mmsi || s.id) === trackedId)?.name || trackedId}
-          </span>
-          <button
-            onClick={handleUntrack}
-            className="ml-1 text-hud-text hover:text-red-400 font-bold transition-colors"
-          >✕</button>
-        </div>
-      )}
+      {/* Tracking panel — live telemetry for tracked entity */}
+      {trackedId && (() => {
+        const trackedAc   = trackedType === 'aircraft' ? aircraft.find(a => a.id === trackedId || a.icao24 === trackedId) : null;
+        const trackedShip = trackedType === 'ship'     ? ships.find(s => (s.mmsi || s.id) === trackedId) : null;
+        const subject     = trackedAc || trackedShip;
+        const label       = trackedAc?.callsign || trackedShip?.name || trackedId;
+        const altFt       = trackedAc
+          ? (trackedAc.altitudeFt ?? Math.round((trackedAc.altitude || 0) * 3.28084))
+          : null;
+        const speed       = subject ? Math.round(subject.velocity || 0) : null;
+        const hdg         = subject ? Math.round(subject.heading  || 0) : null;
+        const onGround    = trackedAc?.on_ground;
+        return (
+          <div
+            className="fixed z-30 hud-panel text-xs font-mono"
+            style={{
+              top: isMobile ? 56 : 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              borderColor: trackedAc ? '#4af766' : '#00aaff',
+              minWidth: 220,
+            }}
+          >
+            {/* Header row */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-hud-border/50">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+              <span className="text-green-400 font-bold tracking-widest text-xs">TRACKING</span>
+              <span className="text-white font-bold ml-1 truncate max-w-[120px]">{label}</span>
+              <button
+                onClick={handleUntrack}
+                className="ml-auto text-hud-text hover:text-red-400 font-bold transition-colors pl-2"
+                title="Stop tracking"
+              >&times;</button>
+            </div>
+            {/* Telemetry row */}
+            {subject && (
+              <div className="flex items-center gap-3 px-3 py-1.5 text-hud-text">
+                {altFt != null && (
+                  <span title="Altitude">
+                    <span className="text-hud-amber font-bold">{onGround ? 'GND' : `${Math.round(altFt / 100) * 100}ft`}</span>
+                  </span>
+                )}
+                {speed != null && (
+                  <span title="Speed">
+                    <span className="text-hud-green font-bold">{speed}{trackedAc ? 'kt' : 'kn'}</span>
+                  </span>
+                )}
+                {hdg != null && (
+                  <span title="Heading">
+                    <span className="text-hud-blue font-bold">{hdg}&deg;</span>
+                  </span>
+                )}
+                {trackedAc && (
+                  <span className={trackedAc.on_ground ? 'text-green-400' : 'text-blue-400'}>
+                    {trackedAc.on_ground ? '\ud83d\udfe2 GND' : '\ud83d\udd35 AIR'}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Bottom-right: Map layer switcher */}
       <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
