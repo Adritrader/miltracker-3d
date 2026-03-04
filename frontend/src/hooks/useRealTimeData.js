@@ -75,44 +75,55 @@ export function useRealTimeData() {
 
     socket.on('aircraft_update', ({ aircraft: ac, timestamp }) => {
       const list = ac || [];
-      setAircraft(list);
+      // Never replace good cached data with an empty server response (Railway cold start)
+      if (list.length > 0) {
+        setAircraft(list);
+        cacheSave('aircraft', list);
+        const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
+        if (knownSources.includes(list[0]?.source)) setAircraftSource(list[0].source);
+        else setAircraftSource('live');
+      } else {
+        setAircraftSource('empty');
+      }
       setIsInitialLoad(false);
-      const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
-      if (list.length === 0) setAircraftSource('empty');
-      else if (knownSources.includes(list[0]?.source)) setAircraftSource(list[0].source);
-      else setAircraftSource('cached');
       setLastUpdate(prev => ({ ...prev, aircraft: timestamp }));
-      cacheSave('aircraft', list);
     });
 
     socket.on('ship_update', ({ ships: sh, timestamp }) => {
       const list = sh || [];
-      setShips(list);
+      if (list.length > 0) {
+        setShips(list);
+        cacheSave('ships', list);
+      }
       setIsInitialLoad(false);
       setLastUpdate(prev => ({ ...prev, ships: timestamp }));
-      cacheSave('ships', list);
     });
 
     socket.on('news_update', ({ news: nw, timestamp }) => {
       const list = nw || [];
-      setNews(list);
+      if (list.length > 0) {
+        setNews(list);
+        cacheSave('news', list);
+      }
       setLastUpdate(prev => ({ ...prev, news: timestamp }));
-      cacheSave('news', list);
     });
 
     socket.on('conflict_update', ({ conflicts: cf }) => {
       const list = cf || [];
-      setConflicts(list);
-      cacheSave('conflicts', list);
+      if (list.length > 0) {
+        setConflicts(list);
+        cacheSave('conflicts', list);
+      }
     });
 
     socket.on('danger_update', ({ dangerZones: dz, alerts: al }) => {
       const zones = dz || [];
       const alrts = al || [];
+      // Always update alerts (they signal new threats even if empty means all-clear)
       setDangerZones(zones);
       setAlerts(alrts);
-      cacheSave('dangerZones', zones);
-      cacheSave('alerts', alrts);
+      if (zones.length > 0) cacheSave('dangerZones', zones);
+      if (alrts.length > 0) cacheSave('alerts', alrts);
     });
 
     socket.on('ai_insight', (insight) => {
