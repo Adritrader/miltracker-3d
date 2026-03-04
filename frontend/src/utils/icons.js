@@ -20,6 +20,26 @@ export const AIRCRAFT_SVG = (heading = 0, color = '#ffffff') => {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
+// Helicopter silhouette (top-down view, rotor blades + elongated body)
+export const HELICOPTER_SVG = (heading = 0, color = '#ffffff') => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">
+    <g transform="rotate(${heading}, 16, 16)">
+      <!-- Main rotor blades -->
+      <ellipse cx="16" cy="16" rx="13" ry="2.5" fill="${color}" opacity="0.7"/>
+      <ellipse cx="16" cy="16" rx="2.5" ry="13" fill="${color}" opacity="0.7"/>
+      <!-- Hub -->
+      <circle cx="16" cy="16" r="2.5" fill="${color}" opacity="1"/>
+      <!-- Fuselage -->
+      <ellipse cx="16" cy="19" rx="3.5" ry="6" fill="${color}" opacity="0.95"/>
+      <!-- Tail boom -->
+      <rect x="15" y="24" width="2" height="5" fill="${color}" opacity="0.8"/>
+      <!-- Tail rotor -->
+      <ellipse cx="16" cy="29" rx="4" ry="1" fill="${color}" opacity="0.65"/>
+    </g>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
 // Ship silhouette (white, top-down view)
 export const SHIP_SVG = (heading = 0, color = '#00aaff') => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">

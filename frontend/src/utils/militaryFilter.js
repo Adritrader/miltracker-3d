@@ -270,6 +270,28 @@ export function getAircraftTypeName(code = '') {
   return AIRCRAFT_TYPE_NAMES[upper] || code.trim();
 }
 
+// Set of ICAO type designators that are rotary-wing (helicopters / tiltrotors)
+const HELICOPTER_TYPES = new Set([
+  'AH64','AH6','AH1','UH60','H60','UH1','H1',
+  'CH47','CH53','CH46','MH60','MH47','MH6',
+  'V22','MV22','CV22',
+  'NH90','EC35','EC45','EC25','EC30','H135','H145','H155','H160','H175','H215','H225',
+  'AS332','AS365','AS532','SA330','SA341','SA342',
+  'S70','S92','S76','S61','SEA','LYNX','MRLN','EH101',
+  'MI8','MI17','MI24','MI28','MI35','KA27','KA28','KA31','KA52',
+  'OH58','TH67','ROB44','ROB66','BELL','BO105','BK117','MD500','MD902',
+]);
+
+/** Returns true if the ICAO type designator is a helicopter or tiltrotor. */
+export function isHelicopter(typeCode = '') {
+  if (!typeCode) return false;
+  const upper = typeCode.trim().toUpperCase();
+  if (HELICOPTER_TYPES.has(upper)) return true;
+  // Prefix heuristics: many civilian helo codes start with H followed by digits
+  if (/^H[0-9]/.test(upper)) return true;
+  return false;
+}
+
 export const ALLIANCE_GROUPS = {
   NATO: ['United States', 'United Kingdom', 'France', 'Germany', 'Canada',
     'Italy', 'Spain', 'Netherlands', 'Norway', 'Poland', 'Turkey'],

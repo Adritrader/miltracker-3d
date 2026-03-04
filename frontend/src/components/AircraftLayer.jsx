@@ -5,9 +5,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
-import { AIRCRAFT_SVG, getAircraftColor } from '../utils/icons.js';
+import { AIRCRAFT_SVG, HELICOPTER_SVG, getAircraftColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
-import { icaoToCountry, getAircraftTypeName, resolveCountry } from '../utils/militaryFilter.js';
+import { icaoToCountry, getAircraftTypeName, resolveCountry, isHelicopter } from '../utils/militaryFilter.js';
 
 /** Build two-line label text for a given aircraft */
 function buildLabelText(ac) {
@@ -55,12 +55,14 @@ function saveTrails(trailPointsMap) {
   } catch (_) { /* storage full — ignore */ }
 }
 
-// Cache SVG icons by (heading rounded to 10°, color) to avoid re-encoding on every render
+// Cache SVG icons by (heading rounded to 10°, color, type) to avoid re-encoding on every render
 const _iconCache = new Map();
-function getCachedIcon(heading, color) {
+function getCachedIcon(heading, color, helicopter = false) {
   const h = Math.round((heading || 0) / 10) * 10 % 360;
-  const key = `${h}_${color}`;
-  if (!_iconCache.has(key)) _iconCache.set(key, AIRCRAFT_SVG(h, color));
+  const key = `${h}_${color}_${helicopter ? 'h' : 'a'}`;
+  if (!_iconCache.has(key)) {
+    _iconCache.set(key, helicopter ? HELICOPTER_SVG(h, color) : AIRCRAFT_SVG(h, color));
+  }
   return _iconCache.get(key);
 }
 
@@ -129,7 +131,8 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
         const altM     = Math.max(ac.altitude || 0, 100);
         const position = Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, altM);
         const color    = getAircraftColor(ac.country);
-        const iconUri  = getCachedIcon(ac.heading, color);
+        const helo     = isHelicopter(ac.aircraftType);
+        const iconUri  = getCachedIcon(ac.heading, color, helo);
 
         // ── Append to trail history ─────────────────────────────────────────
         if (!trailPointsRef.current.has(ac.id)) {

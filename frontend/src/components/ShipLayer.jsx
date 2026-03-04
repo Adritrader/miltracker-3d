@@ -1,5 +1,6 @@
 /**
  * ShipLayer – renders warships as animated Cesium billboard entities
+ * with a fading historical trail showing each ship's trajectory.
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -8,104 +9,190 @@ import { SHIP_SVG, getShipColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
 import { resolveCountry } from '../utils/militaryFilter.js';
 
+const MAX_TRAIL_POINTS = 60;         // ~30 min of history at 30-s intervals
+const TRAIL_STORAGE_KEY = 'mlt_ship_trails_v1';
+
+function loadStoredTrails() {
+  try {
+    const raw = sessionStorage.getItem(TRAIL_STORAGE_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw);
+    const map = new Map();
+    for (const [id, pts] of Object.entries(parsed)) {
+      map.set(id, pts.map(p => new Cesium.Cartesian3(p.x, p.y, p.z)));
+    }
+    return map;
+  } catch { return new Map(); }
+}
+
+function saveTrails(trailPointsMap) {
+  try {
+    const obj = {};
+    for (const [id, pts] of trailPointsMap.entries()) {
+      obj[id] = pts.map(p => ({ x: p.x, y: p.y, z: p.z }));
+    }
+    sessionStorage.setItem(TRAIL_STORAGE_KEY, JSON.stringify(obj));
+  } catch { /* storage full */ }
+}
+
 const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
-  const entityMapRef = useRef(new Map());
-  const prevIdsRef = useRef(new Set());
+  const entityMapRef   = useRef(new Map());
+  const trailEntityRef = useRef(new Map());
+  const trailPointsRef = useRef(loadStoredTrails());
+  const prevIdsRef     = useRef(new Set());
 
   // LOD constants
   const MAX_RANGE   = isMobile ? 3e6 : 5.5e6;
   const LABEL_RANGE = isMobile ? 1e6 : 2.5e6;
+  const TRAIL_RANGE = isMobile ? 0 : 1.8e6;   // disable trails on mobile
 
-  const getOrCreateDataSource = useCallback(() => {
+  const getDS = useCallback((name) => {
     if (!viewer || viewer.isDestroyed()) return null;
     for (let i = 0; i < viewer.dataSources.length; i++) {
-      if (viewer.dataSources.get(i).name === 'ships') return viewer.dataSources.get(i);
+      if (viewer.dataSources.get(i).name === name) return viewer.dataSources.get(i);
     }
-    const ds = new Cesium.CustomDataSource('ships');
+    const ds = new Cesium.CustomDataSource(name);
     viewer.dataSources.add(ds);
     return ds;
   }, [viewer]);
 
+  // ── Visibility toggle ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!viewer) return;
-    const ds = getOrCreateDataSource();
-    if (!ds) return;
-    ds.show = visible;
-  }, [viewer, visible, getOrCreateDataSource]);
+    const shipDS  = getDS('ships');
+    const trailDS = getDS('ship-trails');
+    if (shipDS)  shipDS.show  = visible;
+    if (trailDS) trailDS.show = visible;
+  }, [viewer, visible, getDS]);
 
+  // ── Main update loop ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!viewer) return;
-    const ds = getOrCreateDataSource();
-    if (!ds) return;
+    const shipDS  = getDS('ships');
+    const trailDS = getDS('ship-trails');
+    if (!shipDS || !trailDS) return;
 
     const currentIds = new Set(ships.map(s => s.mmsi || s.id));
 
-    // Remove stale
-    for (const id of prevIdsRef.current) {
-      if (!currentIds.has(id)) {
-        const entity = entityMapRef.current.get(id);
-        if (entity) ds.entities.remove(entity);
-        entityMapRef.current.delete(id);
+    shipDS.entities.suspendEvents();
+    trailDS.entities.suspendEvents();
+    try {
+      // Remove stale entities
+      for (const id of prevIdsRef.current) {
+        if (!currentIds.has(id)) {
+          const entity    = entityMapRef.current.get(id);
+          const trailEnt  = trailEntityRef.current.get(id);
+          if (entity)   shipDS.entities.remove(entity);
+          if (trailEnt) trailDS.entities.remove(trailEnt);
+          entityMapRef.current.delete(id);
+          trailEntityRef.current.delete(id);
+          trailPointsRef.current.delete(id);
+        }
       }
-    }
-    prevIdsRef.current = currentIds;
+      prevIdsRef.current = currentIds;
 
-    // Add / update
-    for (const ship of ships) {
-      if (!isValidCoord(ship.lat, ship.lon)) continue;
-      const id = ship.mmsi || ship.id;
-      const position = Cesium.Cartesian3.fromDegrees(ship.lon, ship.lat, 0);
-      const color = getShipColor(ship.flag);
-      const iconUri = SHIP_SVG(ship.heading || 0, color);
+      // Add / update ships + trails
+      for (const ship of ships) {
+        if (!isValidCoord(ship.lat, ship.lon)) continue;
+        const id       = ship.mmsi || ship.id;
+        const position = Cesium.Cartesian3.fromDegrees(ship.lon, ship.lat, 0);
+        const color    = getShipColor(ship.flag);
+        const iconUri  = SHIP_SVG(ship.heading || 0, color);
 
-      // Build label: [FLAG_ISO] NAME
-      const rawFlag    = ship.flag || ship.country || '';
-      const resolved   = rawFlag ? resolveCountry(rawFlag) : null;
-      const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
-      const shipLabel  = [countryTag, ship.name || id].filter(Boolean).join(' ');
+        // Build label: [FLAG_ISO] NAME
+        const rawFlag    = ship.flag || ship.country || '';
+        const resolved   = rawFlag ? resolveCountry(rawFlag) : null;
+        const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
+        const shipLabel  = [countryTag, ship.name || id].filter(Boolean).join(' ');
 
-      if (entityMapRef.current.has(id)) {
-        const entity = entityMapRef.current.get(id);
-        entity.position = position;
-        if (entity.billboard) entity.billboard.image = iconUri;
-        if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
-        entity._milData = { ...ship, type_entity: 'ship' };
-      } else {
-        const entity = ds.entities.add({
-          id: `ship-${id}`,
-          position,
-          billboard: {
-            image: iconUri,
-            width:  46,
-            height: 46,
-            verticalOrigin:   Cesium.VerticalOrigin.CENTER,
-            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
-            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-          label: {
-            text: shipLabel,
-            font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
-            fillColor: Cesium.Color.fromCssColorString('#00aaff'),
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 3,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: Cesium.VerticalOrigin.TOP,
-            pixelOffset: new Cesium.Cartesian2(0, 22),
-            scaleByDistance: new Cesium.NearFarScalar(1e4, isMobile ? 1.3 : 1.0, LABEL_RANGE, 0.0),
-            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
-            showBackground: true,
-            backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
-            backgroundPadding: new Cesium.Cartesian2(5, 3),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-        });
-        entity._milData = { ...ship, type_entity: 'ship' };
-        entityMapRef.current.set(id, entity);
+        // ── Trail history ───────────────────────────────────────────────────
+        if (!trailPointsRef.current.has(id)) trailPointsRef.current.set(id, []);
+        const pts  = trailPointsRef.current.get(id);
+        const last = pts[pts.length - 1];
+        // Minimum movement: 200 m (filters GPS jitter while at anchor)
+        const moved = !last || Cesium.Cartesian3.distance(last, position) > 200;
+        if (moved) {
+          pts.push(position);
+          if (pts.length > MAX_TRAIL_POINTS) pts.splice(0, pts.length - MAX_TRAIL_POINTS);
+        }
+
+        const cesiumColor = Cesium.Color.fromCssColorString(color);
+
+        // ── Polyline trail ──────────────────────────────────────────────────
+        if (TRAIL_RANGE > 0 && pts.length >= 2) {
+          if (trailEntityRef.current.has(id)) {
+            trailEntityRef.current.get(id).polyline.positions =
+              new Cesium.ConstantProperty(pts.slice());
+          } else {
+            const te = trailDS.entities.add({
+              id: `ship-trail-${id}`,
+              polyline: {
+                positions: new Cesium.ConstantProperty(pts.slice()),
+                width: 1.5,
+                material: new Cesium.PolylineGlowMaterialProperty({
+                  glowPower: 0.10,
+                  taperPower: 1.0,
+                  color: cesiumColor.withAlpha(0.65),
+                }),
+                clampToGround: true,
+                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE),
+              },
+            });
+            trailEntityRef.current.set(id, te);
+          }
+        } else if (TRAIL_RANGE === 0 && trailEntityRef.current.has(id)) {
+          trailDS.entities.remove(trailEntityRef.current.get(id));
+          trailEntityRef.current.delete(id);
+        }
+
+        // ── Billboard / label ───────────────────────────────────────────────
+        if (entityMapRef.current.has(id)) {
+          const entity = entityMapRef.current.get(id);
+          entity.position = position;
+          if (entity.billboard) entity.billboard.image = iconUri;
+          if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
+          entity._milData = { ...ship, type_entity: 'ship' };
+        } else {
+          const entity = shipDS.entities.add({
+            id: `ship-${id}`,
+            position,
+            billboard: {
+              image: iconUri,
+              width:  46,
+              height: 46,
+              verticalOrigin:   Cesium.VerticalOrigin.CENTER,
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
+              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+            label: {
+              text: shipLabel,
+              font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
+              fillColor: Cesium.Color.fromCssColorString('#00aaff'),
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 3,
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              verticalOrigin: Cesium.VerticalOrigin.TOP,
+              pixelOffset: new Cesium.Cartesian2(0, 22),
+              scaleByDistance: new Cesium.NearFarScalar(1e4, isMobile ? 1.3 : 1.0, LABEL_RANGE, 0.0),
+              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
+              showBackground: true,
+              backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
+              backgroundPadding: new Cesium.Cartesian2(5, 3),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            },
+          });
+          entity._milData = { ...ship, type_entity: 'ship' };
+          entityMapRef.current.set(id, entity);
+        }
       }
+    } finally {
+      shipDS.entities.resumeEvents();
+      trailDS.entities.resumeEvents();
+      saveTrails(trailPointsRef.current);
     }
-  }, [viewer, ships, getOrCreateDataSource]);
+  }, [viewer, ships, getDS]);
 
   return null;
 };

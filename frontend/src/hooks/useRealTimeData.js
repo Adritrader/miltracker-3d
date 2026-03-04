@@ -9,9 +9,11 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 // ── LocalStorage cache helpers ───────────────────────────────────────────────
 const CACHE = {
-  aircraft: { key: 'milt_ac',  ttl: 5  * 60 * 1000 },
-  ships:    { key: 'milt_sh',  ttl: 10 * 60 * 1000 },
-  news:     { key: 'milt_nw',  ttl: 30 * 60 * 1000 },
+  aircraft:    { key: 'milt_ac',  ttl: 5  * 60 * 1000 },
+  ships:       { key: 'milt_sh',  ttl: 10 * 60 * 1000 },
+  news:        { key: 'milt_nw',  ttl: 30 * 60 * 1000 },
+  alerts:      { key: 'milt_al',  ttl: 60 * 60 * 1000 },
+  dangerZones: { key: 'milt_dz',  ttl: 60 * 60 * 1000 },
 };
 function cacheLoad(type) {
   try {
@@ -36,8 +38,8 @@ export function useRealTimeData() {
   const [ships, setShips] = useState(() => cacheLoad('ships') || []);
   const [news, setNews] = useState(() => cacheLoad('news') || []);
   const [conflicts, setConflicts] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [dangerZones, setDangerZones] = useState([]);
+  const [alerts, setAlerts] = useState(() => cacheLoad('alerts') || []);
+  const [dangerZones, setDangerZones] = useState(() => cacheLoad('dangerZones') || []);
   const [aiInsight, setAiInsight] = useState(null);
   const [lastUpdate, setLastUpdate] = useState({ aircraft: null, ships: null, news: null });
 
@@ -92,8 +94,12 @@ export function useRealTimeData() {
     });
 
     socket.on('danger_update', ({ dangerZones: dz, alerts: al }) => {
-      setDangerZones(dz || []);
-      setAlerts(al || []);
+      const zones = dz || [];
+      const alrts = al || [];
+      setDangerZones(zones);
+      setAlerts(alrts);
+      cacheSave('dangerZones', zones);
+      cacheSave('alerts', alrts);
     });
 
     socket.on('ai_insight', (insight) => {
