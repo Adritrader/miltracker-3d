@@ -17,6 +17,13 @@
   .cesium-container {
     background: #050810 !important;
   }
+  /* Suppress browser blue focus ring on the WebGL canvas (click / tap) */
+  .cesium-widget canvas:focus,
+  .cesium-widget canvas:focus-visible,
+  .cesium-widget canvas:focus-within {
+    outline: none !important;
+    box-shadow: none !important;
+  }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: #0d1117; }
   ::-webkit-scrollbar-thumb { background: #1e3a4a; border-radius: 2px; }
