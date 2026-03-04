@@ -7,13 +7,15 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import { AIRCRAFT_SVG, getAircraftColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
-import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName } from '../utils/militaryFilter.js';
+import { icaoToCountry, getAircraftTypeName, resolveCountry } from '../utils/militaryFilter.js';
 
 /** Build two-line label text for a given aircraft */
 function buildLabelText(ac) {
-  const country = ac.country || icaoToCountry(ac.icao24 || '');
-  const flag    = COUNTRY_FLAGS[country] || '';
-  const line1   = `${flag} ${ac.callsign || 'UNKNOWN'}`.trim();
+  // Resolve country -> compact ISO tag displayed on canvas (emoji fail on Windows canvas)
+  const rawCountry = ac.country || icaoToCountry(ac.icao24 || '');
+  const resolved   = rawCountry ? resolveCountry(rawCountry) : null;
+  const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
+  const line1      = [countryTag, ac.callsign || 'UNKNOWN'].filter(Boolean).join(' ');
 
   const typeName = getAircraftTypeName(ac.aircraftType || '');
   const altFt    = ac.altitudeFt != null
@@ -201,17 +203,17 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false }
             },
             label: {
               text: buildLabelText(ac),
-              font: 'bold 14px "Share Tech Mono", monospace',
+              font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
               fillColor: Cesium.Color.fromCssColorString('#00ff88'),
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
               verticalOrigin: Cesium.VerticalOrigin.TOP,
               pixelOffset: new Cesium.Cartesian2(0, 20),
-              scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, LABEL_RANGE, 0.0),
+              scaleByDistance: new Cesium.NearFarScalar(1e4, isMobile ? 1.3 : 1.0, LABEL_RANGE, 0.0),
               distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
               showBackground: true,
-              backgroundColor: new Cesium.Color(0, 0, 0, 0.5),
+              backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
               backgroundPadding: new Cesium.Cartesian2(5, 3),
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },

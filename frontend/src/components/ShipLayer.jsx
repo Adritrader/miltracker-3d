@@ -6,6 +6,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import { SHIP_SVG, getShipColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
+import { resolveCountry } from '../utils/militaryFilter.js';
 
 const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
   const entityMapRef = useRef(new Map());
@@ -57,10 +58,17 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
       const color = getShipColor(ship.flag);
       const iconUri = SHIP_SVG(ship.heading || 0, color);
 
+      // Build label: [FLAG_ISO] NAME
+      const rawFlag    = ship.flag || ship.country || '';
+      const resolved   = rawFlag ? resolveCountry(rawFlag) : null;
+      const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
+      const shipLabel  = [countryTag, ship.name || id].filter(Boolean).join(' ');
+
       if (entityMapRef.current.has(id)) {
         const entity = entityMapRef.current.get(id);
         entity.position = position;
         if (entity.billboard) entity.billboard.image = iconUri;
+        if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
         entity._milData = { ...ship, type_entity: 'ship' };
       } else {
         const entity = ds.entities.add({
@@ -77,18 +85,18 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
           label: {
-            text: ship.name || id,
-            font: 'bold 14px "Share Tech Mono", monospace',
+            text: shipLabel,
+            font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
             fillColor: Cesium.Color.fromCssColorString('#00aaff'),
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 3,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             verticalOrigin: Cesium.VerticalOrigin.TOP,
             pixelOffset: new Cesium.Cartesian2(0, 22),
-            scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, LABEL_RANGE, 0.0),
+            scaleByDistance: new Cesium.NearFarScalar(1e4, isMobile ? 1.3 : 1.0, LABEL_RANGE, 0.0),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
             showBackground: true,
-            backgroundColor: new Cesium.Color(0, 0, 0, 0.5),
+            backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
             backgroundPadding: new Cesium.Cartesian2(5, 3),
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },

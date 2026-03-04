@@ -45,7 +45,7 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
     <div
       className="fixed z-30"
       style={{
-        bottom: isMobile ? 168 : 52,
+        bottom: isMobile ? 84 : 80,
         right: isMobile ? 12 : 16,
       }}
     >
