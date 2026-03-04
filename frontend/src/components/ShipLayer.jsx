@@ -98,12 +98,14 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
         const position = Cesium.Cartesian3.fromDegrees(ship.lon, ship.lat, 0);
         const color    = getShipColor(ship.flag);
         const iconUri  = SHIP_SVG(ship.heading || 0, color);
+        // Baseline vessels (no live AIS) get a dimmer appearance
+        const isBase   = !!ship.isBaseline;
 
-        // Build label: [FLAG_ISO] NAME
+        // Build label: [FLAG_ISO] NAME  (+ marker for baseline)
         const rawFlag    = ship.flag || ship.country || '';
         const resolved   = rawFlag ? resolveCountry(rawFlag) : null;
         const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
-        const shipLabel  = [countryTag, ship.name || id].filter(Boolean).join(' ');
+        const shipLabel  = [countryTag, ship.name || id, isBase ? '~' : ''].filter(Boolean).join(' ');
 
         // ── Trail history ───────────────────────────────────────────────────
         if (!trailPointsRef.current.has(id)) trailPointsRef.current.set(id, []);
@@ -160,6 +162,8 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false }) => {
               image: iconUri,
               width:  46,
               height: 46,
+              // Baseline vessels dimmed to indicate "last known position"
+              color: isBase ? cesiumColor.withAlpha(0.50) : Cesium.Color.WHITE,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),

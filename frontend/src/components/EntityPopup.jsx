@@ -291,7 +291,13 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="HEADING"     value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
               <Row label="DESTINATION" value={entity.destination || '\u2014'} />
               <Row label="POSITION"    value={`${entity.lat?.toFixed(3)}\u00b0, ${entity.lon?.toFixed(3)}\u00b0`} />
+              <Row label="SOURCE"      value={entity.source || 'AIS'} />
               <Row label="LAST SEEN"   value={timeAgo(entity.lastSeen)} />
+              {entity.isBaseline && (
+                <div className="mt-1 px-1 py-1 rounded bg-amber-900/30 border border-amber-500/40 text-amber-300 text-[10px] font-mono leading-tight">
+                  &#x26A0; No live AIS available &mdash; showing last known homeport / deployment position
+                </div>
+              )}
             </>
           )}
 
