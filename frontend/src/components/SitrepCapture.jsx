@@ -12,12 +12,20 @@ const RECORD_SEC = 6;
 const PAGE_URL   = () => window.location.href;
 const SHARE_TEXT = 'MilTracker 3D â€” live military tracking';
 
-// Pick best supported video mime: MP4 on iOS Safari, VP9 WebM on Chrome, plain WebM fallback
+// Pick best supported video mime — try every candidate and use the first that works
+const MIME_CANDIDATES = [
+  { mime: 'video/mp4;codecs=avc1.42E01E', ext: 'mp4'  },
+  { mime: 'video/mp4;codecs=avc1',        ext: 'mp4'  },
+  { mime: 'video/mp4',                    ext: 'mp4'  },
+  { mime: 'video/webm;codecs=vp9',        ext: 'webm' },
+  { mime: 'video/webm;codecs=vp8',        ext: 'webm' },
+  { mime: 'video/webm',                   ext: 'webm' },
+];
 function bestMime() {
-  if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1'))  return { mime: 'video/mp4;codecs=avc1',  ext: 'mp4'  };
-  if (MediaRecorder.isTypeSupported('video/mp4'))               return { mime: 'video/mp4',               ext: 'mp4'  };
-  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))   return { mime: 'video/webm;codecs=vp9',  ext: 'webm' };
-  return                                                               { mime: 'video/webm',              ext: 'webm' };
+  for (const c of MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported(c.mime)) return c;
+  }
+  return { mime: '', ext: 'webm' }; // browser picks codec
 }
 
 // â”€â”€ Social share URL builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -75,10 +83,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
   const [dlName, setDlName]        = useState('');
   const [dlMime, setDlMime]        = useState('');
   const [shareMsg, setShareMsg]    = useState('');
-  const mediaRef   = useRef(null);
-  const chunksRef  = useRef([]);
-  const rafRef     = useRef(null);
-  const postRenRef = useRef(null);
+  const mediaRef      = useRef(null);
+  const chunksRef     = useRef([]);
+  const rafRef        = useRef(null);
+  const postRenRef    = useRef(null);
+  const safetyTimerRef = useRef(null);
 
   const mkTs = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
@@ -130,27 +139,61 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     setCountdown(RECORD_SEC);
     onUiHide?.();
 
-    const { mime, ext } = bestMime();
-    const canvas   = viewer.canvas;
-    const stream   = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+    const { mime } = bestMime();
+    const canvas = viewer.canvas;
+    const stream = canvas.captureStream(30);
+
+    let recorder;
+    try {
+      recorder = mime
+        ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 })
+        : new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 });
+    } catch (err) {
+      console.error('[SITREP] MediaRecorder creation failed:', err);
+      try { recorder = new MediaRecorder(stream); } catch (err2) {
+        console.error('[SITREP] MediaRecorder fallback failed:', err2);
+        onUiShow?.(); setMode(null);
+        alert('No se puede grabar vídeo en este navegador. Use Captura de Pantalla.');
+        return;
+      }
+    }
+
     chunksRef.current = [];
     mediaRef.current  = recorder;
 
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    recorder.onstop = () => {
-      cancelAnimationFrame(rafRef.current);
-      const blob = new Blob(chunksRef.current, { type: mime });
+    const finish = () => {
+      cancelAnimationFrame(rafRef.current); rafRef.current = null;
+      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+      const recMime = recorder.mimeType || mime || 'video/webm';
+      const recExt  = recMime.includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunksRef.current, { type: recMime });
+      if (blob.size === 0) {
+        console.warn('[SITREP] Video blob empty — nothing was recorded');
+        onUiShow?.(); setMode(null);
+        alert('El vídeo quedó vacío. Asegúrate de que el canvas esté visible y prueba de nuevo.');
+        return;
+      }
       const url  = URL.createObjectURL(blob);
-      const name = `MILTRACKER-SITREP-${mkTs()}.${ext}`;
-      setDlUrl(url);
-      setDlName(name);
-      setDlMime(mime);
-      setMode('done');
-      onUiShow?.();
+      const name = `MILTRACKER-SITREP-${mkTs()}.${recExt}`;
+      setDlUrl(url); setDlName(name); setDlMime(recMime);
+      setMode('done'); onUiShow?.();
     };
 
-    recorder.start(100);
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    recorder.onstop  = finish;
+    recorder.onerror = (e) => {
+      console.error('[SITREP] MediaRecorder error:', e);
+      cancelAnimationFrame(rafRef.current); rafRef.current = null;
+      onUiShow?.(); setMode(null);
+      alert('Error al grabar el vídeo. Usa Captura de Pantalla.');
+    };
+
+    recorder.start(200);
+
+    // Safety net — force-stop if onstop hasn't fired within RECORD_SEC + 5s
+    safetyTimerRef.current = setTimeout(() => {
+      if (recorder.state !== 'inactive') recorder.stop();
+    }, (RECORD_SEC + 5) * 1000);
 
     const startCarto = viewer.camera.positionCartographic.clone();
     const startLon   = Cesium.Math.toDegrees(startCarto.longitude);
@@ -160,8 +203,10 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     const startHdg   = viewer.camera.heading;
     const startPitch = viewer.camera.pitch;
     const startTs    = performance.now();
+    let lastCd       = RECORD_SEC;
 
     const frame = () => {
+      if (!viewer || viewer.isDestroyed()) { recorder.stop(); return; }
       const elapsed = (performance.now() - startTs) / 1000;
       if (elapsed >= RECORD_SEC) { recorder.stop(); return; }
       const t     = elapsed / RECORD_SEC;
@@ -172,7 +217,8 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         destination: Cesium.Cartesian3.fromDegrees(startLon, startLat, alt),
         orientation: { heading: hdg, pitch: startPitch, roll: 0 },
       });
-      setCountdown(Math.ceil(RECORD_SEC - elapsed));
+      const cd = Math.max(1, Math.ceil(RECORD_SEC - elapsed));
+      if (cd !== lastCd) { lastCd = cd; setCountdown(cd); }
       rafRef.current = requestAnimationFrame(frame);
     };
     rafRef.current = requestAnimationFrame(frame);
@@ -210,6 +256,9 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
   }, [dlUrl, dlName, dlMime]);
 
   const reset = useCallback(() => {
+    cancelAnimationFrame(rafRef.current); rafRef.current = null;
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+    if (mediaRef.current?.state !== 'inactive') { try { mediaRef.current?.stop(); } catch (_) {} }
     if (dlUrl?.startsWith('blob:')) URL.revokeObjectURL(dlUrl);
     setMode(null); setDlUrl(null); setDlName(''); setDlMime(''); setShareMsg('');
     setCountdown(RECORD_SEC);
