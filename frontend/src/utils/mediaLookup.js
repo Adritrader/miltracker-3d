@@ -438,17 +438,24 @@ export function getBaseImageUrl(baseType) {
   return BASE_IMAGES[baseType] || null;
 }
 
-// Conflict event types
+// Conflict event types — each image matches the event type exactly
 const CONFLICT_IMAGES = {
-  airstrike:  W('F-15E_Strike_Eagle_Barksdale.jpg'),
-  missile:    W('Tomahawk_Block_IV_cruise_missile.jpg'),
-  explosion:  W('Explosion_at_a_hotel.jpg'),
-  artillery:  W('US_Army_patrol_Afghanistan.jpg'),
-  drone:      W('MQ-9_Reaper_Armed_side_view.jpg'),
-  naval:      W('USS_Arleigh_Burke_(DDG-51).jpg'),
-  troops:     W('US_Army_patrol_Afghanistan.jpg'),
-  conflict:   W('Explosion_at_a_hotel.jpg'),
-  riot:       W('Police_in_riot_gear.jpg'),
+  airstrike:  W('F-15E_Strike_Eagle_Barksdale.jpg'),         // strike jet in flight
+  missile:    W('Tomahawk_Block_IV_cruise_missile.jpg'),      // actual cruise missile
+  explosion:  W('AC-130W_Stinger_II.jpg'),                   // gunship — direct fire/strike
+  artillery:  W('A-10_CAS.jpg'),                             // close air support / direct fire
+  drone:      W('MQ-9_Reaper_Armed_side_view.jpg'),          // actual armed drone
+  naval:      W('USS_Bunker_Hill_(CG-52)_fires_a_torpedo.jpg'), // ship firing — action shot
+  troops:     W('US_Army_patrol_Afghanistan.jpg'),            // soldiers on patrol
+  casualties: W('US_Army_patrol_Afghanistan.jpg'),            // combat situation
+  collapse:   W('Bagram_Defense_007.jpg'),                   // military base/war zone
+  fire:       W('AC-130W_Stinger_II.jpg'),                   // gunship strike
+  siege:      W('US_Army_patrol_Afghanistan.jpg'),            // ground forces
+  cyber:      W('EP-3E_Aries_II.jpg'),                       // signals intelligence / EW aircraft
+  cbrn:       W('Minuteman-III-Missile-Silo.jpg'),            // strategic weapons silo
+  hostage:    W('US_Army_patrol_Afghanistan.jpg'),            // military response
+  unrest:     W('Police_in_riot_gear.jpg'),                   // riot control
+  conflict:   W('Bagram_Defense_007.jpg'),                   // generic military base fallback
 };
 
 export function getConflictImageUrl(type) {
