@@ -261,7 +261,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
     <div
       className="fixed z-50 transition-all duration-300"
       style={{
-        top: isMobile ? 16 : 90,  // desktop: below search bar + extra spacing
+        top: isMobile ? 16 : 60,  // desktop: ~15px below search bar
         right: isMobile ? 8 : 16,
         // On mobile: never go wider than 42vw so hamburger + map layer hints have room
         maxWidth: isMobile ? 'min(42vw, 220px)' : 320,
@@ -318,7 +318,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
             ))}
           </div>
 
-          <div className="p-2 overflow-y-auto" style={{ maxHeight: 'min(28rem, 55vh)' }}>
+          <div className="p-2 overflow-y-auto" style={{ maxHeight: 'min(18rem, 38vh)' }}>
             {tab === 'alerts' && (
               criticalAlerts.length > 0
                 ? (
