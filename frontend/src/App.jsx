@@ -321,9 +321,16 @@ function App() {
         controls={timeline.controls}
       />
 
-      {/* Bottom-right: Map layer switcher */}
-      <div className="absolute bottom-8 right-4 z-30 flex flex-col gap-2 items-end pointer-events-auto">
+      {/* Bottom-right: Map layer + SITREP — fixed row above timeline */}
+      <div className="fixed z-[51] flex flex-row-reverse gap-2 items-end pointer-events-auto"
+           style={{ bottom: 116, right: 16 }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
+        <SitrepCapture
+          viewer={viewer}
+          onUiHide={() => setUiHidden(true)}
+          onUiShow={() => setUiHidden(false)}
+          inline
+        />
       </div>
 
       {/* News cluster modal — shown when multiple items share a map area */}
@@ -347,15 +354,7 @@ function App() {
         onSatellite={setSatellitePortal}
       />
 
-      {/* SITREP capture — intentionally OUTSIDE the uiHidden wrapper
-           so it stays visible (capturing indicator, done modal) even when the
-           UI is hidden for globe-only frame recording. */}
-      </div>{/* end UI overlay wrapper */}
-      <SitrepCapture
-        viewer={viewer}
-        onUiHide={() => setUiHidden(true)}
-        onUiShow={() => setUiHidden(false)}
-      />
+      {/* SITREP capture — already rendered inline in the bottom-right container above */}
       {satellitePortal && (
         <SentinelPortalModal
           lat={satellitePortal.lat}
@@ -406,6 +405,8 @@ function App() {
           </div>
         </div>
       )}
+
+      </div>{/* end UI overlay wrapper (uiHidden) */}
 
     </div>
   );

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
+import * as Cesium from 'cesium';
 
 const RECORD_SEC = 6;
 
@@ -28,7 +29,7 @@ const ModalOverlay = ({ children, onClose }) => (
   </>
 );
 
-export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
+export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = false }) {
   const [mode, setMode]            = useState(null); // null | 'menu' | 'capturing' | 'done'
   const [captureType, setCaptType] = useState(null); // 'screenshot' | 'video'
   const [countdown, setCountdown]  = useState(RECORD_SEC);
@@ -115,13 +116,30 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
     };
 
     recorder.start(100);
+
+    // Cinematic zoom-in: smoothly reduce camera altitude toward the current view centre.
+    // Eased 0→1 over RECORD_SEC seconds, zooms to 25% of start altitude (min 5 km).
+    const startCarto = viewer.camera.positionCartographic.clone();
+    const startLon   = Cesium.Math.toDegrees(startCarto.longitude);
+    const startLat   = Cesium.Math.toDegrees(startCarto.latitude);
+    const startAlt   = startCarto.height;
+    const endAlt     = Math.max(startAlt * 0.25, 5_000);
+    const startHdg   = viewer.camera.heading;
+    const startPitch = viewer.camera.pitch;
     const startTs    = performance.now();
-    const ORBIT_SPD  = (Math.PI * 2) / (RECORD_SEC * 60);
 
     const frame = () => {
       const elapsed = (performance.now() - startTs) / 1000;
       if (elapsed >= RECORD_SEC) { recorder.stop(); return; }
-      viewer.camera.rotateRight(-ORBIT_SPD);
+      const t     = elapsed / RECORD_SEC;                        // 0 → 1
+      const eased = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;        // ease-in-out
+      const alt   = startAlt + (endAlt - startAlt) * eased;
+      // Subtle 12° heading drift for cinematic feel
+      const hdg   = startHdg + Cesium.Math.toRadians(12) * t;
+      viewer.camera.setView({
+        destination:  Cesium.Cartesian3.fromDegrees(startLon, startLat, alt),
+        orientation:  { heading: hdg, pitch: startPitch, roll: 0 },
+      });
       setCountdown(Math.ceil(RECORD_SEC - elapsed));
       rafRef.current = requestAnimationFrame(frame);
     };
@@ -256,7 +274,10 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
   return (
     <button
       onClick={() => setMode('menu')}
-      className="fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold"
+      className={inline
+        ? 'hud-btn text-xs px-3 py-2 font-bold'
+        : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold'
+      }
       title="Generar SITREP — captura de pantalla o vídeo cinematic"
     >
       &#x1F4F7; SITREP
