@@ -309,8 +309,10 @@ async function fetchGDELTDocConflicts() {
           lon = geo.lon;
         }
 
+        const titleKey = title.toLowerCase().replace(/[^\w\s]/g, '').trim().replace(/\s+/g, '-').slice(0, 50);
+        const dateKey  = (a.seendate || '').slice(0, 8) || new Date().toISOString().slice(0, 10).replace(/-/g, '');
         items.push({
-          id:          `gdelt-doc-${encodeURIComponent(a.url || title).slice(0, 50)}`,
+          id:          `gdelt-doc-${dateKey}-${titleKey}`.slice(0, 90),
           type:        classifyEvent(title),
           title,
           url:         a.url || '',

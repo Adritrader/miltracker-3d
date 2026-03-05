@@ -44,6 +44,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
   const trailEntityRef = useRef(new Map());
   const trailPointsRef = useRef(loadStoredTrails());
   const prevIdsRef     = useRef(new Set());
+  const dsCache        = useRef({}); // name → CustomDataSource (O(1) lookup)
 
   // LOD constants — ships are always visible regardless of zoom level
   const MAX_RANGE   = 2e7;                    // 20 000 km (full-globe visibility)
@@ -52,12 +53,14 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
 
   const getDS = useCallback((name) => {
     if (!viewer || viewer.isDestroyed()) return null;
-    for (let i = 0; i < viewer.dataSources.length; i++) {
-      if (viewer.dataSources.get(i).name === name) return viewer.dataSources.get(i);
+    if (dsCache.current[name] && !viewer.dataSources.contains(dsCache.current[name])) {
+      dsCache.current[name] = null;
     }
-    const ds = new Cesium.CustomDataSource(name);
-    viewer.dataSources.add(ds);
-    return ds;
+    if (!dsCache.current[name]) {
+      dsCache.current[name] = new Cesium.CustomDataSource(name);
+      viewer.dataSources.add(dsCache.current[name]);
+    }
+    return dsCache.current[name];
   }, [viewer]);
 
   // visibility is managed inside the main render loop below

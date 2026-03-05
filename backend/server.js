@@ -27,7 +27,12 @@ const ALLOWED_ORIGINS = (origin, cb) => {
   if (!origin) return cb(null, true); // server-to-server / curl
   if (process.env.ALLOWED_ORIGIN && origin === process.env.ALLOWED_ORIGIN) return cb(null, true);
   if (allowed.some(re => re.test(origin))) return cb(null, true);
-  cb(null, true); // open during development — tighten in production via ALLOWED_ORIGIN env var
+  // In production, reject unknown origins. In dev, allow all.
+  if (process.env.NODE_ENV === 'production') {
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return cb(new Error(`CORS: origin ${origin} not allowed`), false);
+  }
+  cb(null, true); // dev-only fallback — set NODE_ENV=production in Railway to restrict
 };
 
 const app = express();
@@ -54,7 +59,9 @@ app.use('/api/', apiLimiter);
 const prevHash = { aircraft: '', ships: '', news: '', conflicts: '' };
 function hashArr(arr) {
   if (!arr || arr.length === 0) return '';
-  return arr.map(i => (i.id || i.mmsi || '') + '|' + (i.lat ?? '') + '|' + (i.lon ?? '')).join(',');
+  return arr.map(i =>
+    `${i.id || i.mmsi || ''}|${i.lat ?? ''}|${i.lon ?? ''}|${Math.round(i.heading || i.track || 0)}|${Math.round(i.altitudeFt || (i.altitude || 0) * 3.28)}`
+  ).join(',');
 }
 
 // ─── Conflict/news persistent accumulating stores ────────────────────────────

@@ -75,21 +75,25 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
   const trailPointsRef  = useRef(loadStoredTrails()); // icao24 → Cartesian3[] (persisted)
   const prevIdsRef      = useRef(new Set());
+  const dsCache         = useRef({}); // name → CustomDataSource (O(1) lookup)
 
   // LOD constants — tighter on mobile to preserve frame rate
   const MAX_RANGE      = isMobile ? 2.5e6 : 4.5e6;  // hide billboard beyond this (m)
   const LABEL_RANGE    = isMobile ? 8e5   : 2e6;    // hide label beyond this
   const TRAIL_RANGE    = isMobile ? 0     : 9e5;    // hide trail beyond this (0 = disable on mobile)
 
-  // ── helper: get-or-create named datasource ─────────────────────────────────
+  // ── helper: get-or-create named datasource (O(1) via cache ref) ──────────────
   const getDS = useCallback((name) => {
     if (!viewer || viewer.isDestroyed()) return null;
-    for (let i = 0; i < viewer.dataSources.length; i++) {
-      if (viewer.dataSources.get(i).name === name) return viewer.dataSources.get(i);
+    // Invalidate cached ref if it was removed from the viewer
+    if (dsCache.current[name] && !viewer.dataSources.contains(dsCache.current[name])) {
+      dsCache.current[name] = null;
     }
-    const ds = new Cesium.CustomDataSource(name);
-    viewer.dataSources.add(ds);
-    return ds;
+    if (!dsCache.current[name]) {
+      dsCache.current[name] = new Cesium.CustomDataSource(name);
+      viewer.dataSources.add(dsCache.current[name]);
+    }
+    return dsCache.current[name];
   }, [viewer]);
 
   // visibility is managed inside the main render loop below

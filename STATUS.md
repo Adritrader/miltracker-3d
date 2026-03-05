@@ -1,6 +1,6 @@
 # MILTRACKER 3D — Estado del Roadmap
 
-> Última actualización: `fd13097` — 2026-03-05
+> Última actualización: `pending` — 2026-03-05
 
 ---
 
@@ -11,21 +11,21 @@
 | # | Archivo | Bug | Causa | Prioridad |
 |---|---------|-----|-------|-----------|
 | 0.1 | `NewsLayer.jsx` | Toggle NEWS: `buildEntities` hace `ds.entities.removeAll()` antes de `if (!visible) return` por lo que sí debería funcionar. Sin confirmar en live | `buildEntities` está en deps del rebuild effect vía `useCallback`, se recalcula cuando cambia `visible`. Pendiente verificar en mobile donde el camera moveEnd no se dispara | 🟡 Verificar |
-| 0.2 | `AircraftLayer.jsx` | `GHOST_TTL` y `ghostTimestampRef` son dead code — la feature ghost fue eliminada pero las constantes siguen declaradas | Feature ghost eliminada en `3c59c30` pero no se limpió el código residual | 🟡 Media |
-| 0.3 | `AircraftLayer.jsx` + `ShipLayer.jsx` | `getDS()` hace un O(n) scan de `viewer.dataSources` en cada ciclo — otros layers (`ConflictLayer`, `DangerZoneLayer`) usan `dsRef` para acceso O(1) | Inconsistencia arquitectural — en nodos con 10+ datasources puede medir ~50µs por llamada × múltiples veces por poll | 🟡 Media |
+| 0.2 | `AircraftLayer.jsx` | `GHOST_TTL` y `ghostTimestampRef` dead code | Feature ghost eliminada en `3c59c30` pero no se limpió el código residual | ✅ Arreglado `34f1c42` |
+| 0.3 | `AircraftLayer.jsx` + `ShipLayer.jsx` | `getDS()` hace un O(n) scan de `viewer.dataSources` en cada ciclo | Inconsistencia arquitectural | ✅ Arreglado — `dsCache` ref O(1) |
 | 0.4 | `MilitaryBasesLayer.jsx` | Bases visibles a través del globo desde cualquier ángulo | `disableDepthTestDistance: Number.POSITIVE_INFINITY` — ARREGLADO en `fd13097` | ✅ Arreglado |
-| 0.5 | `server.js` (línea ~32) | **CORS siempre abierto en producción** — el último fallback es `cb(null, true)` incondicionalmente. Cualquier origen externo puede hacer fetch al backend y consumir cuota Gemini/Railway | Comentario dice "tighten in production" pero nunca se hizo | 🔴 Crítico antes de publicar |
-| 0.6 | `server.js` `hashArr()` | Si un avión cambia de altitud o heading pero no de posición, el diff hash no detecta el cambio → cliente no recibe la actualización | Hash usa solo `id\|lat\|lon`, ignora otros campos | 🟡 Media |
-| 0.7 | `SearchBar.jsx` | Buscar un callsign devuelve 0 resultados si el toggle AIRCRAFT está en OFF — porque la búsqueda opera sobre `filteredAircraft` (ya filtrado por `showAircraft=false`) | SearchBar debería buscar en el array completo `aircraft`, no en `filteredAircraft` | 🟠 Media-alta |
-| 0.8 | `militaryFilter.js` `filterShips` | Los barcos no tienen filtro por `missionType` aunque el selector UI sí existe — seleccionar "FIGHTER" filtra aviones pero los barcos siempre se muestran todos | `filterShips` no implementa `filters.missionType` | 🟡 Media |
-| 0.9 | `AircraftLayer.jsx` `_ghost` | Código `if (entity._ghost) { entity._ghost = false; ... }` en el loop de actualización queda huérfano — `_ghost` nunca se establece, siempre falso | Residuo de la feature eliminada | 🟡 Media (dead code) |
-| 0.10 | `positionTracker.js` | No hay límite documentado de tamaño de snapshots en memoria — en ejecución continua de días el objeto puede crecer sin límite | Falta cap en número de snapshots o TTL de purga | 🟡 Media |
+| 0.5 | `server.js` (línea ~32) | **CORS siempre abierto en producción** | Comentario decía "tighten in production" pero nunca se hizo | ✅ Arreglado — bloquea origen desconocido cuando `NODE_ENV=production`. Requiere setear `NODE_ENV=production` en Railway |
+| 0.6 | `server.js` `hashArr()` | Si un avión cambia de altitud o heading pero no de posición, el diff hash no detecta el cambio | Hash usaba solo `id\|lat\|lon` | ✅ Arreglado — hash incluye ahora `heading` y `altitude` |
+| 0.7 | `SearchBar.jsx` | Buscar un callsign devuelve 0 resultados si la capa está en OFF | SearchBar buscaba en `filteredAircraft` ya filtrado | ✅ Arreglado `34f1c42` — busca en `effectiveAircraft`/`ships` completos |
+| 0.8 | `militaryFilter.js` `filterShips` | Ships no respetan `missionType` filter | Por diseño — los barcos no tienen tipos de misión aéreos. Mostrar siempre junto a los aviones filtrados es el comportamiento correcto | ✅ Por diseño — cerrado |
+| 0.9 | `AircraftLayer.jsx` `_ghost` | Código `if (entity._ghost)` huérfano — `_ghost` nunca se establece | Residuo de la feature eliminada | ✅ Arreglado `34f1c42` |
+| 0.10 | `positionTracker.js` | Límite de snapshots en memoria | Ya tiene cap: `HISTORY_LIMIT = 120` + `splice` al final de `recordSnapshot` | ✅ No era bug — cerrado |
 | 0.11 | `newsGeocoder.js` | Geocoding falla silenciosamente — `geocodeNewsItem` puede retornar `null` sin log. La noticia desaparece del globo sin avisar por qué | Sin manejo diferenciado de "no geocodeable" vs "error de red" | 🟡 Media |
 | 0.12 | `ConflictLayer.jsx` | Deduplicación por proximidad usa 0.3° (~33 km). Un evento en Kiev y otro en la periferia de Kiev pueden colapsar en uno solo | La deduplicación es correcta para performance, pero borra eventos válidos cercanos | 🟡 Media |
 | 0.13 | `STATUS.md` item 6.1 | "Ghost tracking aviones (30% opacidad 5 min)" marcado ✅ pero la feature se eliminó intencionalmente en `3c59c30` | Documentación incorrecta | 🟢 Baja |
 | 0.14 | `STATUS.md` item 10.1 | "Replay histórico" marcado ❌ pero `TimelinePanel`, `useTimeline`, `positionTracker`, historyTrack en Aircraft/ShipLayer ya implementados | Documentación incorrecta | 🟢 Baja |
 | 0.15 | `FilterPanel.jsx` `Toggle` | `<label onClick>` + `<input type="checkbox">` implícito → doble-firing del evento en algunos browsers cuando se clica el texto | Se añadió `e.preventDefault()` en `6cde758` pero debería marcarse como verificado en mobile | 🟢 Baja |
-| 0.16 | `firmsService.js` | `FIRMS_MAP_KEY` no está disponible en Railway — la variable está solo en `backend/.env` (gitignored). El servicio falla silenciosamente y retorna `[]` | Variable de entorno no configurada en el hosting | 🔴 Alta — requiere acción manual en Railway dashboard |
+| 0.16 | `firmsService.js` | `FIRMS_MAP_KEY` no está disponible en Railway — el servicio falla silenciosamente y retorna `[]` | Variable de entorno no configurada en el hosting | ⚠️ Requiere acción manual en Railway dashboard |
 | 0.17 | `AircraftLayer.jsx` | `on_ground` filter de `filters.showOnGround` puede no funcionar correctamente si la fuente ADS-B no envía el campo `on_ground` — la condición `ac.on_ground && !filters.showOnGround` falla silenciosamente | Depende de que ADS-B envíe el campo; algunas fuentes lo omiten | 🟡 Media |
 | 0.18 | `Globe3D.jsx` + capas | Múltiples `ScreenSpaceEventHandler` registrados (AircraftLayer, ShipLayer, NewsLayer, ConflictLayer, MilitaryBasesLayer) — cada capa añade su propio handler. En click se disparan todos en secuencia; el primero que encuentre `_milData` lo procesa pero los otros también corren inútilmente | Falta un único event handler central en Globe3D que delega | 🟡 Media |
 
@@ -43,7 +43,7 @@
 | 1.6 | Gemini JSON parsing frágil | ✅ Hecho (regex `jsonMatch`) |
 | 1.7 | `BACKEND_URL` hardcodeado | ✅ Hecho (`VITE_BACKEND_URL`) |
 | 1.8 | `driftState` memory leak | ✅ N/A (drift eliminado con ships reales) |
-| 1.9 | Conflictos dedup por título frágil | ❌ Pendiente |
+| 1.9 | Conflictos dedup por título frágil | ❌→✅ Arreglado — IDs de GDELT-DOC ahora basados en `titleKey+dateKey` normalizados en vez de `encodeURIComponent(url)` |
 
 ## §2 — Performance Frontend
 
@@ -54,7 +54,7 @@
 | 2.3 | `useMemo` split por capa | ✅ Hecho |
 | 2.4 | Vite `manualChunks` para CesiumJS | ❌ Revertido (causaba problemas) |
 | 2.5 | Trail cap puntos | ✅ Hecho (`MAX_TRAIL_POINTS = 40`) |
-| 2.6 | Cachear ref DataSource (evitar O(n) scan) | ❌ Pendiente |
+| 2.6 | Cachear ref DataSource (evitar O(n) scan) | ✅ Arreglado — `dsCache` ref en AircraftLayer y ShipLayer |
 
 ## §3 — Performance Backend
 
@@ -231,16 +231,16 @@ CesiumJS renderiza en WebGL — el DOM está casi vacío. El SEO orgánico no fu
 
 ---
 
-**Resumen global: 34 ✅ hechos · 27 ❌ pendientes · 18 🐛 bugs activos documentados en §0**
+**Resumen global: 41 ✅ hechos · 20 ❌ pendientes · 6 🐛 bugs activos sin resolver**
 
 ---
 
 ## §13 — Acciones Urgentes (hacer antes de publicar)
 
-| Orden | Acción | Tiempo | Por qué es urgente |
-|-------|--------|--------|--------------------|
-| 1 | Añadir `FIRMS_MAP_KEY` en Railway dashboard | 2 min | FIRMS no devuelve datos sin esta variable (§0.16) |
-| 2 | Arreglar toggle NEWS (§0.1) — mismo patrón que aircraft/ships | 20 min | Toggle visible en UI pero sin efecto funcional |
-| 3 | CORS restrictivo vía `ALLOWED_ORIGIN` env var en Railway | 10 min | Backend completamente abierto; cualquiera consume cuota Gemini (§0.5) |
-| 4 | Limpiar dead code de ghost en AircraftLayer (§0.2, §0.9) | 10 min | Código confuso, refs nunca usados |
-| 5 | SearchBar buscar en array completo `aircraft`/`ships` (§0.7) | 15 min | Da 0 resultados si la capa está off |
+| Orden | Acción | Tiempo | Estado |
+|-------|--------|--------|--------|
+| 1 | Añadir `FIRMS_MAP_KEY` en Railway dashboard | 2 min | ⚠️ Requiere acción manual |
+| 2 | Arreglar toggle NEWS (§0.1) | 20 min | 🟡 Verificar en live |
+| 3 | **CORS** `NODE_ENV=production` en Railway (§0.5) | 2 min | ✅ Código arreglado — falta setear env en Railway |
+| 4 | Limpiar dead code de ghost en AircraftLayer (§0.2, §0.9) | 10 min | ✅ Arreglado `34f1c42` |
+| 5 | SearchBar buscar en array completo (§0.7) | 15 min | ✅ Arreglado `34f1c42` |
