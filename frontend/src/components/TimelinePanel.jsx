@@ -49,15 +49,20 @@ export default function TimelinePanel({
   replayMode = false,
   currentTs = null,
   controls,
-  alertPanelOpen = false,
+  alertPanelHeight = 0,
+  isMobile = false,
 }) {
   const fetchedRef = useRef(false);
   const [minimized, setMinimized] = useState(false);
 
-  // Auto-minimize when Intel Alerts panel opens to avoid overlap
-  useEffect(() => {
-    if (alertPanelOpen) setMinimized(true);
-  }, [alertPanelOpen]);
+  // Compute how many px to push the timeline up so it clears the AlertPanel
+  const alertPanelTop = isMobile ? 16 : 60;
+  const alertBottom = alertPanelTop + alertPanelHeight;
+  // Timeline sits at bottom-[68px]; its top ≈ viewportH - 68 - 110
+  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 900;
+  const timelineTop = viewportH - 68 - (minimized ? 20 : 110);
+  const overlap = alertBottom - timelineTop + 12; // 12px breathing gap
+  const pushUp = Math.max(0, Math.round(overlap));
 
   const total   = snapshots.length;
   const startTs = snapshots[0]?.ts ?? null;
@@ -83,7 +88,7 @@ export default function TimelinePanel({
 
   if (minimized) {
     return (
-      <div className="fixed bottom-[68px] left-0 right-0 z-[55] flex justify-center pointer-events-auto">
+      <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-auto" style={{ bottom: 68 + pushUp }}>
         <button
           onClick={() => setMinimized(false)}
           title="Expand timeline"
@@ -107,7 +112,7 @@ export default function TimelinePanel({
   }
 
   return (
-    <div className="fixed bottom-[68px] left-0 right-0 z-[55] flex justify-center pointer-events-none">
+    <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-none" style={{ bottom: 68 + pushUp, transition: 'bottom 0.3s ease' }}>
       <div className="w-full max-w-2xl mx-4 mb-1 pointer-events-auto select-none">
         <div
           className="rounded-xl border border-white/10 overflow-hidden"

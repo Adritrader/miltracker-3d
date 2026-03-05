@@ -210,11 +210,22 @@ const SitrepView = ({ alerts, aiInsight }) => {
   );
 };
 
-const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange }) => {
+const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange, onHeightChange }) => {
   const [open, setOpen] = useState(!isMobile);
+  const panelRef = useRef(null);
 
   // Notify parent when open state changes
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
+
+  // Measure panel height and report to parent so Timeline can move out of the way
+  useEffect(() => {
+    if (!panelRef.current || !onHeightChange) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) onHeightChange(e.contentRect.height);
+    });
+    ro.observe(panelRef.current);
+    return () => ro.disconnect();
+  }, [onHeightChange]);
   const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
   const [alertsExpanded, setAlertsExpanded] = useState(false);
   const [notifPerm, setNotifPerm] = useState(
@@ -262,6 +273,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
 
   return (
     <div
+      ref={panelRef}
       className="fixed z-50 transition-all duration-300"
       style={{
         top: isMobile ? 16 : 60,  // desktop: ~15px below search bar
