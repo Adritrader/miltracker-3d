@@ -89,8 +89,9 @@ function buildImageryProvider(basemap) {
       });
     case 'dark':
     default:
+      // dark_nolabels — labels come exclusively from the ESRI borders overlay
       return new Cesium.UrlTemplateImageryProvider({
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
         subdomains: ['a', 'b', 'c', 'd'],
         minimumLevel: 0, maximumLevel: 18,
         credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),

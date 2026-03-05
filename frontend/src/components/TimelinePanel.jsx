@@ -81,16 +81,13 @@ export default function TimelinePanel({
     if (e.key === ' ')          { e.preventDefault(); controls.toggle(); }
   }, [controls, currentIndex]);
 
-  // Block expansion while Intel Alerts panel is open — prevents overlap
-  const lockedByAlert = alertPanelOpen;
-
-  if (minimized || lockedByAlert) {
+  if (minimized) {
     return (
       <div className="fixed bottom-[68px] left-0 right-0 z-[45] flex justify-center pointer-events-auto">
         <button
-          onClick={() => { if (!lockedByAlert) setMinimized(false); }}
-          title={lockedByAlert ? 'Timeline hidden while Intel Feed is open' : 'Expand timeline'}
-          style={{ cursor: lockedByAlert ? 'default' : 'pointer' }}
+          onClick={() => setMinimized(false)}
+          title="Expand timeline"
+          style={{ cursor: 'pointer' }}
           className="group w-full max-w-2xl mx-4 h-3 flex items-center justify-center"
         >
           <div
@@ -102,7 +99,7 @@ export default function TimelinePanel({
             }}
           />
           <span className="absolute text-[9px] text-white/35 group-hover:text-white/65 font-mono transition">
-            {lockedByAlert ? '⚠ INTEL FEED OPEN' : '▲ TIMELINE'}
+            ▲ TIMELINE
           </span>
         </button>
       </div>
