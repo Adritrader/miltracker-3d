@@ -174,7 +174,7 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
             width:  isSingle ? 32 : 46,
             height: isSingle ? 32 : 46,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            disableDepthTestDistance: 2e6,
             scaleByDistance: new Cesium.NearFarScalar(2e5, 0.8, 1.5e7, isSingle ? 1.6 : 1.8),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2e7),
           },

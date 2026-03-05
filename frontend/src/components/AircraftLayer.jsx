@@ -316,7 +316,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
               // Shrink at distance but stay visible — 46px at close range, ~25px at far range
               scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
               distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              disableDepthTestDistance: 2e6,
             },
             label: {
               text: buildLabelText(ac),
@@ -332,7 +332,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
               showBackground: true,
               backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
               backgroundPadding: new Cesium.Cartesian2(5, 3),
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              disableDepthTestDistance: 2e6,
             },
           });
           entity._milData = ac;

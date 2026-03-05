@@ -34,6 +34,7 @@ const DEFAULT_FILTERS = {
   showNews:      true,
   showDanger:    true,
   showConflicts: true,
+  showFIRMS:     true,
   showBases:     true,
   showOnGround:  false,
   country:     'ALL',
@@ -118,6 +119,14 @@ function App() {
     () => filterNews(news, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [news, filters.showNews]
+  );
+
+  const filteredConflicts = useMemo(
+    () => filters.showFIRMS
+      ? conflicts
+      : conflicts.filter(c => c.source !== 'NASA FIRMS'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conflicts, filters.showFIRMS]
   );
 
   const handleViewerReady = useCallback((v) => {
@@ -225,7 +234,7 @@ function App() {
         <ErrorBoundary name="ConflictLayer" silent>
         <ConflictLayer
           viewer={viewer}
-          conflicts={conflicts}
+          conflicts={filteredConflicts}
           visible={filters.showConflicts}
           onSelect={handleEntityClick}
         />
@@ -245,7 +254,7 @@ function App() {
       <SearchBar
         aircraft={filteredAircraft}
         ships={filteredShips}
-        conflicts={conflicts}
+        conflicts={filteredConflicts}
         news={filteredNews}
         viewer={viewer}
         onSelect={handleEntityClick}
@@ -262,7 +271,7 @@ function App() {
         aircraftCount={filteredAircraft.length}
         shipCount={filteredShips.length}
         newsCount={filteredNews.filter(n => n.lat).length}
-        conflictCount={conflicts.length}
+        conflictCount={filteredConflicts.length}
         alertCount={alerts.length}
         connected={connected}
         lastUpdate={lastUpdate}

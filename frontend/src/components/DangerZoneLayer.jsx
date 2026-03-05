@@ -213,7 +213,14 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
     return dsRef.current;
   }, [viewer]);
 
-  // â”€â”€ Zone rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Visibility toggle — mirrors AircraftLayer / ConflictLayer pattern ─────
+  useEffect(() => {
+    if (!viewer) return;
+    const ds = getDS();
+    if (ds) ds.show = visible;
+  }, [viewer, visible, getDS]);
+
+  // ── Zone rendering ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!viewer) return;
     const ds = getDS();
@@ -291,7 +298,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
             image: getCenterPin(zone.severity),
             width:  26, height: 26,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            disableDepthTestDistance: 2e6,
             scaleByDistance: new Cesium.NearFarScalar(2e5, 1.6, 1.5e7, 0.4),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2e7),
           },
@@ -304,7 +311,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             pixelOffset: new Cesium.Cartesian2(0, -28),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            disableDepthTestDistance: 2e6,
             showBackground: true,
             backgroundColor: new Cesium.Color(0, 0, 0, 0.65),
             backgroundPadding: new Cesium.Cartesian2(7, 4),
@@ -339,7 +346,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
             image: alertIcon,
             width:  26, height: 26,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            disableDepthTestDistance: 2e6,
             scaleByDistance: new Cesium.NearFarScalar(1e5, 1.5, 1e7, 0.5),
           },
         });

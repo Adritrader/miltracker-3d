@@ -246,7 +246,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
               distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              disableDepthTestDistance: 2e6,
             },
             label: {
               text: shipLabel,
@@ -262,7 +262,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
               showBackground: true,
               backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
               backgroundPadding: new Cesium.Cartesian2(5, 3),
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              disableDepthTestDistance: 2e6,
             },
           });
           entity._milData = { ...ship, type_entity: 'ship' };

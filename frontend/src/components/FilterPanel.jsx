@@ -134,6 +134,7 @@ const FilterPanel = ({
         <Toggle label="AIRCRAFT"     checked={filters.showAircraft}  onChange={v => set('showAircraft', v)} />
         <Toggle label="WARSHIPS"      checked={filters.showShips}     onChange={v => set('showShips', v)} />
         <Toggle label="CONFLICT EVTS" checked={filters.showConflicts} onChange={v => set('showConflicts', v)} />
+        <Toggle label="FIRMS HEAT"    checked={filters.showFIRMS ?? true} onChange={v => set('showFIRMS', v)} color="hud-amber" />
         <Toggle label="NEWS EVENTS"   checked={filters.showNews}      onChange={v => set('showNews', v)} />
         <Toggle label="DANGER ZONES"  checked={filters.showDanger}    onChange={v => set('showDanger', v)} />
         <Toggle label="MIL BASES"     checked={filters.showBases}     onChange={v => set('showBases', v)}  color="hud-amber" />

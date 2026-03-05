@@ -490,7 +490,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
             horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
             scaleByDistance:  new Cesium.NearFarScalar(2e5, 0.8, 1.5e7, 1.6),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1.2e7),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            disableDepthTestDistance: 2e6,
           },
           label: {
             text:   (ev.type || 'event').toUpperCase(),
@@ -505,7 +505,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
             showBackground: true,
             backgroundColor: new Cesium.Color(0, 0, 0, 0.6),
             backgroundPadding: new Cesium.Cartesian2(4, 2),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            disableDepthTestDistance: 2e6,
           },
         }); } catch { continue; }
         entity._milData = { ...ev, type: 'conflict' };
