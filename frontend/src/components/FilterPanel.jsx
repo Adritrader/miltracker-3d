@@ -27,9 +27,11 @@ const COLOR_MAP = {
 const Toggle = ({ label, checked, onChange, color = 'hud-green' }) => {
   const c = COLOR_MAP[color] || COLOR_MAP['hud-green'];
   return (
-    <label className="flex items-center gap-2 cursor-pointer group select-none">
+    <label
+      className="flex items-center gap-2 cursor-pointer group select-none"
+      onClick={(e) => { e.preventDefault(); onChange(!checked); }}
+    >
       <div
-        onClick={() => onChange(!checked)}
         className={`w-9 h-5 rounded-full border transition-colors duration-200 flex items-center px-0.5 cursor-pointer
           ${checked ? 'bg-opacity-30 border-opacity-80' : 'bg-transparent border-hud-border'}`}
         style={checked ? { background: c.bg, borderColor: c.border } : {}}

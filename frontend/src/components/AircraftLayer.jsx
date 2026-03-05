@@ -95,14 +95,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     return ds;
   }, [viewer]);
 
-  // ── visibility toggle ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!viewer) return;
-    const acDS    = getDS('aircraft');
-    const trailDS = getDS('aircraft-trails');
-    if (acDS)    acDS.show    = visible;
-    if (trailDS) trailDS.show = visible;
-  }, [viewer, visible, getDS]);
+  // visibility is managed inside the main render loop below
 
   // ── Ghost TTL purge — runs every 60 s to evict ghosts older than GHOST_TTL ─
   useEffect(() => {
@@ -180,6 +173,18 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     const acDS    = getDS('aircraft');
     const trailDS = getDS('aircraft-trails');
     if (!acDS || !trailDS) return;
+
+    // Always sync datasource visibility first
+    acDS.show    = visible;
+    trailDS.show = visible;
+    if (!visible) {
+      acDS.entities.removeAll();
+      trailDS.entities.removeAll();
+      entityMapRef.current.clear();
+      trailEntityRef.current.clear();
+      prevIdsRef.current = new Set();
+      return;
+    }
 
     const currentIds = new Set(aircraft.map(a => a.id));
 
@@ -344,7 +349,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       // Persist trail history to sessionStorage after each update
       saveTrails(trailPointsRef.current);
     }
-  }, [viewer, aircraft, trackedList, getDS]);
+  }, [viewer, aircraft, visible, trackedList, getDS]);
 
   // ── Click selection ────────────────────────────────────────────────────────
   useEffect(() => {

@@ -60,14 +60,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     return ds;
   }, [viewer]);
 
-  // ── Visibility toggle ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!viewer) return;
-    const shipDS  = getDS('ships');
-    const trailDS = getDS('ship-trails');
-    if (shipDS)  shipDS.show  = visible;
-    if (trailDS) trailDS.show = visible;
-  }, [viewer, visible, getDS]);
+  // visibility is managed inside the main render loop below
 
   // ── Replay trail overlay ───────────────────────────────────────────────────
   // Renders full historical track for each ship when timeline replay is active.
@@ -118,8 +111,17 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     const trailDS = getDS('ship-trails');
     if (!shipDS || !trailDS) return;
 
-    const validShips = ships.filter(s => isValidCoord(s.lat, s.lon));
-    console.log(`[ShipLayer] ships=${ships.length} valid=${validShips.length} viewer=${!!viewer}`);
+    // Always sync datasource visibility first
+    shipDS.show  = visible;
+    trailDS.show = visible;
+    if (!visible) {
+      shipDS.entities.removeAll();
+      trailDS.entities.removeAll();
+      entityMapRef.current.clear();
+      trailEntityRef.current.clear();
+      prevIdsRef.current = new Set();
+      return;
+    }
 
     const currentIds = new Set(ships.map(s => s.mmsi || s.id));
 
@@ -273,7 +275,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
       trailDS.entities.resumeEvents();
       saveTrails(trailPointsRef.current);
     }
-  }, [viewer, ships, trackedList, getDS]);
+  }, [viewer, ships, visible, trackedList, getDS]);
 
   return null;
 };
