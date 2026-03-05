@@ -190,16 +190,14 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       // ── Remove entities for aircraft that disappeared ─────────────────────
       for (const id of prevIdsRef.current) {
         if (!currentIds.has(id)) {
-          if (!ghostTimestampRef.current.has(id)) {
-            // Newly disappeared — ghost it instead of removing immediately
-            const acEnt = entityMapRef.current.get(id);
-            if (acEnt) {
-              acEnt._ghost = true;
-              if (acEnt.billboard) acEnt.billboard.color = Cesium.Color.WHITE.withAlpha(0.28);
-              if (acEnt.label)     acEnt.label.fillColor  = Cesium.Color.fromCssColorString('#00ff88').withAlpha(0.35);
-            }
-            ghostTimestampRef.current.set(id, Date.now());
-          }
+          // Remove immediately — no ghost delay
+          const acEnt    = entityMapRef.current.get(id);
+          const trailEnt = trailEntityRef.current.get(id);
+          if (acEnt)    acDS.entities.remove(acEnt);
+          if (trailEnt) trailDS.entities.remove(trailEnt);
+          entityMapRef.current.delete(id);
+          trailEntityRef.current.delete(id);
+          ghostTimestampRef.current.delete(id);
         }
       }
       prevIdsRef.current = currentIds;

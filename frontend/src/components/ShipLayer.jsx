@@ -148,14 +148,12 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
         const isTracked = trackedList?.has(id);
         const color    = isTracked ? '#FFD700' : getShipColor(ship.flag);
         const iconUri  = SHIP_SVG(ship.heading || 0, color);
-        // Baseline vessels (no live AIS) get a dimmer appearance
-        const isBase   = !!ship.isBaseline;
 
-        // Build label: [FLAG_ISO] NAME  (+ marker for baseline)
+        // Build label: [FLAG_ISO] NAME
         const rawFlag    = ship.flag || ship.country || '';
         const resolved   = rawFlag ? resolveCountry(rawFlag) : null;
         const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
-        const shipLabel  = [countryTag, ship.name || id, isBase ? '~' : ''].filter(Boolean).join(' ');
+        const shipLabel  = [countryTag, ship.name || id].filter(Boolean).join(' ');
 
         // ── Trail history ───────────────────────────────────────────────────
         if (!trailPointsRef.current.has(id)) trailPointsRef.current.set(id, []);
@@ -220,7 +218,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
           if (entity.billboard) entity.billboard.image = iconUri;
           if (entity.billboard) entity.billboard.color = isTracked
             ? Cesium.Color.WHITE
-            : (isBase ? Cesium.Color.WHITE.withAlpha(0.45) : Cesium.Color.WHITE);
+            : Cesium.Color.WHITE;
           if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
           if (entity.label)     entity.label.fillColor = Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00aaff');
           entity._milData = { ...ship, type_entity: 'ship' };
@@ -241,7 +239,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
               width:  46,
               height: 46,
               // Baseline vessels dimmed to indicate "last known position"
-              color: isBase && !isTracked ? Cesium.Color.WHITE.withAlpha(0.45) : Cesium.Color.WHITE,
+              color: Cesium.Color.WHITE,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               scaleByDistance: new Cesium.NearFarScalar(5e4, 1.1, MAX_RANGE, 0.55),
