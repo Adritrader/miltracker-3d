@@ -1,16 +1,54 @@
-/**
- * SitrepCapture – Screenshot and 6-second cinematic video capture
+﻿/**
+ * SitrepCapture â€“ Screenshot and 6-second cinematic video capture
  * - Screenshot: uses scene.postRender event to grab canvas right after Cesium renders
- * - Video: camera orbit + MediaRecorder → WebM download
- * - Done modal: centered overlay with Download + Share (Web Share API / clipboard fallback)
+ * - Video: cinematic zoom-in â†’ MP4 (iOS) or WebM (desktop) via MediaRecorder
+ * - Done modal: Download + social share grid (Twitter, WhatsApp, Telegram, Reddit, native)
  */
 
 import React, { useState, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
 
 const RECORD_SEC = 6;
+const PAGE_URL   = () => window.location.href;
+const SHARE_TEXT = 'MilTracker 3D â€” live military tracking';
 
-// ── Centered overlay (same pattern as EntityPopup) ──────────────────────────
+// Pick best supported video mime: MP4 on iOS Safari, VP9 WebM on Chrome, plain WebM fallback
+function bestMime() {
+  if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1'))  return { mime: 'video/mp4;codecs=avc1',  ext: 'mp4'  };
+  if (MediaRecorder.isTypeSupported('video/mp4'))               return { mime: 'video/mp4',               ext: 'mp4'  };
+  if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))   return { mime: 'video/webm;codecs=vp9',  ext: 'webm' };
+  return                                                               { mime: 'video/webm',              ext: 'webm' };
+}
+
+// â”€â”€ Social share URL builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const NETWORKS = [
+  {
+    id: 'twitter',
+    label: 'ð• Twitter',
+    color: '#1d9bf0',
+    url: () => `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(PAGE_URL())}`,
+  },
+  {
+    id: 'whatsapp',
+    label: 'ðŸ’¬ WhatsApp',
+    color: '#25d366',
+    url: () => `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT + ' ' + PAGE_URL())}`,
+  },
+  {
+    id: 'telegram',
+    label: 'âœˆ Telegram',
+    color: '#0088cc',
+    url: () => `https://t.me/share/url?url=${encodeURIComponent(PAGE_URL())}&text=${encodeURIComponent(SHARE_TEXT)}`,
+  },
+  {
+    id: 'reddit',
+    label: 'ðŸ”´ Reddit',
+    color: '#ff4500',
+    url: () => `https://reddit.com/submit?url=${encodeURIComponent(PAGE_URL())}&title=${encodeURIComponent(SHARE_TEXT)}`,
+  },
+];
+
+// â”€â”€ Centered overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ModalOverlay = ({ children, onClose }) => (
   <>
     <div
@@ -30,20 +68,21 @@ const ModalOverlay = ({ children, onClose }) => (
 );
 
 export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = false }) {
-  const [mode, setMode]            = useState(null); // null | 'menu' | 'capturing' | 'done'
+  const [mode, setMode]            = useState(null);
   const [captureType, setCaptType] = useState(null); // 'screenshot' | 'video'
   const [countdown, setCountdown]  = useState(RECORD_SEC);
   const [dlUrl, setDlUrl]          = useState(null);
   const [dlName, setDlName]        = useState('');
+  const [dlMime, setDlMime]        = useState('');
   const [shareMsg, setShareMsg]    = useState('');
-  const mediaRef    = useRef(null);
-  const chunksRef   = useRef([]);
-  const rafRef      = useRef(null);
-  const postRenRef  = useRef(null); // Cesium postRender listener ref
+  const mediaRef   = useRef(null);
+  const chunksRef  = useRef([]);
+  const rafRef     = useRef(null);
+  const postRenRef = useRef(null);
 
   const mkTs = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
-  // ── Screenshot ──────────────────────────────────────────────────────────────
+  // â”€â”€ Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const takeScreenshot = useCallback(() => {
     if (!viewer) return;
     setCaptType('screenshot');
@@ -51,7 +90,6 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     setCountdown(0);
     onUiHide?.();
 
-    // Remove any stale postRender listener
     if (postRenRef.current) {
       try { viewer.scene.postRender.removeEventListener(postRenRef.current); } catch (_) {}
       postRenRef.current = null;
@@ -61,11 +99,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       try { viewer.scene.postRender.removeEventListener(onAfterRender); } catch (_) {}
       postRenRef.current = null;
       try {
-        // Capture canvas immediately after Cesium has drawn this frame
         const dataUrl = viewer.canvas.toDataURL('image/png');
         const name    = `MILTRACKER-SITREP-${mkTs()}.png`;
         setDlUrl(dataUrl);
         setDlName(name);
+        setDlMime('image/png');
         setMode('done');
       } catch (err) {
         console.error('[SITREP] screenshot failed', err);
@@ -80,11 +118,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     viewer.scene.requestRender();
   }, [viewer, onUiHide, onUiShow]);
 
-  // ── Video (cinematic orbit) ─────────────────────────────────────────────────
+  // â”€â”€ Video (cinematic zoom-in) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const recordVideo = useCallback(() => {
     if (!viewer) return;
     if (typeof MediaRecorder === 'undefined' || !viewer.canvas.captureStream) {
-      alert('Su navegador no soporta grabación de vídeo. Use Captura de Pantalla.');
+      alert('Su navegador no soporta grabaciÃ³n de vÃ­deo. Use Captura de Pantalla.');
       return;
     }
     setCaptType('video');
@@ -92,9 +130,9 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     setCountdown(RECORD_SEC);
     onUiHide?.();
 
+    const { mime, ext } = bestMime();
     const canvas   = viewer.canvas;
     const stream   = canvas.captureStream(30);
-    const mime     = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
     const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
     chunksRef.current = [];
     mediaRef.current  = recorder;
@@ -104,17 +142,16 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       cancelAnimationFrame(rafRef.current);
       const blob = new Blob(chunksRef.current, { type: mime });
       const url  = URL.createObjectURL(blob);
-      const name = `MILTRACKER-SITREP-${mkTs()}.webm`;
+      const name = `MILTRACKER-SITREP-${mkTs()}.${ext}`;
       setDlUrl(url);
       setDlName(name);
+      setDlMime(mime);
       setMode('done');
       onUiShow?.();
     };
 
     recorder.start(100);
 
-    // Cinematic zoom-in: smoothly reduce camera altitude toward the current view centre.
-    // Eased 0→1 over RECORD_SEC seconds, zooms to 25% of start altitude (min 5 km).
     const startCarto = viewer.camera.positionCartographic.clone();
     const startLon   = Cesium.Math.toDegrees(startCarto.longitude);
     const startLat   = Cesium.Math.toDegrees(startCarto.latitude);
@@ -127,14 +164,13 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     const frame = () => {
       const elapsed = (performance.now() - startTs) / 1000;
       if (elapsed >= RECORD_SEC) { recorder.stop(); return; }
-      const t     = elapsed / RECORD_SEC;                        // 0 → 1
-      const eased = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;        // ease-in-out
+      const t     = elapsed / RECORD_SEC;
+      const eased = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
       const alt   = startAlt + (endAlt - startAlt) * eased;
-      // Subtle 12° heading drift for cinematic feel
       const hdg   = startHdg + Cesium.Math.toRadians(12) * t;
       viewer.camera.setView({
-        destination:  Cesium.Cartesian3.fromDegrees(startLon, startLat, alt),
-        orientation:  { heading: hdg, pitch: startPitch, roll: 0 },
+        destination: Cesium.Cartesian3.fromDegrees(startLon, startLat, alt),
+        orientation: { heading: hdg, pitch: startPitch, roll: 0 },
       });
       setCountdown(Math.ceil(RECORD_SEC - elapsed));
       rafRef.current = requestAnimationFrame(frame);
@@ -142,43 +178,44 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     rafRef.current = requestAnimationFrame(frame);
   }, [viewer, onUiHide, onUiShow]);
 
-  // ── Share ───────────────────────────────────────────────────────────────────
-  const handleShare = useCallback(async () => {
+  // â”€â”€ Native share (file) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleNativeShare = useCallback(async () => {
     setShareMsg('');
-    // Try Web Share API with image file (screenshots on mobile)
-    if (captureType === 'screenshot' && dlUrl && navigator.share) {
+    if (!dlUrl) return;
+    if (navigator.share) {
       try {
-        const res  = await fetch(dlUrl);
-        const blob = await res.blob();
-        const file = new File([blob], dlName, { type: 'image/png' });
+        const isData = dlUrl.startsWith('data:');
+        const blob   = isData
+          ? await fetch(dlUrl).then(r => r.blob())
+          : await fetch(dlUrl).then(r => r.blob());
+        const file = new File([blob], dlName, { type: dlMime });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'MilTracker 3D SITREP' });
+          await navigator.share({ files: [file], title: 'MilTracker 3D SITREP', text: SHARE_TEXT });
           return;
         }
-      } catch (_) {}
+        // Share without file
+        await navigator.share({ title: 'MilTracker 3D', url: PAGE_URL(), text: SHARE_TEXT });
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return; // user cancelled
+      }
     }
-    // Fallback: share page URL
-    const pageUrl = window.location.href;
-    if (navigator.share) {
-      try { await navigator.share({ title: 'MilTracker 3D', url: pageUrl }); return; }
-      catch (_) {}
-    }
-    // Last resort: copy URL to clipboard
+    // Fallback: copy URL
     try {
-      await navigator.clipboard.writeText(pageUrl);
-      setShareMsg('✓ URL copiada al portapapeles');
+      await navigator.clipboard.writeText(PAGE_URL());
+      setShareMsg('âœ“ URL copiada');
     } catch (_) {
-      setShareMsg(pageUrl.slice(0, 80));
+      setShareMsg(PAGE_URL().slice(0, 70));
     }
-  }, [captureType, dlUrl, dlName]);
+  }, [dlUrl, dlName, dlMime]);
 
   const reset = useCallback(() => {
     if (dlUrl?.startsWith('blob:')) URL.revokeObjectURL(dlUrl);
-    setMode(null); setDlUrl(null); setDlName(''); setShareMsg('');
+    setMode(null); setDlUrl(null); setDlName(''); setDlMime(''); setShareMsg('');
     setCountdown(RECORD_SEC);
   }, [dlUrl]);
 
-  // ── Capturing indicator ─────────────────────────────────────────────────────
+  // â”€â”€ Capturing indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (mode === 'capturing') {
     return (
       <div
@@ -188,7 +225,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         <span className="text-red-400 text-xl animate-pulse">&#x23FA;</span>
         <div>
           <div className="text-red-400 font-mono text-xs font-bold animate-pulse">
-            {countdown === 0 ? 'CAPTURANDO…' : `REC ${countdown}s`}
+            {countdown === 0 ? 'CAPTURANDOâ€¦' : `REC ${countdown}s`}
           </div>
           <div className="text-hud-text text-[10px] font-mono">SITREP CAPTURE</div>
         </div>
@@ -196,54 +233,76 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     );
   }
 
-  // ── Done modal ──────────────────────────────────────────────────────────────
+  // â”€â”€ Done modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (mode === 'done') {
+    const isVideo = captureType === 'video';
     return (
       <ModalOverlay onClose={reset}>
-        <div className="hud-panel p-5 space-y-4" style={{ width: 'min(340px, calc(100vw - 32px))' }}>
+        <div className="hud-panel p-5 space-y-4" style={{ width: 'min(360px, calc(100vw - 32px))' }}>
+          {/* Header */}
           <div>
             <div className="hud-title text-xs mb-1 text-hud-green">&#x2713; SITREP GUARDADO</div>
             <div className="text-white font-mono font-bold text-sm">
-              {captureType === 'screenshot' ? 'Captura PNG' : 'Vídeo WebM 6s'}
+              {isVideo ? `VÃ­deo ${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} 6s` : 'Captura PNG'}
             </div>
             <div className="text-hud-text font-mono text-[10px] truncate mt-0.5 opacity-60">{dlName}</div>
           </div>
 
-          {captureType === 'screenshot' && dlUrl && (
+          {/* Screenshot preview */}
+          {!isVideo && dlUrl && (
             <img
               src={dlUrl}
               alt="SITREP preview"
               className="w-full rounded border border-hud-border/50 object-cover"
-              style={{ maxHeight: 160 }}
+              style={{ maxHeight: 140 }}
             />
           )}
 
-          <div className="flex flex-col gap-2">
-            {dlUrl && (
-              <a
-                href={dlUrl}
-                download={dlName}
-                className="hud-btn text-xs py-2 text-center w-full block"
+          {/* Download */}
+          {dlUrl && (
+            <a href={dlUrl} download={dlName} className="hud-btn text-xs py-2 text-center w-full block">
+              &#x2193; DESCARGAR {dlName.split('.').pop().toUpperCase()}
+            </a>
+          )}
+
+          {/* Social share grid */}
+          <div>
+            <div className="hud-title text-[10px] mb-2 opacity-70">COMPARTIR</div>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Native share â€” always first, shows WhatsApp/Telegram/etc sheet on mobile */}
+              <button
+                onClick={handleNativeShare}
+                className="hud-btn text-xs py-2 text-center col-span-2"
               >
-                &#x2193; DESCARGAR
-              </a>
-            )}
-            <button onClick={handleShare} className="hud-btn text-xs py-2 text-center w-full">
-              &#x2398; COMPARTIR
-            </button>
+                &#x2197; Compartir archivo {isVideo ? '(vÃ­deo)' : '(imagen)'}
+              </button>
+              {NETWORKS.map(n => (
+                <a
+                  key={n.id}
+                  href={n.url()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hud-btn text-xs py-2 text-center block"
+                  style={{ borderColor: n.color + '60', color: n.color }}
+                >
+                  {n.label}
+                </a>
+              ))}
+            </div>
             {shareMsg && (
-              <div className="text-hud-green text-[10px] font-mono text-center break-all">{shareMsg}</div>
+              <div className="text-hud-green text-[10px] font-mono text-center mt-2 break-all">{shareMsg}</div>
             )}
-            <button onClick={reset} className="text-hud-text text-xs font-mono hover:text-white transition-colors py-1 text-center w-full">
-              &times; CERRAR
-            </button>
           </div>
+
+          <button onClick={reset} className="text-hud-text text-xs font-mono hover:text-white transition-colors py-1 text-center w-full">
+            &times; CERRAR
+          </button>
         </div>
       </ModalOverlay>
     );
   }
 
-  // ── Menu modal ──────────────────────────────────────────────────────────────
+  // â”€â”€ Menu modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (mode === 'menu') {
     return (
       <ModalOverlay onClose={() => setMode(null)}>
@@ -253,7 +312,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
             &#x1F4F8; CAPTURA DE PANTALLA (PNG)
           </button>
           <button onClick={recordVideo} className="w-full hud-btn text-xs py-2.5 text-center">
-            &#x1F3AC; VÍDEO CINEMATIC (6s WebM)
+            &#x1F3AC; V&#xCD;DEO CINEM&#xC1;TICO (6s)
           </button>
           <div className="text-hud-text text-[10px] font-mono opacity-60 text-center">
             La interfaz se oculta durante la captura
@@ -266,7 +325,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     );
   }
 
-  // ── Default: trigger button ─────────────────────────────────────────────────
+  // â”€â”€ Default: trigger button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <button
       onClick={() => setMode('menu')}
@@ -274,7 +333,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         ? 'hud-btn text-xs px-3 py-2 font-bold'
         : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold'
       }
-      title="Generar SITREP — captura de pantalla o vídeo cinematic"
+      title="Generar SITREP â€” captura de pantalla o vÃ­deo"
     >
       &#x1F4F7; SITREP
     </button>
