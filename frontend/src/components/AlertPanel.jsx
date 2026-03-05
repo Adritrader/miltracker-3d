@@ -27,10 +27,10 @@ const AlertItem = ({ alert, onFlyTo }) => {
         <div className="flex-1 min-w-0">
           {/* Title row */}
           <div className="flex items-start justify-between gap-1">
-            <span className={`${cfg.text} text-xs font-mono font-bold uppercase leading-tight`}>
+            <span className={`${cfg.text} text-[10px] font-mono font-bold uppercase leading-tight`}>
               [{cfg.label}]&nbsp;{alert.title}
             </span>
-            <span className="text-hud-text text-xs shrink-0 ml-1">{timeAgo(alert.timestamp)}</span>
+            <span className="text-hud-text text-[10px] shrink-0 ml-1">{timeAgo(alert.timestamp)}</span>
           </div>
 
           {/* Date/time + source row */}
@@ -40,19 +40,19 @@ const AlertItem = ({ alert, onFlyTo }) => {
               const dateStr = d.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'2-digit' });
               const timeStr = d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
               return (
-                <span className="text-hud-amber text-xs font-mono font-bold tracking-wider">
+                <span className="text-hud-amber text-[10px] font-mono font-bold tracking-wider">
                   {dateStr}&nbsp;{timeStr}
                 </span>
               );
             })()}
             {alert.source && (
-              <span className="text-hud-green text-xs font-mono">{alert.source}</span>
+              <span className="text-hud-green text-[10px] font-mono">{alert.source}</span>
             )}
           </div>
 
           {/* Description */}
           {alert.message && alert.message !== alert.title && (
-            <p className="text-hud-text text-xs mt-0.5 leading-relaxed line-clamp-2">{alert.message}</p>
+            <p className="text-hud-text text-[10px] mt-0.5 leading-relaxed line-clamp-2">{alert.message}</p>
           )}
 
           {/* Actions */}
@@ -60,7 +60,7 @@ const AlertItem = ({ alert, onFlyTo }) => {
             {hasGeo && (
               <button
                 onClick={() => onFlyTo?.(alert)}
-                className="text-hud-amber text-xs hover:text-white transition-colors"
+                className="text-hud-amber text-[10px] hover:text-white transition-colors"
               >
                 ⊕ FLY TO
               </button>
@@ -70,7 +70,7 @@ const AlertItem = ({ alert, onFlyTo }) => {
                 href={alert.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-hud-green text-xs hover:text-white transition-colors"
+                className="text-hud-green text-[10px] hover:text-white transition-colors"
                 onClick={e => e.stopPropagation()}
               >
                 ↗ READ
@@ -306,7 +306,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-1.5 text-xs font-mono uppercase tracking-wide transition-colors
+                className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wide transition-colors
                   ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
               >
                 {t === 'alerts'
@@ -338,7 +338,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
                     )}
                   </>
                 )
-                : <div className="text-hud-text text-xs text-center py-4">No critical alerts</div>
+                : <div className="text-hud-text text-[10px] text-center py-4">No critical alerts</div>
             )}
 
             {tab === 'sitrep' && (
