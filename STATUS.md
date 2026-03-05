@@ -1,6 +1,6 @@
 # MILTRACKER 3D — Estado del Roadmap
 
-> Última actualización: `pending` — 2026-03-05
+> Última actualización: `1d924bb` — 2026-03-05
 
 ---
 
