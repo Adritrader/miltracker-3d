@@ -132,26 +132,26 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
       }}
     >
       {/* Connection dot */}
-      <div className="flex items-center gap-1.5 px-3 h-full border-r border-hud-border/50">
+      <div className="flex items-center px-3 h-full border-r border-hud-border/50">
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-hud-green animate-blink' : 'bg-red-500'}`}
+          title={connected ? 'LIVE' : 'OFFLINE'}
         />
-        <span className="hud-label text-xs">{connected ? 'LIVE' : 'OFFLINE'}</span>
       </div>
 
       {/* Mouse cursor coordinates + camera altitude (desktop only) */}
       {!isMobile && (<>
         <Divider />
         <Seg label="CURSOR">
-          <span className="font-mono text-xs text-hud-green">
+          <span className="font-mono text-[10px] text-hud-green">
             {coords ? fmtCoord(coords.lat, 'N', 'S') : '—'}
           </span>
-          <span className="font-mono text-xs text-hud-green ml-1">
+          <span className="font-mono text-[10px] text-hud-green ml-1">
             {coords ? fmtCoord(coords.lon, 'E', 'W') : ''}
           </span>
         </Seg>
         <Divider />
-        <Seg label="VIEW ALT" value={fmtAlt(cameraAlt)} valueClass="text-hud-blue" />
+        <Seg label="VIEW ALT" value={fmtAlt(cameraAlt)} valueClass="text-[10px] text-hud-blue" />
       </>)}
 
       {/* Entity counts */}
