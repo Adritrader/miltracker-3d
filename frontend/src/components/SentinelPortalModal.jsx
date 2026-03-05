@@ -39,7 +39,7 @@ const SOURCES = [
  * - CRS:84 = lon/lat axis order (needed for WMS 1.3.0 — avoids EPSG:4326 flip)
  * - Fire layer is transparent: combine with background layer
  * - GIBS has ~24h lag: yesterday is the safest date for daily products */
-function buildGibsUrl(layers, lat, lon, dateStr, deg = 1.5) {
+function buildGibsUrl(layers, lat, lon, dateStr, deg = 0.4) {
   const latMin = (lat - deg * 0.75).toFixed(4);
   const latMax = (lat + deg * 0.75).toFixed(4);
   const lonMin = (lon - deg).toFixed(4);
@@ -71,9 +71,17 @@ function offsetDate(offset) {
   return d.toISOString().split('T')[0];
 }
 
+/* Zoom levels: deg = half-width of bounding box in degrees */
+const ZOOM_OPTIONS = [
+  { label: '×1  (50 km)',  deg: 0.25 },
+  { label: '×2  (120 km)', deg: 0.55 },
+  { label: '×4  (300 km)', deg: 1.2  },
+];
+
 const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
-  const [source,  setSource]  = useState('viirs');
-  const [dayOff,  setDayOff]  = useState(1);
+  const [source,   setSource]   = useState('viirs');
+  const [dayOff,   setDayOff]   = useState(1);
+  const [zoom,     setZoom]     = useState(0.25);
   const [imgError, setImgError] = useState(false);
 
   const sourceDef = SOURCES.find(s => s.id === source);
@@ -82,8 +90,8 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
   // GIBS image URL
   const imgUrl = useMemo(() => {
     if (!lat || !lon || !sourceDef?.layer) return null;
-    return buildGibsUrl(sourceDef.layer, lat, lon, dateStr);
-  }, [lat, lon, sourceDef, dateStr]);
+    return buildGibsUrl(sourceDef.layer, lat, lon, dateStr, zoom);
+  }, [lat, lon, sourceDef, dateStr, zoom]);
 
   // Reset error when source or date changes
   React.useEffect(() => setImgError(false), [imgUrl]);
@@ -145,7 +153,8 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
 
         {/* Date picker (only for GIBS layers) */}
         {sourceDef?.layer && (
-          <div className="flex gap-1 px-3 py-1.5 border-b border-hud-border/50 flex-shrink-0">
+          <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-hud-border/50 flex-shrink-0 items-center">
+            <span className="text-[10px] font-mono text-hud-text/50 mr-1">DATE:</span>
             {DAY_OPTIONS.map(d => (
               <button
                 key={d.offset}
@@ -160,6 +169,26 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
               </button>
             ))}
             <span className="ml-auto text-[10px] font-mono text-hud-text/50 self-center">{dateStr}</span>
+          </div>
+        )}
+
+        {/* Zoom picker */}
+        {sourceDef?.layer && (
+          <div className="flex flex-wrap gap-1 px-3 py-1.5 border-b border-hud-border/50 flex-shrink-0 items-center">
+            <span className="text-[10px] font-mono text-hud-text/50 mr-1">ZOOM:</span>
+            {ZOOM_OPTIONS.map(z => (
+              <button
+                key={z.deg}
+                onClick={() => setZoom(z.deg)}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded border transition-all duration-150 ${
+                  zoom === z.deg
+                    ? 'bg-hud-green/20 border-hud-green text-hud-green'
+                    : 'border-hud-border text-hud-text hover:border-hud-green/50'
+                }`}
+              >
+                {z.label}
+              </button>
+            ))}
           </div>
         )}
 
