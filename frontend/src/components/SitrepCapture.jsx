@@ -28,14 +28,37 @@ function bestMime() {
   return { mime: '', ext: 'webm' }; // browser picks codec
 }
 
+// ── Watermark helpers ───────────────────────────────────────────────────────────────
+function drawWatermarkOnCtx(ctx, w, h) {
+  const pad = 14;
+  const fontSize = Math.max(11, Math.round(w / 90));
+  ctx.save();
+  ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+  ctx.globalAlpha = 0.45; ctx.fillStyle = '#ffffff';
+  ctx.fillText('MilTracker 3D', w - pad, h - pad - fontSize - 3);
+  ctx.globalAlpha = 0.60; ctx.fillStyle = '#00ff88';
+  ctx.fillText(window.location.hostname, w - pad, h - pad);
+  ctx.restore();
+}
+function addWatermark(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      drawWatermarkOnCtx(ctx, c.width, c.height);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.src = dataUrl;
+  });
+}
+
 // â”€â”€ Social share URL builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NETWORKS = [
-  {
-    id: 'twitter',
-    label: 'Twitter / X',
-    color: '#1d9bf0',
-    url: () => `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(PAGE_URL())}`,
-  },
   {
     id: 'whatsapp',
     label: 'WhatsApp',
@@ -108,16 +131,19 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       try { viewer.scene.postRender.removeEventListener(onAfterRender); } catch (_) {}
       postRenRef.current = null;
       try {
-        const dataUrl = viewer.canvas.toDataURL('image/png');
-        const name    = `MILTRACKER-SITREP-${mkTs()}.png`;
-        setDlUrl(dataUrl);
-        setDlName(name);
-        setDlMime('image/png');
-        setMode('done');
+        const raw  = viewer.canvas.toDataURL('image/png');
+        const name = `MILTRACKER-SITREP-${mkTs()}.png`;
+        addWatermark(raw)
+          .then(dataUrl => {
+            setDlUrl(dataUrl); setDlName(name); setDlMime('image/png'); setMode('done');
+          })
+          .catch(() => {
+            setDlUrl(raw); setDlName(name); setDlMime('image/png'); setMode('done');
+          })
+          .finally(() => onUiShow?.());
       } catch (err) {
         console.error('[SITREP] screenshot failed', err);
         setMode(null);
-      } finally {
         onUiShow?.();
       }
     };
@@ -140,8 +166,20 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     onUiHide?.();
 
     const { mime } = bestMime();
-    const canvas = viewer.canvas;
-    const stream = canvas.captureStream(30);
+    // Offscreen canvas: copies Cesium canvas each frame + adds watermark
+    const wmCanvas = document.createElement('canvas');
+    wmCanvas.width  = viewer.canvas.width;
+    wmCanvas.height = viewer.canvas.height;
+    const wmCtx = wmCanvas.getContext('2d');
+    const copyFrame = () => {
+      wmCtx.drawImage(viewer.canvas, 0, 0);
+      drawWatermarkOnCtx(wmCtx, wmCanvas.width, wmCanvas.height);
+    };
+    viewer.scene.postRender.addEventListener(copyFrame);
+
+    const canvas = wmCanvas;
+    const stream = wmCanvas.captureStream(30);
+    const _cleanup = () => { try { viewer.scene.postRender.removeEventListener(copyFrame); } catch(_) {} };
 
     let recorder;
     try {
@@ -162,6 +200,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     mediaRef.current  = recorder;
 
     const finish = () => {
+      _cleanup();
       cancelAnimationFrame(rafRef.current); rafRef.current = null;
       if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       const recMime = recorder.mimeType || mime || 'video/webm';
