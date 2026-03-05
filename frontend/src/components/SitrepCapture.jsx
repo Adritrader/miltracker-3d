@@ -255,6 +255,19 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     }
   }, [dlUrl, dlName, dlMime]);
 
+  // Twitter: for video, auto-download + open Twitter compose so user can attach
+  const handleTwitterShare = useCallback(() => {
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(PAGE_URL())}`;
+    window.open(tweetUrl, '_blank', 'noopener,noreferrer');
+    // If it's a video, also trigger the download so user can attach it to the tweet
+    if (captureType === 'video' && dlUrl) {
+      const a = document.createElement('a');
+      a.href = dlUrl;
+      a.download = dlName;
+      a.click();
+    }
+  }, [captureType, dlUrl, dlName]);
+
   const reset = useCallback(() => {
     cancelAnimationFrame(rafRef.current); rafRef.current = null;
     if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
@@ -325,6 +338,19 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
               >
                 &#x2197; Compartir archivo {isVideo ? '(video)' : '(imagen)'}
               </button>
+              {/* Twitter — for video: also triggers download so user can attach the file */}
+              <button
+                onClick={handleTwitterShare}
+                className="hud-btn text-xs py-2 text-center block"
+                style={{ borderColor: '#1d9bf060', color: '#1d9bf0' }}
+              >
+                Twitter / X{isVideo ? ' ↓' : ''}
+              </button>
+              {isVideo && (
+                <div className="col-span-2 text-[9px] font-mono text-amber-300/80 text-center -mt-1">
+                  ↑ descargando video &mdash; adjúntalo al tweet
+                </div>
+              )}
               {NETWORKS.map(n => (
                 <a
                   key={n.id}
