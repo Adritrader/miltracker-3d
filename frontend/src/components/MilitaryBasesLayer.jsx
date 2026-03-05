@@ -264,8 +264,8 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
           height: 32,
           verticalOrigin:  Cesium.VerticalOrigin.CENTER,
           horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-          scaleByDistance: new Cesium.NearFarScalar(5e4, 1.4, 8e6, 0.4),
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1.0e7),
+          scaleByDistance: new Cesium.NearFarScalar(5e4, 1.4, 2e7, 0.6),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 3.0e7),
           disableDepthTestDistance: 2e6,
         },
         label: {

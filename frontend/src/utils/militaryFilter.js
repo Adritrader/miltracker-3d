@@ -120,12 +120,33 @@ for (const [code, { name }] of Object.entries(COUNTRY_DATA)) {
 // Common aliases
 NAME_TO_CODE['USA'] = 'US';
 NAME_TO_CODE['RUSSIA'] = 'RU';
+NAME_TO_CODE['RUSSIAN FEDERATION'] = 'RU';
 NAME_TO_CODE['CHINA'] = 'CN';
+NAME_TO_CODE["PEOPLE'S REPUBLIC OF CHINA"] = 'CN';
 NAME_TO_CODE['IRAN'] = 'IR';
+NAME_TO_CODE['ISLAMIC REPUBLIC OF IRAN'] = 'IR';
 NAME_TO_CODE['UK'] = 'GB';
+NAME_TO_CODE['UNITED KINGDOM'] = 'GB';
+NAME_TO_CODE['GREAT BRITAIN'] = 'GB';
 NAME_TO_CODE['SOUTH KOREA'] = 'KR';
+NAME_TO_CODE['REPUBLIC OF KOREA'] = 'KR';
 NAME_TO_CODE['NORTH KOREA'] = 'KP';
+NAME_TO_CODE["DEMOCRATIC PEOPLE'S REPUBLIC OF KOREA"] = 'KP';
 NAME_TO_CODE['SAUDI ARABIA'] = 'SA';
+NAME_TO_CODE['NETHERLANDS'] = 'NL';
+NAME_TO_CODE['GERMANY'] = 'DE';
+NAME_TO_CODE['FRANCE'] = 'FR';
+NAME_TO_CODE['ITALY'] = 'IT';
+NAME_TO_CODE['SPAIN'] = 'ES';
+NAME_TO_CODE['TURKEY'] = 'TR';
+NAME_TO_CODE['AUSTRALIA'] = 'AU';
+NAME_TO_CODE['CANADA'] = 'CA';
+NAME_TO_CODE['NORWAY'] = 'NO';
+NAME_TO_CODE['POLAND'] = 'PL';
+NAME_TO_CODE['ISRAEL'] = 'IL';
+NAME_TO_CODE['UKRAINE'] = 'UA';
+NAME_TO_CODE['INDIA'] = 'IN';
+NAME_TO_CODE['JAPAN'] = 'JP';
 
 /**
  * Resolve any country/operator string to { code, name, emoji }.
@@ -345,8 +366,11 @@ export function filterAircraft(aircraft, filters) {
   const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
   return aircraft.filter(ac => {
     if (!filters.showAircraft) return false;
-    if (filters.country !== 'ALL' && ac.country !== filters.country) return false;
-    if (filters.alliance !== 'ALL' && getAlliance(ac.country) !== filters.alliance) return false;
+    // Resolve operator/origin string → full country name for consistent matching
+    const resolvedCountry = resolveCountry(ac.country);
+    const countryName = resolvedCountry.code !== '??' ? resolvedCountry.name : ac.country;
+    if (filters.country !== 'ALL' && countryName !== filters.country) return false;
+    if (filters.alliance !== 'ALL' && getAlliance(countryName) !== filters.alliance) return false;
     // §0.17: some ADS-B sources don't emit the on_ground boolean, so fall back to
     // an altitude heuristic — below 100 ft / 30 m is considered on the ground.
     // ac.altitudeFt comes from OpenSky normalised data; ac.altitude is the raw
