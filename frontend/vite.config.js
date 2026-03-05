@@ -52,8 +52,12 @@ export default defineConfig({
             },
           },
         ],
-        // Don't precache Cesium's huge Assets folder — it's loaded dynamically
-        globIgnores: ['**/cesium/Assets/**', '**/cesium/Workers/**'],
+        // Don't precache Cesium's huge static tree — it's loaded dynamically
+        globIgnores: [
+          '**/cesium/**',
+          '**/Cesium/**',
+          '**/*.wasm',
+        ],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
       },
     }),
