@@ -63,6 +63,7 @@ function App() {
   const [trackedList, setTrackedList] = useState(new Map());
   const [satellitePortal, setSatellitePortal] = useState(null); // { lat, lon, title }
   const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
+  const [alertPanelOpen, setAlertPanelOpen] = useState(false);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -297,6 +298,7 @@ function App() {
         viewer={viewer}
         onFlyTo={handleFlyToAlert}
         isMobile={isMobile}
+        onOpenChange={setAlertPanelOpen}
       />
 
       {/* Tracking panel — right-side floating, multi-entity */}
@@ -319,6 +321,7 @@ function App() {
         replayMode={timeline.replayMode}
         currentTs={timeline.currentTs}
         controls={timeline.controls}
+        alertPanelOpen={alertPanelOpen}
       />
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}

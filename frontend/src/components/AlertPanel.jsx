@@ -210,8 +210,11 @@ const SitrepView = ({ alerts, aiInsight }) => {
   );
 };
 
-const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false }) => {
+const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange }) => {
   const [open, setOpen] = useState(!isMobile);
+
+  // Notify parent when open state changes
+  useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
   const [tab, setTab] = useState('alerts'); // 'alerts' | 'sitrep' | 'ai'
   const [alertsExpanded, setAlertsExpanded] = useState(false);
   const [notifPerm, setNotifPerm] = useState(

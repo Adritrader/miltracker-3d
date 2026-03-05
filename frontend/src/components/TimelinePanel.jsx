@@ -49,9 +49,15 @@ export default function TimelinePanel({
   replayMode = false,
   currentTs = null,
   controls,
+  alertPanelOpen = false,
 }) {
   const fetchedRef = useRef(false);
   const [minimized, setMinimized] = useState(false);
+
+  // Auto-minimize when Intel Alerts panel opens to avoid overlap
+  useEffect(() => {
+    if (alertPanelOpen) setMinimized(true);
+  }, [alertPanelOpen]);
 
   const total   = snapshots.length;
   const startTs = snapshots[0]?.ts ?? null;
