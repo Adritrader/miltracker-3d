@@ -97,24 +97,40 @@ async function trySource({ name, url }) {
 }
 
 export async function fetchAircraft() {
-  const [milResult, gulfResult] = await Promise.allSettled([
+  const [milResult, gulfResult, blackSeaResult, taiwanResult, koreaResult, medResult, balticResult] = await Promise.allSettled([
     fetchMilGlobal(),
-    fetchGulfRegion(),
+    fetchRegion('gulf',       26.5, 56.0,  700),   // Persian Gulf / Iran / UAE
+    fetchRegion('black-sea',  46.5, 33.0,  650),   // Ukraine / Donbas / Black Sea
+    fetchRegion('taiwan-str', 24.0, 122.0, 500),   // Taiwan Strait / East China Sea
+    fetchRegion('korea',      37.5, 127.5, 450),   // Korean Peninsula
+    fetchRegion('east-med',   34.5, 33.5,  600),   // Eastern Mediterranean (Syria/Lebanon/Israel)
+    fetchRegion('baltic',     57.0, 20.0,  500),   // Baltic — NATO/Russia border
   ]);
 
-  const milList  = milResult.status  === 'fulfilled' ? milResult.value  : [];
-  const gulfList = gulfResult.status === 'fulfilled' ? gulfResult.value : [];
+  const lists = [milResult, gulfResult, blackSeaResult, taiwanResult, koreaResult, medResult, balticResult]
+    .map(r => r.status === 'fulfilled' ? r.value : []);
+  const [milList, gulfList, blackSeaList, taiwanList, koreaList, medList, balticList] = lists;
 
   // Merge, deduplicate by icao24
   const seen = new Set(milList.map(a => a.icao24));
   const merged = [...milList];
-  for (const a of gulfList) {
-    if (!seen.has(a.icao24)) { merged.push(a); seen.add(a.icao24); }
+  for (const list of [gulfList, blackSeaList, taiwanList, koreaList, medList, balticList]) {
+    for (const a of list) {
+      if (!seen.has(a.icao24)) { merged.push(a); seen.add(a.icao24); }
+    }
   }
 
   if (merged.length > 0) {
     _lastRealAircraft = merged;
-    console.log(`[Aircraft] ${merged.length} total (${milList.length} mil global + ${gulfList.length} Gulf region)`);
+    const regionSummary = [
+      gulfList.length && `Gulf:${gulfList.length}`,
+      blackSeaList.length && `BlackSea:${blackSeaList.length}`,
+      taiwanList.length && `Taiwan:${taiwanList.length}`,
+      koreaList.length && `Korea:${koreaList.length}`,
+      medList.length && `EastMed:${medList.length}`,
+      balticList.length && `Baltic:${balticList.length}`,
+    ].filter(Boolean).join(' ');
+    console.log(`[Aircraft] ${merged.length} total — global:${milList.length} regions:[${regionSummary}]`);
     return merged;
   }
 
@@ -137,12 +153,8 @@ async function fetchMilGlobal() {
   return _lastRealAircraft; // all sources failed
 }
 
-/**
- * Supplementary: fetch ALL aircraft over the Persian Gulf / Iran / UAE
- * region via lat/lon/dist endpoint, then keep only "interesting" ones
- * (fast movers, certain type codes, or aircraft over known military airspace).
- */
 const GULF_CENTER = { lat: 26.5, lon: 56.0, dist: 700 }; // 700 nm radius
+
 const MIL_TYPE_CODES = new Set([
   'F15','F16','F18','F-15','F-16','F-18','F35','F-35','F14','F-14',
   'C130','C-130','C17','C-17','C5','E3','E-3','E8','P8','P-8',
@@ -151,11 +163,14 @@ const MIL_TYPE_CODES = new Set([
   'CH47','UH60','AH64','EH101',
 ]);
 
-async function fetchGulfRegion() {
-  const { lat, lon, dist } = GULF_CENTER;
+/**
+ * Generic: fetch all aircraft in a lat/lon radius (nm) and keep only interesting
+ * ones — military-flagged, known type codes, or fast high-altitude movers.
+ */
+async function fetchRegion(label, lat, lon, distNm) {
   const urls = [
-    `https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`,
-    `https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/${dist}`,
+    `https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${distNm}`,
+    `https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/${distNm}`,
   ];
   for (const url of urls) {
     try {
@@ -173,23 +188,29 @@ async function fetchGulfRegion() {
           if (ac.mil === true || ac.military === true) return true;
           const t = (ac.t || ac.type || '').toUpperCase();
           if (MIL_TYPE_CODES.has(t)) return true;
-          // Keep fast high-altitude movers over the Gulf
-          const alt  = +(ac.alt_baro ?? ac.alt_geom ?? 0);
-          const gs   = +(ac.gs ?? ac.velocity ?? 0);
+          const alt = +(ac.alt_baro ?? ac.alt_geom ?? 0);
+          const gs  = +(ac.gs ?? ac.velocity ?? 0);
           if (alt > 15000 && gs > 350) return true;
           return false;
         })
-        .map(ac => normalise(ac, 'gulf-region'))
+        .map(ac => normalise(ac, label))
         .filter(Boolean)
         .slice(0, 150);
 
       if (filtered.length > 0) {
-        console.log(`[Gulf] ${filtered.length} aircraft from ${url.split('/')[2]}`);
+        console.log(`[Region:${label}] ${filtered.length} aircraft`);
         return filtered;
       }
     } catch (e) {
-      console.warn('[Gulf region fetch]', e.message);
+      console.warn(`[Region:${label}]`, e.message);
     }
   }
   return [];
+}
+
+/**
+ * @deprecated kept for backwards compatibility; replaced by fetchRegion
+ */
+async function fetchGulfRegion() {
+  return fetchRegion('gulf', GULF_CENTER.lat, GULF_CENTER.lon, GULF_CENTER.dist);
 }
