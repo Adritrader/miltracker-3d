@@ -22,6 +22,7 @@ import NewsClusterModal from './components/NewsClusterModal.jsx';
 import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
 import TrackingPanel from './components/TrackingPanel.jsx';
 import TimelinePanel from './components/TimelinePanel.jsx';
+import FIRMSLayer from './components/FIRMSLayer.jsx';
 import SentinelPortalModal from './components/SentinelPortalModal.jsx';
 import SitrepCapture from './components/SitrepCapture.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
@@ -121,9 +122,12 @@ function App() {
   );
 
   const filteredConflicts = useMemo(
-    () => filters.showFIRMS
-      ? conflicts
-      : conflicts.filter(c => c.source !== 'NASA FIRMS'),
+    () => conflicts.filter(c => c.source !== 'NASA FIRMS'),
+    [conflicts]
+  );
+
+  const firmsHotspots = useMemo(
+    () => filters.showFIRMS ? conflicts.filter(c => c.source === 'NASA FIRMS') : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conflicts, filters.showFIRMS]
   );
@@ -241,6 +245,14 @@ function App() {
           viewer={viewer}
           conflicts={filteredConflicts}
           visible={filters.showConflicts}
+          onSelect={handleEntityClick}
+        />
+        </ErrorBoundary>
+        <ErrorBoundary name="FIRMSLayer" silent>
+        <FIRMSLayer
+          viewer={viewer}
+          firms={firmsHotspots}
+          visible={filters.showFIRMS}
           onSelect={handleEntityClick}
         />
         </ErrorBoundary>

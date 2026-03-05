@@ -263,6 +263,16 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     if (!viewer || !globeReady || viewer.isDestroyed() || ION_TOKEN) return;
     viewer.imageryLayers.removeAll();
     viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(basemap)));
+    // For dark/night basemaps add a high-contrast country borders + labels overlay
+    if (basemap === 'dark' || basemap === 'night') {
+      const bordersProvider = new Cesium.UrlTemplateImageryProvider({
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        minimumLevel: 0,
+        maximumLevel: 8,
+        credit: new Cesium.Credit('\u00a9 Esri'),
+      });
+      viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65 }));
+    }
   }, [basemap, globeReady]);
 
   // ── Space View (realistic lighting + atmosphere) reactive to prop ────────

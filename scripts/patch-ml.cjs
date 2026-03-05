@@ -12,8 +12,18 @@ console.log('Local images:', imgs.length);
 
 let src = fs.readFileSync(LOOKUP, 'utf8');
 
+// If already patched, just update the _LOCAL Set contents
 if (src.includes('/* LOCAL_IMAGES_v2 */')) {
-  console.log('Already patched.');
+  const setStart = src.indexOf('const _LOCAL = new Set(');
+  const setEnd   = src.indexOf(');', setStart) + 2;
+  if (setStart >= 0 && setEnd > 2) {
+    const newSet = 'const _LOCAL = new Set(' + JSON.stringify(imgs) + ');';
+    src = src.slice(0, setStart) + newSet + src.slice(setEnd);
+    fs.writeFileSync(LOOKUP, src, 'utf8');
+    console.log('Updated _LOCAL set — ' + imgs.length + ' images served locally.');
+  } else {
+    console.error('Cannot find _LOCAL set in patched file');
+  }
   process.exit(0);
 }
 
