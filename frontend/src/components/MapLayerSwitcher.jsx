@@ -43,7 +43,7 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
 
   return (
     <div className="relative">
-      {/* Expanded panel — floats upward from toggle button */}}
+      {/* Expanded panel — floats upward from toggle button */}
       {open && (
         <div
           className="hud-panel mb-2 p-2"
@@ -73,7 +73,7 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
         </div>
       )}
 
-      {/* Toggle button */}}
+      {/* Toggle button */}
       <button
         onClick={() => setOpen(o => !o)}
         className="hud-panel px-3 py-2 flex items-center gap-1.5 text-xs font-mono font-bold hover:text-white transition-colors"

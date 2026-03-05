@@ -64,9 +64,6 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         // Capture canvas immediately after Cesium has drawn this frame
         const dataUrl = viewer.canvas.toDataURL('image/png');
         const name    = `MILTRACKER-SITREP-${mkTs()}.png`;
-        // Auto-trigger download
-        const a = document.createElement('a');
-        a.href = dataUrl; a.download = name; a.click();
         setDlUrl(dataUrl);
         setDlName(name);
         setMode('done');
@@ -108,7 +105,6 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       const blob = new Blob(chunksRef.current, { type: mime });
       const url  = URL.createObjectURL(blob);
       const name = `MILTRACKER-SITREP-${mkTs()}.webm`;
-      const a    = document.createElement('a'); a.href = url; a.download = name; a.click();
       setDlUrl(url);
       setDlName(name);
       setMode('done');
