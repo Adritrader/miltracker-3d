@@ -1,4 +1,4 @@
-﻿/**
+/**
  * DangerZoneLayer â€“ tactical zone overlays + alert markers.
  * Each zone is drawn as an actual geographic polygon outline (not a circle).
  * Falls back to an approximated circle if no polygon is defined for a zone.
@@ -213,35 +213,32 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
     return dsRef.current;
   }, [viewer]);
 
-  // ── Zone rendering ───────────────────────────────────────────────────
+  // ── Single unified effect for zones + alerts ─────────────────────────
+  // Two separate effects sharing one datasource caused race conditions:
+  // each effect could overwrite ds.show set by the other. One effect = no race.
   useEffect(() => {
     if (!viewer) return;
     const ds = getDS();
     if (!ds) return;
 
-    // Use ds.show=false + removeAll for guaranteed hiding (per-entity show=false
-    // still dims low-alpha polygon fills in Cesium instead of truly hiding them)
-    ds.show = visible;
-    if (!visible) {
-      for (const e of zoneEntitiesRef.current) ds.entities.remove(e);
-      zoneEntitiesRef.current = [];
-      return;
-    }
-
-    for (const e of zoneEntitiesRef.current) ds.entities.remove(e);
+    // Always removeAll first — guaranteed clean slate, no stale entities
+    ds.entities.removeAll();
     zoneEntitiesRef.current = [];
+    alertEntitiesRef.current = [];
+    ds.show = visible;
 
+    if (!visible) return; // nothing more to do when layer is toggled off
+
+    // ── Draw danger zones ───────────────────────────────────────────────
     for (const zone of dangerZones) {
       const s   = SEV[zone.severity] || SEV.medium;
       const col = Cesium.Color.fromCssColorString(s.hex);
 
-      // Resolve positions: use polygon if available, else circle
-      const polyCoords   = ZONE_POLYGONS[zone.id];
-      const positions    = polyCoords
+      const polyCoords = ZONE_POLYGONS[zone.id];
+      const positions  = polyCoords
         ? Cesium.Cartesian3.fromDegreesArray(polyCoords)
         : circlePositions(zone.lat, zone.lon, zone.radius);
 
-      // Build a polygon hierarchy for the fill
       const positionsFlat = polyCoords
         ? polyCoords
         : (() => {
@@ -255,7 +252,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
             return pts;
           })();
 
-      // â”€â”€ 1. Filled polygon (ghost tint) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // 1. Filled polygon
       try {
         const fillE = ds.entities.add({
           id: `zone-fill-${zone.id}`,
@@ -271,7 +268,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
         zoneEntitiesRef.current.push(fillE);
       } catch { /* skip */ }
 
-      // â”€â”€ 2. Perimeter polyline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // 2. Perimeter polyline
       try {
         const borderE = ds.entities.add({
           id: `zone-border-${zone.id}`,
@@ -290,14 +287,14 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
         zoneEntitiesRef.current.push(borderE);
       } catch { /* skip */ }
 
-      // â”€â”€ 3. Centre crosshair pin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // 3. Centre pin + label
       try {
         const pinE = ds.entities.add({
           id: `zone-pin-${zone.id}`,
           position: Cesium.Cartesian3.fromDegrees(zone.lon, zone.lat, 500),
           billboard: {
             image: getCenterPin(zone.severity),
-            width:  26, height: 26,
+            width: 26, height: 26,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
             disableDepthTestDistance: 2e6,
             scaleByDistance: new Cesium.NearFarScalar(2e5, 1.6, 1.5e7, 0.4),
@@ -322,19 +319,8 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
         zoneEntitiesRef.current.push(pinE);
       } catch { /* skip */ }
     }
-  }, [viewer, dangerZones, visible, getDS]);
 
-  // â”€â”€ Alert markers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  useEffect(() => {
-    if (!viewer) return;
-    const ds = getDS();
-    if (!ds) return;
-
-    for (const e of alertEntitiesRef.current) ds.entities.remove(e);
-    alertEntitiesRef.current = [];
-    if (!visible) { ds.show = false; return; }
-    ds.show = true;
-
+    // ── Draw alert markers ──────────────────────────────────────────────
     for (let i = 0; i < Math.min((alerts || []).length, 20); i++) {
       const alert = alerts[i];
       if (!alert.lat || !alert.lon) continue;
@@ -346,7 +332,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
           position: Cesium.Cartesian3.fromDegrees(alert.lon, alert.lat, 500),
           billboard: {
             image: alertIcon,
-            width:  26, height: 26,
+            width: 26, height: 26,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             disableDepthTestDistance: 2e6,
             scaleByDistance: new Cesium.NearFarScalar(1e5, 1.5, 1e7, 0.5),
@@ -357,7 +343,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
         alertEntitiesRef.current.push(entity);
       } catch { /* skip */ }
     }
-  }, [viewer, alerts, visible, getDS]);
+  }, [viewer, dangerZones, alerts, visible, getDS]);
 
   return null;
 };

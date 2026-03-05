@@ -104,11 +104,11 @@ export default function TimelinePanel({
   /* ── MINIMIZED: hairline accent bar at very bottom ──────────────────── */
   if (minimized) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pointer-events-auto">
+      <div className="fixed top-0 left-0 right-0 z-30 flex justify-center pointer-events-auto">
         <button
           onClick={() => setMinimized(false)}
           title="Expand timeline controls"
-          className="group relative w-full max-w-3xl mx-2 h-3 flex items-center justify-center"
+          className="group relative w-full max-w-2xl mx-2 h-3 flex items-center justify-center"
         >
           <div
             className="w-full h-1 rounded-full transition-opacity group-hover:opacity-100 opacity-60"
@@ -119,7 +119,7 @@ export default function TimelinePanel({
             }}
           />
           <span className="absolute text-[9px] text-white/40 group-hover:text-white/70 font-mono transition pointer-events-none">
-            ▲ TIMELINE
+            ▼ TIMELINE
           </span>
         </button>
       </div>
@@ -129,10 +129,10 @@ export default function TimelinePanel({
   /* ── FULL PANEL ─────────────────────────────────────────────────────── */
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pointer-events-none"
+      className="fixed top-0 left-0 right-0 z-30 flex justify-center pointer-events-none"
     >
       <div
-        className="w-full max-w-3xl mx-2 mb-2 pointer-events-auto select-none"
+        className="w-full max-w-2xl mx-2 mt-1.5 pointer-events-auto select-none"
       >
         {/* Glass card */}
         <div

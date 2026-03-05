@@ -128,8 +128,10 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
 
   return (
     <div
-      className={`fixed top-4 z-50 ${isMobile ? 'left-2 right-2' : 'left-1/2 -translate-x-1/2'}`}
-      style={isMobile ? {} : { width: '20rem' }}
+      className={`fixed top-4 z-50 ${
+        isMobile ? 'left-2 right-2' : 'right-4'
+      }`}
+      style={isMobile ? {} : { width: '13rem' }}
     >
       {/* Collapsed pill – hidden on mobile (search triggered from FilterPanel) */}
       {!open && !isMobile && (

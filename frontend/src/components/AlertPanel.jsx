@@ -259,10 +259,11 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
 
   return (
     <div
-      className="fixed top-4 z-50 transition-all duration-300"
+      className="fixed z-50 transition-all duration-300"
       style={{
+        top: isMobile ? 16 : 58,  // desktop: below search bar (36px pill + 4px gap + 16px top)
         right: isMobile ? 8 : 16,
-        // On mobile: never go wider than 42vw so FilterPanel (left 48vw + gap) has room
+        // On mobile: never go wider than 42vw so hamburger + map layer hints have room
         maxWidth: isMobile ? 'min(42vw, 220px)' : 320,
         width: isMobile ? undefined : (open ? 320 : 'auto'),
       }}
