@@ -50,13 +50,14 @@ export default function TimelinePanel({
   currentTs = null,
   controls,
   trackingPanelHeight = 0,
+  newsPanelHeight = 40,
   isMobile = false,
 }) {
   const fetchedRef = useRef(false);
   const [minimized, setMinimized] = useState(isMobile);
 
-  // Sit above TrackingPanel (also at bottom:68) + 4px gap
-  const bottomOffset = 68 + trackingPanelHeight + (trackingPanelHeight > 0 ? 4 : 0);
+  // Sit above NewsPanel + TrackingPanel + gaps
+  const bottomOffset = 28 + newsPanelHeight + trackingPanelHeight + (trackingPanelHeight > 0 ? 4 : 0) + 4;
 
   const total   = snapshots.length;
   const startTs = snapshots[0]?.ts ?? null;

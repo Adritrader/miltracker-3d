@@ -22,11 +22,23 @@ function fmtDate(d) {
   return dt.toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
+const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => {
   const [expanded, setExpanded] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [visibleCount, setVisibleCount] = useState(0);
   const prevLenRef = useRef(0);
+  const panelRef = useRef(null);
+
+  // Report rendered panel height so parent can push Timeline/buttons up dynamically
+  useEffect(() => {
+    if (!panelRef.current || !onHeightChange) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) onHeightChange(Math.round(e.contentRect.height));
+    });
+    ro.observe(panelRef.current);
+    onHeightChange(Math.round(panelRef.current.getBoundingClientRect().height));
+    return () => { ro.disconnect(); };
+  }, [onHeightChange]);
 
   // Sort newest first — use publishedAt (real article time) so each article shows its actual age
   const recentNews = [...news]
@@ -61,7 +73,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
   };
 
   return (
-    <div className={`fixed left-0 right-0 z-40 transition-all duration-300 ${expanded ? 'h-64' : 'h-10'}`}
+    <div ref={panelRef} className={`fixed left-0 right-0 z-40 transition-all duration-300 ${expanded ? 'h-64' : 'h-10'}`}
          style={{ bottom: '28px' }}>
       {/* Ticker bar */}
       <div

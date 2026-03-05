@@ -12,11 +12,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as Cesium from 'cesium';
 
-const BOTTOM_NEWS   = 68;   // CoordinateHUD(28) + NewsPanel(40)
 const PANEL_H_COLL  = 40;   // collapsed pill-bar height
 const CARD_H        = 88;   // approx expanded card height
 
-const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false, onHeightChange }) => {
+const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false, onHeightChange, newsPanelHeight = 40 }) => {
   const [expanded, setExpanded] = useState(false);
   const panelRef = useRef(null);
 
@@ -56,7 +55,7 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
     <div
       ref={panelRef}
       className="fixed left-0 right-0"
-      style={{ bottom: BOTTOM_NEWS, zIndex: 38 }}
+      style={{ bottom: 28 + newsPanelHeight, zIndex: 38, transition: 'bottom 0.3s ease' }}
     >
       {/* ── Expanded cards –– open upward ───────────────────────── */}
       {expanded && (

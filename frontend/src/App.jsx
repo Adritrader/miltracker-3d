@@ -67,6 +67,7 @@ function App() {
   const [alertPanelOpen, setAlertPanelOpen] = useState(false);
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
+  const [newsPanelHeight, setNewsPanelHeight] = useState(40);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -327,6 +328,7 @@ function App() {
         onUntrackAll={handleUntrackAll}
         isMobile={isMobile}
         onHeightChange={setTrackingPanelHeight}
+        newsPanelHeight={newsPanelHeight}
       />
 
       {/* Bottom-center: Timeline — always visible video-controls bar (auto-fetches history on mount) */}
@@ -339,12 +341,13 @@ function App() {
         currentTs={timeline.currentTs}
         controls={timeline.controls}
         trackingPanelHeight={trackingPanelHeight}
+        newsPanelHeight={newsPanelHeight}
         isMobile={isMobile}
       />
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}
       <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"
-           style={{ bottom: 76, right: 16 }}>
+           style={{ bottom: 28 + newsPanelHeight + 8, right: 16, transition: 'bottom 0.3s ease' }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture
           viewer={viewer}
@@ -390,6 +393,7 @@ function App() {
         news={news}
         onSelectNews={handleNewsSelect}
         isMobile={isMobile}
+        onHeightChange={setNewsPanelHeight}
       />
 
       {/* Bottom: Coordinate / status bar */}
