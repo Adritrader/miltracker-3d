@@ -116,7 +116,7 @@ export default function FIRMSLayer({ viewer, firms = [], visible = true, onSelec
           },
         });
         entity._milData = isSingle
-          ? { ...cluster.topItem, type: 'conflict' }
+          ? { ...cluster.topItem, type: 'firms' }
           : { type: 'news-cluster', items: cluster.items };
       });
     } finally {

@@ -193,7 +193,11 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       // one-frame repaint can occur if selectedEntity is set internally).
       viewer.selectedEntity = undefined;
 
-      const picked = viewer.scene.pick(click.position);
+      // Use a wider pick area on touch devices to compensate for finger imprecision
+      const isTouchDevice = navigator.maxTouchPoints > 0;
+      const picked = isTouchDevice
+        ? viewer.scene.pick(click.position, 16, 16)
+        : viewer.scene.pick(click.position);
       if (Cesium.defined(picked) && Cesium.defined(picked.id)) {
         const entity = picked.id;
         if (entity._milData) {

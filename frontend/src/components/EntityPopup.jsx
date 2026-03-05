@@ -98,10 +98,11 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   const isAircraft = entity.type === 'aircraft' || !!entity.icao24;
   const isShip     = entity.type_entity === 'ship' || !!entity.mmsi;
   const isConflict = entity.type === 'conflict';
+  const isFirms    = entity.type === 'firms';
   const isBase     = entity.type === 'base';
-  const isAlert    = !isAircraft && !isShip && !isConflict && !isBase &&
+  const isAlert    = !isAircraft && !isShip && !isConflict && !isFirms && !isBase &&
                      !!(entity.title && entity.message && entity.severity);
-  const isNews     = !isAircraft && !isShip && !isConflict && !isBase && !isAlert &&
+  const isNews     = !isAircraft && !isShip && !isConflict && !isFirms && !isBase && !isAlert &&
                      (entity.type === 'news' || entity.type === 'geo_event' || !!entity.source);
 
   // ── Pre-compute aircraft fields (before JSX) ──────────────────────────────
@@ -153,6 +154,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   } else if (isShip)     imageUrl = getShipImageUrl(entity);
   else if (isBase)       imageUrl = getBaseImageUrl(entity.baseType);
   else if (isConflict)   imageUrl = getConflictImageUrl(entity.type || entity.eventType);
+  // isFirms: no photo — thermal data speaks for itself
 
   // ── Fly to ────────────────────────────────────────────────────────────────
   const flyTo = () => {
@@ -170,7 +172,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   };
 
   const borderColor = isAircraft ? '#4488ff' : isShip ? '#00aaff' : isConflict ? '#ff4400'
-                    : isBase ? '#4af7ff' : isAlert ? '#ff3b3b' : '#ffaa00';
+                    : isFirms ? '#ff6600' : isBase ? '#4af7ff' : isAlert ? '#ff3b3b' : '#ffaa00';
 
   return (
     <>
@@ -210,17 +212,18 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">
-              {isAircraft ? '\u25b2' : isShip ? '\u25ac' : isConflict ? '\u25c6' : isBase ? '\u2b21' : isAlert ? '\u26a0' : '\u25a0'}
+              {isAircraft ? '\u25b2' : isShip ? '\u25ac' : isConflict ? '\u25c6' : isFirms ? '\uD83D\uDD25' : isBase ? '\u2b21' : isAlert ? '\u26a0' : '\u25a0'}
             </span>
             <div>
               <div className="hud-title text-xs sm:text-sm">
                 {isAircraft ? 'AIRCRAFT INTEL' : isShip ? 'VESSEL INTEL' : isConflict ? 'CONFLICT EVENT'
-                 : isBase ? 'MILITARY FACILITY' : isAlert ? 'THREAT ALERT' : 'NEWS EVENT'}
+                 : isFirms ? 'THERMAL HOTSPOT' : isBase ? 'MILITARY FACILITY' : isAlert ? 'THREAT ALERT' : 'NEWS EVENT'}
               </div>
               <div className="text-white font-mono font-bold text-sm sm:text-base truncate max-w-[160px] sm:max-w-[220px]">
                 {isAircraft ? (entity.callsign || 'UNKNOWN')
                  : isShip    ? (entity.name || entity.mmsi)
                  : isConflict? (entity.eventType || entity.type || 'EVENT').toUpperCase()
+                 : isFirms   ? `FRP ${entity.frp != null ? Number(entity.frp).toFixed(1) + ' MW' : '—'}`
                  : isBase    ? (entity.name || 'BASE')
                  : isAlert   ? (entity.title?.slice(0, 28) || 'ALERT')
                  : entity.source || 'NEWS'}
@@ -346,6 +349,60 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               </div>
             </>
           )}
+
+          {/* NASA FIRMS THERMAL HOTSPOT */}
+          {isFirms && (() => {
+            const frp    = entity.frp    != null ? `${Number(entity.frp).toFixed(1)} MW` : '—';
+            const bright = entity.brightness != null ? `${Number(entity.brightness).toFixed(0)} K` : '—';
+            const conf   = entity.confidence != null
+              ? ({ l: 'LOW', n: 'NOMINAL', h: 'HIGH' }[entity.confidence] ?? String(entity.confidence).toUpperCase())
+              : '—';
+            const sat    = entity.satellite != null
+              ? ({ N: 'NOAA-20 (VIIRS)', T: 'Terra (MODIS)', A: 'Aqua (MODIS)' }[entity.satellite] ?? entity.satellite)
+              : '—';
+            const acqDate = entity.acq_date || '—';
+            const acqTime = entity.acq_time
+              ? `${String(entity.acq_time).padStart(4, '0').slice(0, 2)}:${String(entity.acq_time).padStart(4, '0').slice(2)} UTC`
+              : '—';
+            const dayNight = entity.daynight === 'D' ? 'DAYTIME' : entity.daynight === 'N' ? 'NIGHTTIME' : '—';
+            const zone = entity.zone || entity.country || '—';
+            return (
+              <>
+                {/* Visual FRP bar */}
+                <div className="mb-2 p-2 rounded border border-orange-500/30 bg-orange-950/20">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="hud-label text-[10px]">FIRE RADIATIVE POWER</span>
+                    <span className="text-orange-400 font-mono font-bold text-xs">{frp}</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(100, (Number(entity.frp) || 0) / 3)}%`,
+                        background: 'linear-gradient(to right, #ff6600, #ff2200)',
+                      }}
+                    />
+                  </div>
+                  <div className="text-orange-300/60 text-[9px] font-mono mt-0.5 text-right">
+                    max ~300 MW typical conflict zone
+                  </div>
+                </div>
+                <Row label="BRIGHTNESS" value={bright}   highlight="text-orange-400" />
+                <Row label="CONFIDENCE" value={conf}     highlight={conf === 'HIGH' ? 'text-red-400' : conf === 'NOMINAL' ? 'text-amber-400' : 'text-hud-text'} />
+                <Row label="SATELLITE"  value={sat}      highlight="text-hud-blue" />
+                <Row label="ACQ DATE"   value={acqDate}  highlight="text-hud-green" />
+                <Row label="ACQ TIME"   value={acqTime}  highlight="text-hud-green" />
+                <Row label="PASS"       value={dayNight} />
+                <Row label="ZONE"       value={zone} />
+                <Row label="POSITION"   value={`${entity.lat?.toFixed(3)}°, ${entity.lon?.toFixed(3)}°`} />
+                <Row label="SOURCE"     value="NASA FIRMS / VIIRS NRT" highlight="text-hud-amber" />
+                <div className="mt-2 px-2 py-1.5 rounded bg-orange-950/30 border border-orange-500/20 text-orange-300/70 text-[10px] font-mono leading-snug">
+                  ■ Thermal anomaly detected by satellite. In active conflict zones these signatures
+                  correlate with artillery impacts, weapons fires, and burning infrastructure.
+                </div>
+              </>
+            );
+          })()}
 
           {/* NEWS */}
           {isNews && (

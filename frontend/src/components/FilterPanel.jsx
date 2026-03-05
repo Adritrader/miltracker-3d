@@ -238,7 +238,7 @@ const FilterPanel = ({
             <span className="block w-4 h-[2px] bg-hud-green rounded" />
           </div>
           {/* Status dot */}
-          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green animate-blink' : 'bg-red-500'}`} />
+          <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green' : 'bg-red-500'}`} />
           {/* Alert badge */}
           {alertCount > 0 && (
             <span className="bg-red-500 text-white text-[10px] font-bold font-mono rounded-full min-w-[16px] h-4
@@ -270,7 +270,7 @@ const FilterPanel = ({
           <div className="flex items-center justify-between px-4 py-3 border-b border-hud-border/40 shrink-0">
             <span className="hud-title text-glitch text-sm">MILTRACKER 3D</span>
             <div className="flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green animate-blink' : 'bg-red-500'}`} />
+              <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green' : 'bg-red-500'}`} />
               <span className="hud-label text-xs">{connected ? 'LIVE' : 'OFFLINE'}</span>
               <button
                 onClick={() => setDrawerOpen(false)}
@@ -313,7 +313,7 @@ const FilterPanel = ({
         >
           <span className="hud-title text-glitch">MILTRACKER 3D</span>
           <div className="flex items-center gap-1">
-            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green animate-blink' : 'bg-red-500'}`} />
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green' : 'bg-red-500'}`} />
             <span className="hud-label text-xs">{connected ? 'LIVE' : 'OFFLINE'}</span>
             <span className="text-hud-text text-xs ml-1">{panelOpen ? '▴' : '▾'}</span>
           </div>

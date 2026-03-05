@@ -195,13 +195,7 @@ const SitrepView = ({ alerts, aiInsight }) => {
         </div>
       )}
 
-      {/* AI assessment if available */}
-      {aiInsight?.summary && (
-        <div className="border border-hud-green/30 rounded p-2 bg-hud-green/5">
-          <div className="hud-label mb-1">AI ASSESSMENT</div>
-          <p className="text-hud-text leading-relaxed">{aiInsight.summary}</p>
-        </div>
-      )}
+      {/* AI assessment if available — removed (AI integration not active) */}
 
       <div className="text-hud-text text-[10px] text-right">
         {s.total} total events tracked
@@ -317,7 +311,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
         <div className="hud-panel animate-fade-in">
           {/* Tabs */}
           <div className="flex border-b border-hud-border" style={{ overflowX: 'hidden' }}>
-            {['alerts', 'sitrep', 'ai'].map(t => (
+            {['alerts', 'sitrep'].map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -326,9 +320,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
               >
                 {t === 'alerts'
                   ? (isMobile ? `⚠ ${criticalCount}` : `⚠ CRIT (${criticalCount})`)
-                  : t === 'sitrep'
-                  ? (isMobile ? '≡' : 'SITREP')
-                  : (isMobile ? '◈' : '◈ AI')}
+                  : (isMobile ? '≡' : 'SITREP')}
               </button>
             ))}
           </div>
@@ -358,39 +350,8 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
 
             {tab === 'sitrep' && (
               alerts.length > 0
-                ? <SitrepView alerts={alerts} aiInsight={aiInsight} />
+                ? <SitrepView alerts={alerts} />
                 : <div className="text-hud-text text-[10px] text-center py-4">Waiting for alert data…</div>
-            )}
-
-            {tab === 'ai' && (
-              aiInsight
-                ? <AIInsightView insight={aiInsight} />
-                : (
-                  <div className="text-center py-6 space-y-2">
-                    {geminiEnabled === false ? (
-                      <>
-                        <div className="text-red-400 text-[10px] font-mono font-bold">⚠ GEMINI NOT CONFIGURED</div>
-                        <div className="text-hud-text text-[10px]">Set GEMINI_API_KEY in Railway env vars</div>
-                        <a
-                          href="https://aistudio.google.com/app/apikey"
-                          target="_blank" rel="noopener noreferrer"
-                          className="text-hud-green text-[10px] underline"
-                        >aistudio.google.com/app/apikey</a>
-                      </>
-                    ) : aiError ? (
-                      <>
-                        <div className="text-red-400 text-[10px] font-mono font-bold">⚠ AI ANALYSIS FAILED</div>
-                        <div className="text-hud-text text-[10px] mt-1 font-mono break-all opacity-80">{aiError}</div>
-                        <div className="text-hud-text text-[10px] mt-2 opacity-60">Retries automatically every 5 min</div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-hud-green text-[10px] font-mono animate-pulse">◈ AWAITING AI ANALYSIS…</div>
-                        <div className="text-hud-text text-[10px] opacity-60">First result arrives after news poll (~5 min)</div>
-                      </>
-                    )}
-                  </div>
-                )
             )}
           </div>
         </div>

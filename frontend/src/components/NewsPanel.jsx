@@ -70,7 +70,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false }) => {
         style={{ borderRadius: 0 }}
       >
         <div className="flex items-center gap-1 shrink-0">
-          <span className="w-2 h-2 rounded-full bg-hud-amber animate-blink" />
+          <span className="w-2 h-2 rounded-full bg-hud-amber" />
           <span className="hud-title text-xs">INTEL FEED</span>
         </div>
         <div className="flex-1 overflow-hidden">

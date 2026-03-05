@@ -53,7 +53,7 @@ export default function TimelinePanel({
   isMobile = false,
 }) {
   const fetchedRef = useRef(false);
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(isMobile);
 
   // Sit above TrackingPanel (also at bottom:68) + 4px gap
   const bottomOffset = 68 + trackingPanelHeight + (trackingPanelHeight > 0 ? 4 : 0);

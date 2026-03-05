@@ -119,7 +119,7 @@ function getCameraAlt(viewer) {
 }
 
 // â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
+const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect, isMobile = false }) => {
   const entityMapRef  = useRef(new Map());
   const dsRef         = useRef(null);
   const clusterDegRef = useRef(null); // last rendered bucket
@@ -156,6 +156,12 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
     const maxClusters = deg <= 0 ? 250 : 150;
     const clusters = clusterNews(geoItems, deg).slice(0, maxClusters);
 
+    // Larger icons on touch devices for easier tapping
+    const singleW  = isMobile ? 40 : 32;
+    const singleH  = isMobile ? 40 : 32;
+    const clusterW = isMobile ? 56 : 46;
+    const clusterH = isMobile ? 56 : 46;
+
     ds.entities.suspendEvents();
     try {
       for (let _i = 0; _i < clusters.length; _i++) {
@@ -172,8 +178,8 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
             image: isSingle
               ? NEWS_SVG(color)
               : getCachedClusterIcon(cluster.count, color),
-            width:  isSingle ? 32 : 46,
-            height: isSingle ? 32 : 46,
+            width:  isSingle ? singleW : clusterW,
+            height: isSingle ? singleH : clusterH,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             disableDepthTestDistance: 2e6,
             scaleByDistance: new Cesium.NearFarScalar(2e5, 0.8, 1.5e7, isSingle ? 1.6 : 1.8),
@@ -193,7 +199,7 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
     } finally {
       ds.entities.resumeEvents();
     }
-  }, [viewer, news, visible, getDS]);
+  }, [viewer, news, visible, getDS, isMobile]);
 
   // â”€â”€ Visibility toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // §0.1: Separate visibility effect removed — buildEntities already

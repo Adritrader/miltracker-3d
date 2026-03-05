@@ -240,6 +240,7 @@ function App() {
           visible={filters.showNews}
           onSelect={handleEntityClick}
           onClusterSelect={handleClusterSelect}
+          isMobile={isMobile}
         />
         </ErrorBoundary>
         <ErrorBoundary name="ConflictLayer" silent>
@@ -342,7 +343,7 @@ function App() {
       />
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}
-      <div className="fixed z-30 flex flex-col gap-2 items-end pointer-events-auto"
+      <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"
            style={{ bottom: 76, right: 16 }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture

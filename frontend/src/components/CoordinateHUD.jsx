@@ -134,7 +134,7 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
       {/* Connection dot */}
       <div className="flex items-center px-3 h-full border-r border-hud-border/50">
         <span
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-hud-green animate-blink' : 'bg-red-500'}`}
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${connected ? 'bg-hud-green' : 'bg-red-500'}`}
           title={connected ? 'LIVE' : 'OFFLINE'}
         />
       </div>
