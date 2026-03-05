@@ -20,11 +20,13 @@ function fireClusterIcon(count) {
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
-// Single hotspot pin – orange flame symbol
+// Single hotspot pin – orange flame symbol (no emoji in btoa — use SVG path instead)
 const SINGLE_PIN = (() => {
+  // Flame shape as SVG path, avoids btoa() emoji crash
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
     <circle cx="14" cy="14" r="13" fill="#ff6600" fill-opacity="0.18" stroke="#ff6600" stroke-width="1.5"/>
-    <text x="14" y="20" text-anchor="middle" font-size="16">🔥</text>
+    <path d="M14 6 C14 6 18 10 18 14 C18 17 16.5 18.5 15 18.5 C15.8 17.5 16 16.5 15.5 15.5 C14.5 17 13 17.5 12.5 16 C11.5 17.5 11 19 13 21 C10 20 9 17.5 10 14.5 C9 15.5 8.5 16 8.5 16 C8.5 12 11 8 14 6Z"
+      fill="#ff4400" opacity="0.9"/>
   </svg>`;
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 })();
