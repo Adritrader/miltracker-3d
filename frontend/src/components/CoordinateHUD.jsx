@@ -34,6 +34,7 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
+  const [shareCopied, setShareCopied] = useState(false);
   const handlerRef = useRef(null);
 
   // UTC clock — 1s tick
@@ -94,6 +95,32 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
     });
   }, [viewer]);
 
+  // Share current view — writes ?fly=lat,lon,alt,hdgDeg,pitchDeg to URL + clipboard
+  const shareView = useCallback(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+    const carto = viewer.camera.positionCartographic;
+    const lat   = Cesium.Math.toDegrees(carto.latitude).toFixed(4);
+    const lon   = Cesium.Math.toDegrees(carto.longitude).toFixed(4);
+    const alt   = Math.round(carto.height);
+    const hdg   = Cesium.Math.toDegrees(viewer.camera.heading).toFixed(1);
+    const ptch  = Cesium.Math.toDegrees(viewer.camera.pitch).toFixed(1);
+    const url   = new URL(window.location.href);
+    url.search  = '';
+    url.searchParams.set('fly', `${lat},${lon},${alt},${hdg},${ptch}`);
+    window.history.replaceState({}, '', url.toString());
+    navigator.clipboard.writeText(url.toString()).catch(() => {
+      // Fallback: create a temporary textarea
+      const ta = document.createElement('textarea');
+      ta.value = url.toString();
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }, [viewer]);
+
   return (
     <div
       className="fixed bottom-0 left-0 right-0 z-40 flex items-center"
@@ -150,17 +177,28 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
       </div>
       )}
 
-      {/* Reset view button (desktop only) */}
+      {/* Reset + Share view buttons (desktop only) */}
       {!isMobile && (<>
         <Divider />
-        <div className="px-2 h-full flex items-center">
+        <div className="px-2 h-full flex items-center gap-2">
           <button
             onClick={resetCamera}
             title="Reset camera to default view"
             className="hud-label text-xs px-2 py-0.5 rounded border border-hud-border/50
                        hover:border-hud-green hover:text-hud-green transition-colors duration-150"
           >
-            ⊙ RESET
+            &#x2299; RESET
+          </button>
+          <button
+            onClick={shareView}
+            title="Copy share link for this exact view"
+            className={`hud-label text-xs px-2 py-0.5 rounded border transition-colors duration-150 ${
+              shareCopied
+                ? 'border-hud-green text-hud-green'
+                : 'border-hud-border/50 hover:border-hud-amber hover:text-hud-amber'
+            }`}
+          >
+            {shareCopied ? '✓ COPIED' : '⎘ SHARE'}
           </button>
         </div>
       </>)}

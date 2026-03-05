@@ -153,10 +153,34 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     // ── Initial camera position (only on first mount) ─────────────────────
     if (!cameraInitialized.current) {
       cameraInitialized.current = true;
-      viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(10, 45, 8_000_000),
-        orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
-      });
+
+      // Support share-link: ?fly=lat,lon,alt[,headingDeg,pitchDeg]
+      const flyParam = new URLSearchParams(window.location.search).get('fly');
+      if (flyParam) {
+        const parts = flyParam.split(',').map(Number);
+        const [lat = 45, lon = 10, alt = 8_000_000, hdg = 0, ptch = -90] = parts;
+        if (!isNaN(lat) && !isNaN(lon)) {
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
+            orientation: {
+              heading: Cesium.Math.toRadians(hdg),
+              pitch:   Cesium.Math.toRadians(ptch),
+              roll:    0,
+            },
+            duration: 0, // instant — the link consumer sees the exact view
+          });
+        } else {
+          viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(10, 45, 8_000_000),
+            orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+          });
+        }
+      } else {
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(10, 45, 8_000_000),
+          orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+        });
+      }
     }
 
     // ── Click handler ──────────────────────────────────────────────────────

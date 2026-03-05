@@ -1,6 +1,6 @@
 # MILTRACKER 3D — Estado del Roadmap
 
-> Última actualización: batch bugs §0.1/0.11/0.12/0.17/0.18 — 2026-03-05
+> Última actualización: share link `?fly=`, modal centering flex overlay, timeline flush HUD — 2026-03-05
 
 ---
 
@@ -155,7 +155,8 @@
 
 | Feature | Commit |
 |---------|--------|
-| Smooth animation lerp (CallbackProperty 10s/20s) | `460cd7b` |
+| Modal centering (EntityPopup / NewsClusterModal / SentinelPortalModal) | `84e4eeb` |
+| Share link `?fly=lat,lon,alt,hdg,pitch` + `⎘ SHARE` in CoordinateHUD | actual |
 | Gold color para entidades trackeadas | `d2b6083` |
 | TrackingPanel multi-entidad simultánea | anterior |
 | Ship/aircraft trails con persistencia sessionStorage | anterior |
@@ -197,10 +198,8 @@ CesiumJS renderiza en WebGL — el DOM está casi vacío. El SEO orgánico no fu
 
 | Feature | Por qué importa |
 |---------|----------------|
-| **Share link** `?fly=lat,lon,alt` | Viralidad en Twitter/X — cada usuario comparte una vista del globo |
-| **Timeline / Replay histórico** | Feature más pedida en apps de tracking — ver el desarrollo de un evento |
-| **Email / Telegram alertas por región** | Diferenciador fuerte frente a OpenSky/MarineTraffic |
-| **Iframe embeddable** | Backlinks desde medios/blogs, más tráfico |
+| **Share link** `?fly=lat,lon,alt,hdg,pitch` | ✅ Hecho — CoordinateHUD `⎘ SHARE` button + Globe3D reads ?fly= on load |
+| **Iframe embeddable** | ❌ Backlinks desde medios/blogs, más tráfico |
 
 ### 12.4 — Hardening de Seguridad (antes de publicar)
 
@@ -214,10 +213,10 @@ CesiumJS renderiza en WebGL — el DOM está casi vacío. El SEO orgánico no fu
 
 ```
 1. PWA (§10.8)           — manifest.json + service worker → retención móvil
-2. Share link            — ?fly=lat,lon,alt → viralidad, ~2h de trabajo
-3. Ko-fi en HUD          — botón discreto, monetización en 1h
-4. CORS + Socket auth    — §8.1 + §8.2 → protege cuota Gemini y Railway
-5. Timeline / Replay     — §10.1 → mayor driver de retención de usuarios
+2. Ko-fi en HUD          — botón discreto, monetización en 1h
+3. CORS + Socket auth    — §8.1 + §8.2 → protege cuota Gemini y Railway
+4. Timeline / Replay     — §10.1 → mayor driver de retención de usuarios
+5. Email/Telegram alerts — diferenciador vs OpenSky/MarineTraffic
 ```
 
 ### 12.6 — Opciones de Dirección
@@ -231,7 +230,7 @@ CesiumJS renderiza en WebGL — el DOM está casi vacío. El SEO orgánico no fu
 
 ---
 
-**Resumen global: 41 ✅ hechos · 20 ❌ pendientes · 6 🐛 bugs activos sin resolver**
+**Resumen global: 43 ✅ hechos · 19 ❌ pendientes · 6 🐛 bugs activos sin resolver**
 
 ---
 
