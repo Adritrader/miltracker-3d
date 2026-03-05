@@ -127,6 +127,8 @@ const RSS_SOURCES = [
   { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',                          label: 'BBC World' },
   // BBC Middle East — dedicated feed, extremely active during Iran war
   { url: 'https://feeds.bbci.co.uk/news/world/middle_east/rss.xml',              label: 'BBC Middle East' },
+  // BBC Europe / Ukraine
+  { url: 'https://feeds.bbci.co.uk/news/world/europe/rss.xml',                   label: 'BBC Europe' },
   { url: 'https://www.aljazeera.com/xml/rss/all.xml',                             label: 'Al Jazeera' },
   { url: 'https://news.usni.org/feed',                                            label: 'USNI News' },
   { url: 'https://breakingdefense.com/feed/',                                     label: 'Breaking Defense' },
@@ -144,6 +146,17 @@ const RSS_SOURCES = [
   { url: 'https://www.al-monitor.com/rss',                                        label: 'Al-Monitor' },
   { url: 'https://www.i24news.tv/en/rss',                                         label: 'i24 News' },
   { url: 'https://www.atlanticcouncil.org/feed/',                                 label: 'Atlantic Council' },
+  // Additional English-language military & conflict sources
+  { url: 'https://www.militarytimes.com/rss/news/',                               label: 'Military Times' },
+  { url: 'https://taskandpurpose.com/feed/',                                       label: 'Task & Purpose' },
+  { url: 'https://www.stripes.com/arc/outboundfeeds/rss/?outputType=xml',         label: 'Stars and Stripes' },
+  { url: 'https://www.theguardian.com/world/rss',                                  label: 'The Guardian' },
+  { url: 'https://foreignpolicy.com/feed/',                                        label: 'Foreign Policy' },
+  { url: 'https://www.bellingcat.com/feed/',                                       label: 'Bellingcat' },
+  { url: 'https://feeds.skynews.com/feeds/rss/world.xml',                          label: 'Sky News World' },
+  { url: 'https://www.cbsnews.com/latest/rss/world',                               label: 'CBS News World' },
+  { url: 'https://sofrep.com/feed/',                                                label: 'SOFREP' },
+  { url: 'https://www.understandingwar.org/feed',                                   label: 'ISW' },
 ];
 
 // Military-relevance keywords — at least one must appear in title/description

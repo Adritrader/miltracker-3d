@@ -241,13 +241,23 @@ async function pollNews() {
     const rssItems   = rss.status   === 'fulfilled' ? rss.value   : [];
     console.log(`[News] GDELT:${gdeltItems.length} NewsAPI:${newsItems.length} RSS:${rssItems.length}`);
 
-    // Dedup by url / title across sources, assign stable id
+    // Dedup by url first, then by title fingerprint (catches same story from different sources)
     const merged = [...rssItems, ...gdeltItems, ...newsItems];
-    const seenUrl = new Set();
+    const seenUrl   = new Set();
+    const seenTitle = new Set();
     const freshNews = merged.filter(n => {
+      // URL dedup
+      if (n.url && seenUrl.has(n.url)) return false;
+      if (n.url) seenUrl.add(n.url);
+      // Title fingerprint dedup: lowercase, strip punctuation, take first 10 words
+      const titleFp = (n.title || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, '')
+        .split(/\s+/).slice(0, 10).join(' ');
+      if (titleFp.length > 8 && seenTitle.has(titleFp)) return false;
+      if (titleFp.length > 8) seenTitle.add(titleFp);
       const key = n.url || n.title;
-      if (!key || seenUrl.has(key)) return false;
-      seenUrl.add(key);
+      if (!key) return false;
       if (!n.id) n.id = `news-${encodeURIComponent(key).slice(0, 80)}`;
       return true;
     }).slice(0, 200);

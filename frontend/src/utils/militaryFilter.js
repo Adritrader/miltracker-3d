@@ -345,14 +345,22 @@ const OPERATIONAL_ZONES = [
   { name: 'sahel',          minLat:  5, maxLat: 35, minLon:-18, maxLon: 42 },
   // South Asia / Pakistan / Afghanistan / Kashmir
   { name: 'south-asia',     minLat: 22, maxLat: 38, minLon: 60, maxLon: 82 },
-  // East Asia: Taiwan Strait / South China Sea / Korea Peninsula
-  { name: 'east-asia',      minLat:  5, maxLat: 46, minLon:107, maxLon:135 },
+  // East Asia: Taiwan Strait / South China Sea / Korea Peninsula / Japan
+  { name: 'east-asia',      minLat:  5, maxLat: 46, minLon:107, maxLon:145 },
   // Myanmar / Southeast Asia
   { name: 'southeast-asia', minLat:  8, maxLat: 28, minLon: 92, maxLon:102 },
-  // Mediterranean (NATO deployments, Libya, Cyprus)
-  { name: 'mediterranean',  minLat: 30, maxLat: 42, minLon:-6,  maxLon: 36 },
+  // Mediterranean + Atlantic approaches (Rota ES at -6.3°, Gibraltar at -5.3°)
+  { name: 'mediterranean',  minLat: 30, maxLat: 48, minLon:-12, maxLon: 36 },
   // Baltic / Eastern Europe (NATO reinforcement)
   { name: 'baltic',         minLat: 53, maxLat: 60, minLon: 14, maxLon: 30 },
+  // North Atlantic / Norwegian Sea / UK / France / GIUK Gap
+  { name: 'north-atlantic', minLat: 48, maxLat: 72, minLon:-30, maxLon: 15 },
+  // Indian Ocean / Arabian Sea / Bay of Bengal / Diego Garcia
+  { name: 'indian-ocean',   minLat:-25, maxLat: 28, minLon: 55, maxLon:100 },
+  // Western Pacific: Japan / Philippines / Guam
+  { name: 'western-pacific',minLat:  5, maxLat: 50, minLon:135, maxLon:180 },
+  // US East Coast naval bases: Norfolk, Mayport, King's Bay
+  { name: 'us-east-coast',  minLat: 25, maxLat: 48, minLon:-85, maxLon:-55 },
 ];
 
 export function isInOperationalZone(lat, lon) {

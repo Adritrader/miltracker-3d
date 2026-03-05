@@ -82,31 +82,34 @@ export default function TimelinePanel({
 
   if (minimized) {
     return (
-      <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-auto" style={{ bottom: bottomOffset, transition: 'bottom 0.25s ease' }}>
+      <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-auto" style={{ bottom: bottomOffset + 4, transition: 'bottom 0.25s ease' }}>
         <button
           onClick={() => setMinimized(false)}
           title="Expand timeline"
-          style={{ cursor: 'pointer' }}
-          className="group w-full max-w-2xl mx-4 h-3 flex items-center justify-center"
+          className="group w-full max-w-2xl mx-4 h-6 flex items-center gap-2 px-3 rounded-lg border border-white/10 hover:border-white/20 transition-all"
+          style={{ background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', cursor: 'pointer' }}
         >
+          <span className="text-[9px] font-bold font-mono text-white/40 group-hover:text-white/70 transition shrink-0">▲ TIMELINE</span>
           <div
-            className="w-full h-1 rounded-full transition-opacity group-hover:opacity-100 opacity-40"
+            className="flex-1 h-1 rounded-full transition-opacity group-hover:opacity-100 opacity-50"
             style={{
               background: isLive
                 ? 'linear-gradient(to right,rgba(52,211,153,0.2),rgba(52,211,153,0.7),rgba(52,211,153,0.2))'
                 : `linear-gradient(to right,rgba(251,191,36,0.1),#fbbf24 ${pct}%,rgba(255,255,255,0.08) ${pct}%)`,
             }}
           />
-          <span className="absolute text-[9px] text-white/35 group-hover:text-white/65 font-mono transition">
-            ▲ TIMELINE
-          </span>
+          {isLive ? (
+            <span className="shrink-0 text-[8px] font-bold font-mono text-emerald-400 group-hover:text-emerald-300 transition">LIVE</span>
+          ) : (
+            <span className="shrink-0 text-[8px] font-mono text-amber-400/70">{Math.round(pct)}%</span>
+          )}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-none" style={{ bottom: bottomOffset, transition: 'bottom 0.25s ease' }}>
+    <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-none" style={{ bottom: bottomOffset + 4, transition: 'bottom 0.25s ease' }}>
       <div className="w-full max-w-2xl mx-4 mb-1 pointer-events-auto select-none">
         <div
           className="rounded-xl border border-white/10 overflow-hidden"

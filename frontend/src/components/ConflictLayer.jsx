@@ -3,7 +3,7 @@
  * Style inspired by liveuamap.com: each event type has its own icon/color.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import * as Cesium from 'cesium';
 import { isValidCoord, timeAgo } from '../utils/geoUtils.js';
 
@@ -413,6 +413,23 @@ function buildIcon(type, severity) {
 // minDeg degrees of any already-placed pin. Prevents icon pile-ups at global zoom.
 // §0.12: reduced default from 0.3° (~33 km) to 0.08° (~9 km) so nearby distinct
 // events (e.g. Kyiv city + suburbs) are not collapsed into a single pin.
+// At global zoom altitudes the radius scales up so the map stays readable.
+const CONFLICT_DEDUP_BUCKETS = [
+  { minAlt: 12e6, deg: 3.0  },  // > 12 000 km  → 3° (~330 km)
+  { minAlt:  6e6, deg: 1.5  },  // > 6 000 km   → 1.5° (~165 km)
+  { minAlt:  3e6, deg: 0.6  },  // > 3 000 km   → 0.6° (~66 km)
+  { minAlt:  1e6, deg: 0.2  },  // > 1 000 km   → 0.2° (~22 km)
+  { minAlt: 4e5,  deg: 0.08 },  // > 400 km     → 0.08° (~9 km)
+  { minAlt:    0, deg: 0.04 },  // ≤ 400 km     → 0.04° (~4 km)
+];
+
+function conflictDedupDeg(altMetres) {
+  for (const { minAlt, deg } of CONFLICT_DEDUP_BUCKETS) {
+    if (altMetres > minAlt) return deg;
+  }
+  return 0.04;
+}
+
 function deduplicateByProximity(items, minDeg = 0.08) {
   const PRIORITY = { critical: 4, high: 3, medium: 2, low: 1 };
   const sorted = [...items].sort((a, b) =>
@@ -433,8 +450,10 @@ function deduplicateByProximity(items, minDeg = 0.08) {
 }
 
 const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
-  const entityMapRef = useRef(new Map());
-  const dsRef        = useRef(null);
+  const entityMapRef  = useRef(new Map());
+  const dsRef         = useRef(null);
+  const dedupDegRef   = useRef(0.08);
+  const [zoomKey, setZoomKey] = useState(0);
 
   const getDS = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return null;
@@ -460,7 +479,9 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
 
     if (!visible || !conflicts.length) return;
 
-    const visibleConflicts = deduplicateByProximity(conflicts, 0.08);
+    const cameraAlt = viewer.camera?.positionCartographic?.height ?? 8e6;
+    const dedupDeg  = conflictDedupDeg(cameraAlt);
+    const visibleConflicts = deduplicateByProximity(conflicts, dedupDeg);
 
     ds.entities.suspendEvents();
     try {
@@ -510,7 +531,23 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
     } finally {
       ds.entities.resumeEvents();
     }
-  }, [viewer, conflicts, visible, getDS]);
+  }, [viewer, conflicts, visible, getDS, zoomKey]);
+
+  // ── Rebuild when camera zoom bucket changes (same pattern as NewsLayer) ───────
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+    const onMoveEnd = () => {
+      const alt = viewer.camera?.positionCartographic?.height ?? 8e6;
+      const newDeg = conflictDedupDeg(alt);
+      if (newDeg === dedupDegRef.current) return; // same bucket — skip
+      dedupDegRef.current = newDeg;
+      setZoomKey(k => k + 1);
+    };
+    viewer.camera.moveEnd.addEventListener(onMoveEnd);
+    return () => {
+      if (!viewer.isDestroyed()) viewer.camera.moveEnd.removeEventListener(onMoveEnd);
+    };
+  }, [viewer]);
 
   // ── Click selection handled centrally by Globe3D's screenSpaceEventHandler ─
   // (§0.18: removed per-layer handler — Globe3D picks _milData and calls onEntityClick)
