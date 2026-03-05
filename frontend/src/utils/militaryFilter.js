@@ -372,10 +372,27 @@ export function filterAircraft(aircraft, filters) {
 
 export function filterShips(ships, filters) {
   const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
+  // Map ISO-2 flag code back to country name for alliance lookup
+  const FLAG_TO_NAME = {
+    'US':'United States','RU':'Russia','CN':'China','GB':'United Kingdom',
+    'UK':'United Kingdom','FR':'France','DE':'Germany','IL':'Israel','TR':'Turkey',
+    'IR':'Iran','UA':'Ukraine','IN':'India','JP':'Japan','KR':'South Korea',
+    'KP':'North Korea','AU':'Australia','CA':'Canada','NO':'Norway','NL':'Netherlands',
+    'ES':'Spain','IT':'Italy','SA':'Saudi Arabia','PK':'Pakistan','TW':'Taiwan',
+    'PL':'Poland','SE':'Sweden','FI':'Finland','BE':'Belgium','DK':'Denmark',
+    'GR':'Greece','PT':'Portugal','RO':'Romania','CY':'Cyprus','AE':'UAE',
+    'QA':'Qatar','KW':'Kuwait','BH':'Bahrain','JO':'Jordan','EG':'Egypt',
+    'SG':'Singapore','MY':'Malaysia','TH':'Thailand','ID':'Indonesia','PH':'Philippines',
+    'VN':'Vietnam','BR':'Brazil','ZA':'South Africa',
+  };
   return ships.filter(sh => {
     if (!filters.showShips) return false;
     // When no country/alliance is selected, hide ships far from conflict zones
     if (geoFilter && !isInOperationalZone(sh.lat, sh.lon)) return false;
+    if (filters.alliance !== 'ALL') {
+      const countryName = FLAG_TO_NAME[sh.flag] || sh.flag;
+      if (getAlliance(countryName) !== filters.alliance) return false;
+    }
     if (filters.country !== 'ALL') {
       // Ship 'flag' is 2-letter code; map from country name
       const flagMap = {

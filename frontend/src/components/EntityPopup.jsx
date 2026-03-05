@@ -59,7 +59,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -387,6 +387,17 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
             <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
               &#x21D7; SOURCE
             </a>
+          )}
+
+          {/* SAT IMG — available for any geo-referenced entity */}
+          {entity.lat != null && entity.lon != null && onSatellite && (
+            <button
+              className="hud-btn text-center text-xs"
+              title="Open satellite imagery portal for this location"
+              onClick={() => onSatellite({ lat: entity.lat, lon: entity.lon, title: entity.callsign || entity.name || entity.title || entity.type })}
+            >
+              &#x1F6F0; SAT IMG
+            </button>
           )}
         </div>
       </div>

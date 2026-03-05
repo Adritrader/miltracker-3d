@@ -448,14 +448,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
     return dsRef.current;
   }, [viewer]);
 
-  // visibility toggle
-  useEffect(() => {
-    if (!viewer) return;
-    const ds = getDS();
-    if (ds) ds.show = visible;
-  }, [viewer, visible, getDS]);
-
-  // render / update entities
+  // render / update entities — visibility handled here (removeAll + ds.show)
   useEffect(() => {
     if (!viewer) return;
     const ds = getDS();
@@ -463,6 +456,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
 
     ds.entities.removeAll();
     entityMapRef.current.clear();
+    ds.show = visible;
 
     if (!visible || !conflicts.length) return;
 

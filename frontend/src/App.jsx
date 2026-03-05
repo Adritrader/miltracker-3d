@@ -22,6 +22,8 @@ import NewsClusterModal from './components/NewsClusterModal.jsx';
 import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
 import TrackingPanel from './components/TrackingPanel.jsx';
 import TimelinePanel from './components/TimelinePanel.jsx';
+import SentinelPortalModal from './components/SentinelPortalModal.jsx';
+import SitrepCapture from './components/SitrepCapture.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useTimeline } from './hooks/useTimeline.js';
@@ -55,6 +57,8 @@ function App() {
 
   // Tracking state — Map<id, { id, type }> supports multiple simultaneous entities
   const [trackedList, setTrackedList] = useState(new Map());
+  const [satellitePortal, setSatellitePortal] = useState(null); // { lat, lon, title }
+  const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,7 +107,7 @@ function App() {
   const filteredShips = useMemo(
     () => filterShips(effectiveShips, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [effectiveShips, filters.showShips, filters.country]
+    [effectiveShips, filters.showShips, filters.country, filters.alliance]
   );
   const filteredNews = useMemo(
     () => filterNews(news, filters),
@@ -245,6 +249,8 @@ function App() {
       </Globe3D>
 
       {/* UI Overlay layers (rendered outside Viewer for performance) */}
+      {/* Wrapped in a div that hides during SITREP capture so globe-only frame is recorded */}
+      <div style={uiHidden ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}>
 
       {/* Top-center: Entity search */}
       <SearchBar
@@ -334,7 +340,23 @@ function App() {
         trackedList={trackedList}
         onTrack={handleTrack}
         onUntrack={handleUntrack}
+        onSatellite={setSatellitePortal}
       />
+
+      {/* SITREP capture button */}
+      <SitrepCapture
+        viewer={viewer}
+        onUiHide={() => setUiHidden(true)}
+        onUiShow={() => setUiHidden(false)}
+      />
+      {satellitePortal && (
+        <SentinelPortalModal
+          lat={satellitePortal.lat}
+          lon={satellitePortal.lon}
+          title={satellitePortal.title}
+          onClose={() => setSatellitePortal(null)}
+        />
+      )}
 
       {/* Bottom: News ticker (sits above CoordinateHUD) */}
       <NewsPanel
@@ -377,6 +399,8 @@ function App() {
           </div>
         </div>
       )}
+
+      </div>{/* end UI overlay wrapper */}
     </div>
   );
 }

@@ -219,10 +219,12 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
     const ds = getDS();
     if (!ds) return;
 
-    // Toggle visibility: explicitly set show on each entity (polygon ds.show alone
-    // only multiplies alpha, so low-alpha fills appear to just dim rather than hide)
+    // Use ds.show=false + removeAll for guaranteed hiding (per-entity show=false
+    // still dims low-alpha polygon fills in Cesium instead of truly hiding them)
+    ds.show = visible;
     if (!visible) {
-      for (const e of zoneEntitiesRef.current) { e.show = false; }
+      for (const e of zoneEntitiesRef.current) ds.entities.remove(e);
+      zoneEntitiesRef.current = [];
       return;
     }
 
@@ -330,7 +332,8 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
 
     for (const e of alertEntitiesRef.current) ds.entities.remove(e);
     alertEntitiesRef.current = [];
-    if (!visible) return;
+    if (!visible) { ds.show = false; return; }
+    ds.show = true;
 
     for (let i = 0; i < Math.min((alerts || []).length, 20); i++) {
       const alert = alerts[i];

@@ -155,6 +155,34 @@ const FilterPanel = ({
       </div>
       )}
 
+      {/* Alliance filter — bloc buttons */}
+      {panelOpen && !isMobile && (
+      <div className="hud-panel px-3 py-2">
+        <div className="hud-title mb-2">ALLIANCE / BLOC</div>
+        <div className="grid grid-cols-2 gap-1">
+          {[
+            { value: 'ALL',            label: '🌐 ALL',         color: '#00ff88' },
+            { value: 'NATO',           label: '🔵 NATO',        color: '#4488ff' },
+            { value: 'Axis of Concern',label: '🔴 ADVERSARIES', color: '#ff4444' },
+            { value: 'Other',          label: '⬜ OTHERS',      color: '#ffaa00' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => set('alliance', opt.value)}
+              className={`text-xs font-mono px-2 py-1 rounded border transition-all duration-150 ${
+                filters.alliance === opt.value
+                  ? 'border-current font-bold'
+                  : 'border-hud-border text-hud-text hover:border-hud-border/80'
+              }`}
+              style={filters.alliance === opt.value ? { color: opt.color, borderColor: opt.color, background: `${opt.color}18` } : {}}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      )}
+
       {/* Country filter */}
       {panelOpen && !isMobile && (
       <div className="hud-panel px-3 py-2">

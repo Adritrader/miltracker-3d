@@ -144,6 +144,7 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
 
     ds.entities.removeAll();
     entityMapRef.current.clear();
+    ds.show = visible;
 
     if (!visible) return;
 

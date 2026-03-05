@@ -184,6 +184,7 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
 
     for (const e of entitiesRef.current) ds.entities.remove(e);
     entitiesRef.current = [];
+    ds.show = visible;
 
     if (!visible) return;
 
@@ -233,12 +234,6 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
       });
       entitiesRef.current.push(entity);
     }
-  }, [viewer, visible, getDS]);
-
-  useEffect(() => {
-    if (!viewer) return;
-    const ds = getDS();
-    if (ds) ds.show = visible;
   }, [viewer, visible, getDS]);
 
   // Click selection handled centrally by Globe3D (§0.18)
