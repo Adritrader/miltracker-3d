@@ -252,10 +252,10 @@ function App() {
 
       {/* Top-center: Entity search */}
       <SearchBar
-        aircraft={filteredAircraft}
-        ships={filteredShips}
-        conflicts={filteredConflicts}
-        news={filteredNews}
+        aircraft={effectiveAircraft}
+        ships={effectiveShips}
+        conflicts={conflicts}
+        news={news}
         viewer={viewer}
         onSelect={handleEntityClick}
         open={searchOpen}

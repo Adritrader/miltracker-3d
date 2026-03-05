@@ -34,8 +34,6 @@ const MAX_TRAIL_POINTS = 40;
 // Duration (ms) over which entity position is linearly interpolated.
 // Matches the aircraft poll interval so movement looks continuous.
 const SMOOTH_MS = 10_000;
-// Ghost: keep stale entities for this long before purging
-const GHOST_TTL = 5 * 60_000;
 const TRAIL_STORAGE_KEY = 'mlt_trails_v1';
 
 function loadStoredTrails() {
@@ -77,7 +75,6 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
   const trailPointsRef  = useRef(loadStoredTrails()); // icao24 → Cartesian3[] (persisted)
   const prevIdsRef      = useRef(new Set());
-  const ghostTimestampRef = useRef(new Map()); // id → epoch when it became ghost
 
   // LOD constants — tighter on mobile to preserve frame rate
   const MAX_RANGE      = isMobile ? 2.5e6 : 4.5e6;  // hide billboard beyond this (m)
@@ -96,30 +93,6 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
   }, [viewer]);
 
   // visibility is managed inside the main render loop below
-
-  // ── Ghost TTL purge — runs every 60 s to evict ghosts older than GHOST_TTL ─
-  useEffect(() => {
-    if (!viewer) return;
-    const id = setInterval(() => {
-      const acDS    = getDS('aircraft');
-      const trailDS = getDS('aircraft-trails');
-      if (!acDS || !trailDS) return;
-      const now = Date.now();
-      for (const [eid, ts] of [...ghostTimestampRef.current.entries()]) {
-        if (now - ts > GHOST_TTL) {
-          const acEnt    = entityMapRef.current.get(eid);
-          const trailEnt = trailEntityRef.current.get(eid);
-          if (acEnt)    acDS.entities.remove(acEnt);
-          if (trailEnt) trailDS.entities.remove(trailEnt);
-          entityMapRef.current.delete(eid);
-          trailEntityRef.current.delete(eid);
-          trailPointsRef.current.delete(eid);
-          ghostTimestampRef.current.delete(eid);
-        }
-      }
-    }, 60_000);
-    return () => clearInterval(id);
-  }, [viewer, getDS]);
 
   // ── Replay trail overlay ──────────────────────────────────────────────
   // When replayMode is active, draw the full historical track for each entity
@@ -195,14 +168,13 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       // ── Remove entities for aircraft that disappeared ─────────────────────
       for (const id of prevIdsRef.current) {
         if (!currentIds.has(id)) {
-          // Remove immediately — no ghost delay
+          // Remove immediately when aircraft leaves ADS-B feed
           const acEnt    = entityMapRef.current.get(id);
           const trailEnt = trailEntityRef.current.get(id);
           if (acEnt)    acDS.entities.remove(acEnt);
           if (trailEnt) trailDS.entities.remove(trailEnt);
           entityMapRef.current.delete(id);
           trailEntityRef.current.delete(id);
-          ghostTimestampRef.current.delete(id);
         }
       }
       prevIdsRef.current = currentIds;
@@ -269,12 +241,6 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         // ── Billboard / label ──────────────────────────────────────────────
         if (entityMapRef.current.has(ac.id)) {
           const entity = entityMapRef.current.get(ac.id);
-          // If this entity was a ghost, un-ghost it
-          if (entity._ghost) {
-            entity._ghost = false;
-            ghostTimestampRef.current.delete(ac.id);
-            if (entity.billboard) entity.billboard.color = Cesium.Color.WHITE;
-          }
           // Smooth position transition: lerp from current displayed position
           // to the new position over SMOOTH_MS so entities glide instead of snap
           if (!entity._transition) {
