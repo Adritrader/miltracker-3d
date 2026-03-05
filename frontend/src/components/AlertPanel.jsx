@@ -23,7 +23,7 @@ const AlertItem = ({ alert, onFlyTo }) => {
                   ${alert.severity === 'critical' ? 'glow-critical' : ''}`}
     >
       <div className="flex items-start gap-1.5">
-        <span className="text-xs leading-none mt-0.5 font-bold shrink-0" style={{ color: cfg.dot }}>■</span>
+        <span className="text-[10px] leading-none mt-0.5 font-bold shrink-0" style={{ color: cfg.dot }}>■</span>
         <div className="flex-1 min-w-0">
           {/* Title row */}
           <div className="flex items-start justify-between gap-1">
@@ -274,10 +274,10 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
         onClick={() => setOpen(!open)}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-red-400 text-sm shrink-0">⚠</span>
+          <span className="text-red-400 text-xs shrink-0">⚠</span>
           <span className="hud-title truncate">{isMobile ? 'ALERTS' : 'INTEL ALERTS'}</span>
           {criticalCount > 0 && (
-            <span className="bg-red-600 text-white text-xs px-1.5 py-0.5 rounded font-mono font-bold animate-pulse shrink-0">
+            <span className="bg-red-600 text-white text-[10px] px-1 py-0.5 rounded font-mono font-bold animate-pulse shrink-0">
               {criticalCount}{isMobile ? '' : ' CRITICAL'}
             </span>
           )}
@@ -286,16 +286,16 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
             <button
               onClick={e => { e.stopPropagation(); requestNotifPermission(); }}
               title="Enable desktop notifications for critical alerts"
-              className="text-hud-amber text-sm shrink-0 hover:text-white transition-colors"
+              className="text-hud-amber text-xs shrink-0 hover:text-white transition-colors"
             >
               🔔
             </button>
           )}
           {notifPerm === 'granted' && criticalCount > 0 && (
-            <span title="Desktop notifications ON" className="text-hud-green text-xs shrink-0">🔔</span>
+            <span title="Desktop notifications ON" className="text-hud-green text-[10px] shrink-0">🔔</span>
           )}
         </div>
-        <span className="text-hud-text text-sm">{open ? '▲' : '▼'}</span>
+        <span className="text-hud-text text-xs">{open ? '▲' : '▼'}</span>
       </div>
 
       {open && (
@@ -329,7 +329,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
                     {criticalAlerts.length > 5 && (
                       <button
                         onClick={() => setAlertsExpanded(e => !e)}
-                        className="w-full text-center text-xs font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"
+                        className="w-full text-center text-[10px] font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"
                       >
                         {alertsExpanded
                           ? '▲ COLLAPSE'
@@ -344,7 +344,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
             {tab === 'sitrep' && (
               alerts.length > 0
                 ? <SitrepView alerts={alerts} aiInsight={aiInsight} />
-                : <div className="text-hud-text text-xs text-center py-4">Waiting for alert data…</div>
+                : <div className="text-hud-text text-[10px] text-center py-4">Waiting for alert data…</div>
             )}
 
             {tab === 'ai' && (
@@ -354,24 +354,24 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
                   <div className="text-center py-6 space-y-2">
                     {geminiEnabled === false ? (
                       <>
-                        <div className="text-red-400 text-xs font-mono font-bold">⚠ GEMINI NOT CONFIGURED</div>
-                        <div className="text-hud-text text-xs">Set GEMINI_API_KEY in Railway env vars</div>
+                        <div className="text-red-400 text-[10px] font-mono font-bold">⚠ GEMINI NOT CONFIGURED</div>
+                        <div className="text-hud-text text-[10px]">Set GEMINI_API_KEY in Railway env vars</div>
                         <a
                           href="https://aistudio.google.com/app/apikey"
                           target="_blank" rel="noopener noreferrer"
-                          className="text-hud-green text-xs underline"
+                          className="text-hud-green text-[10px] underline"
                         >aistudio.google.com/app/apikey</a>
                       </>
                     ) : aiError ? (
                       <>
-                        <div className="text-red-400 text-xs font-mono font-bold">⚠ AI ANALYSIS FAILED</div>
-                        <div className="text-hud-text text-xs mt-1 font-mono break-all opacity-80">{aiError}</div>
-                        <div className="text-hud-text text-xs mt-2 opacity-60">Retries automatically every 5 min</div>
+                        <div className="text-red-400 text-[10px] font-mono font-bold">⚠ AI ANALYSIS FAILED</div>
+                        <div className="text-hud-text text-[10px] mt-1 font-mono break-all opacity-80">{aiError}</div>
+                        <div className="text-hud-text text-[10px] mt-2 opacity-60">Retries automatically every 5 min</div>
                       </>
                     ) : (
                       <>
-                        <div className="text-hud-green text-xs font-mono animate-pulse">◈ AWAITING AI ANALYSIS…</div>
-                        <div className="text-hud-text text-xs opacity-60">First result arrives after news poll (~5 min)</div>
+                        <div className="text-hud-green text-[10px] font-mono animate-pulse">◈ AWAITING AI ANALYSIS…</div>
+                        <div className="text-hud-text text-[10px] opacity-60">First result arrives after news poll (~5 min)</div>
                       </>
                     )}
                   </div>
@@ -390,7 +390,7 @@ const THREAT_COLORS = {
 };
 
 const AIInsightView = ({ insight }) => (
-  <div className="space-y-2 text-xs font-mono">
+  <div className="space-y-2 text-[10px] font-mono">
     <div className="flex items-center gap-2">
       <span className="hud-label">THREAT LEVEL</span>
       <span className={`font-bold ${THREAT_COLORS[insight.threatLevel] || 'text-white'}`}>
@@ -423,7 +423,7 @@ const AIInsightView = ({ insight }) => (
         ))}
       </div>
     )}
-    <div className="text-hud-text pt-1">
+    <div className="text-hud-text text-[10px] pt-1">
       Source: {insight.source} · {timeAgo(insight.timestamp)}
     </div>
   </div>

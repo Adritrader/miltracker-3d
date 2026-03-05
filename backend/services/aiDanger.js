@@ -96,6 +96,105 @@ const CONFLICT_ZONES = [
 
 const SEVERITY_ORDER = { critical: 4, high: 3, medium: 2, low: 1 };
 
+// ─── Location keyword → coordinates (used to geocode text-only alerts) ────────
+// Ordered by specificity (more specific first — city/landmark before country)
+const ALERT_LOCATIONS = [
+  // Specific stadiums / landmarks
+  { kw: 'azadi stadium',    lat: 35.731, lon: 51.332 },
+  { kw: 'azadi',            lat: 35.731, lon: 51.332 },  // Azadi Tower / Stadium, Tehran
+  // Cities — sorted roughly most-conflict-relevant first
+  { kw: 'kyiv',             lat: 50.450, lon: 30.520 },
+  { kw: 'kharkiv',          lat: 49.993, lon: 36.230 },
+  { kw: 'zaporizhzhia',     lat: 47.840, lon: 35.140 },
+  { kw: 'odessa',           lat: 46.470, lon: 30.730 },
+  { kw: 'mariupol',         lat: 47.100, lon: 37.560 },
+  { kw: 'donetsk',          lat: 48.020, lon: 37.800 },
+  { kw: 'kherson',          lat: 46.640, lon: 32.620 },
+  { kw: 'belgorod',         lat: 50.600, lon: 36.620 },
+  { kw: 'kursk',            lat: 51.730, lon: 36.190 },
+  { kw: 'tel aviv',         lat: 32.080, lon: 34.780 },
+  { kw: 'haifa',            lat: 32.819, lon: 34.999 },
+  { kw: 'jerusalem',        lat: 31.768, lon: 35.214 },
+  { kw: 'tel-aviv',         lat: 32.080, lon: 34.780 },
+  { kw: 'gaza',             lat: 31.350, lon: 34.350 },
+  { kw: 'rafah',            lat: 31.297, lon: 34.251 },
+  { kw: 'khan yunis',       lat: 31.343, lon: 34.304 },
+  { kw: 'west bank',        lat: 32.000, lon: 35.250 },
+  { kw: 'ramallah',         lat: 31.900, lon: 35.200 },
+  { kw: 'beirut',           lat: 33.888, lon: 35.495 },
+  { kw: 'southern lebanon', lat: 33.200, lon: 35.350 },
+  { kw: 'tehran',           lat: 35.690, lon: 51.390 },
+  { kw: 'isfahan',          lat: 32.660, lon: 51.660 },
+  { kw: 'natanz',           lat: 33.720, lon: 51.727 },
+  { kw: 'fordow',           lat: 34.884, lon: 49.986 },
+  { kw: 'bushehr',          lat: 28.920, lon: 50.840 },
+  { kw: 'damascus',         lat: 33.510, lon: 36.290 },
+  { kw: 'aleppo',           lat: 36.200, lon: 37.160 },
+  { kw: 'deir ez-zor',      lat: 35.340, lon: 40.140 },
+  { kw: 'baghdad',          lat: 33.340, lon: 44.400 },
+  { kw: 'mosul',            lat: 36.340, lon: 43.130 },
+  { kw: 'erbil',            lat: 36.190, lon: 44.010 },
+  { kw: 'eastern syria',    lat: 34.600, lon: 40.800 },
+  { kw: 'sanaa',            lat: 15.370, lon: 44.190 },
+  { kw: 'aden',             lat: 12.780, lon: 45.030 },
+  { kw: 'hodeidah',         lat: 14.800, lon: 42.954 },
+  { kw: 'pyongyang',        lat: 39.020, lon: 125.750 },
+  { kw: 'taipei',           lat: 25.040, lon: 121.510 },
+  { kw: 'moscow',           lat: 55.750, lon: 37.620 },
+  { kw: 'minsk',            lat: 53.900, lon: 27.570 },
+  { kw: 'tripoli',          lat: 32.890, lon: 13.190 },
+  { kw: 'khartoum',         lat: 15.550, lon: 32.530 },
+  { kw: 'mogadishu',        lat: 2.040,  lon: 45.340 },
+  // Regions / waterways last (broad match)
+  { kw: 'strait of hormuz', lat: 26.570, lon: 56.280 },
+  { kw: 'persian gulf',     lat: 26.500, lon: 53.000 },
+  { kw: 'red sea',          lat: 20.000, lon: 38.000 },
+  { kw: 'gulf of aden',     lat: 12.000, lon: 46.000 },
+  { kw: 'black sea',        lat: 43.000, lon: 34.000 },
+  { kw: 'south china sea',  lat: 14.000, lon: 115.000 },
+  { kw: 'taiwan strait',    lat: 24.500, lon: 119.500 },
+  { kw: 'ukraine',          lat: 48.380, lon: 31.170 },
+  { kw: 'israel',           lat: 31.770, lon: 35.220 },
+  { kw: 'lebanon',          lat: 33.850, lon: 35.860 },
+  { kw: 'iran',             lat: 32.430, lon: 53.690 },
+  { kw: 'iraq',             lat: 33.220, lon: 43.680 },
+  { kw: 'syria',            lat: 34.800, lon: 38.990 },
+  { kw: 'yemen',            lat: 15.550, lon: 48.520 },
+  { kw: 'taiwan',           lat: 23.690, lon: 120.960 },
+  { kw: 'north korea',      lat: 40.340, lon: 127.510 },
+  { kw: 'russia',           lat: 55.750, lon: 37.620 },
+  { kw: 'china',            lat: 35.860, lon: 104.190 },
+  { kw: 'afghanistan',      lat: 33.930, lon: 67.710 },
+  { kw: 'pakistan',         lat: 30.380, lon: 69.350 },
+  { kw: 'sudan',            lat: 12.860, lon: 30.220 },
+  { kw: 'somalia',          lat: 5.150,  lon: 46.200 },
+  { kw: 'libya',            lat: 26.340, lon: 17.230 },
+  { kw: 'mali',             lat: 17.570, lon: -4.000 },
+  { kw: 'niger',            lat: 17.610, lon: 8.080 },
+  { kw: 'myanmar',          lat: 19.750, lon: 96.080 },
+  { kw: 'venezuela',        lat: 6.420,  lon: -66.590 },
+  { kw: 'kashmir',          lat: 34.080, lon: 74.800 },
+];
+
+/**
+ * Try to assign lat/lon to an alert by keyword-matching its title + message.
+ * Returns { lat, lon } or null if no match.
+ */
+function geocodeAlert(title = '', message = '') {
+  const text = `${title} ${message}`.toLowerCase();
+  for (const loc of ALERT_LOCATIONS) {
+    if (text.includes(loc.kw)) {
+      // tiny jitter so stacked events don't overlap perfectly
+      return {
+        lat: loc.lat + (Math.random() - 0.5) * 0.15,
+        lon: loc.lon + (Math.random() - 0.5) * 0.15,
+        geocodedFrom: loc.kw,
+      };
+    }
+  }
+  return null;
+}
+
 // ── Haversine distance in km ──────────────────────────────────────────────────
 function distKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -149,6 +248,9 @@ export function alertsFromNews(newsItems = []) {
     const severity = classifySeverity(item.title, item.description);
     if (severity === 'low') continue; // skip low-relevance items
     const id = `news-${Buffer.from(item.url || item.title || '').toString('base64').slice(0, 24)}`;
+    const geo = (item.lat != null && item.lon != null)
+      ? { lat: item.lat, lon: item.lon }
+      : (geocodeAlert(item.title, item.description) ?? { lat: null, lon: null });
     alerts.push({
       id,
       type: 'news_alert',
@@ -159,8 +261,9 @@ export function alertsFromNews(newsItems = []) {
       url: item.url,
       image: item.image || null,
       timestamp: item.publishedAt || new Date().toISOString(),
-      lat: item.lat || null,
-      lon: item.lon || null,
+      lat: geo.lat,
+      lon: geo.lon,
+      geocodedFrom: geo.geocodedFrom || null,
     });
   }
   // Sort critical first, then by newest

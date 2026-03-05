@@ -4,6 +4,17 @@
  */
 
 const KNOWN_LOCATIONS = {
+  // Specific landmarks
+  'azadi stadium': { lat: 35.731, lon: 51.332 },
+  'azadi':         { lat: 35.731, lon: 51.332 },  // Azadi Tower/Stadium, Tehran
+  'natanz':        { lat: 33.720, lon: 51.727 },
+  'fordow':        { lat: 34.884, lon: 49.986 },
+  'bushehr':       { lat: 28.920, lon: 50.840 },
+  'southern lebanon': { lat: 33.200, lon: 35.350 },
+  'eastern syria': { lat: 34.600, lon: 40.800 },
+  'rafah':         { lat: 31.297, lon: 34.251 },
+  'khan yunis':    { lat: 31.343, lon: 34.304 },
+  // ─────────────────────────────────────────────
   'ukraine': { lat: 48.38, lon: 31.17 },
   'kyiv': { lat: 50.45, lon: 30.52 },
   'kharkiv': { lat: 49.99, lon: 36.23 },
