@@ -13,7 +13,17 @@ export const BASEMAPS = {
   satellite: {
     label: 'SAT',
     icon: '🛰',
-    desc: 'Satellite imagery',
+    desc: 'ESRI World Imagery',
+  },
+  sentinel: {
+    label: 'SENTINEL',
+    icon: '🟢',
+    desc: 'Sentinel-2 cloudless (ESA/EOX — 10m optical)',
+  },
+  gibs: {
+    label: 'NASA LIVE',
+    icon: '🟠',
+    desc: 'NASA GIBS MODIS Terra (daily true-color, 250m)',
   },
   relief: {
     label: 'RELIEF',
@@ -61,6 +71,7 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
               <button
                 key={key}
                 onClick={() => { onBasemapChange(key); setOpen(false); }}
+                title={bm.desc}
                 className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs font-mono transition-colors ${
                   basemap === key
                     ? 'bg-hud-accent/30 text-hud-accent border border-hud-accent/60'
@@ -68,7 +79,10 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
                 }`}
               >
                 <span className="text-sm leading-none">{bm.icon}</span>
-                <span className="font-bold">{bm.label}</span>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold leading-tight">{bm.label}</span>
+                  <span className="text-[9px] text-white/30 leading-tight max-w-[100px] truncate">{bm.desc}</span>
+                </div>
               </button>
             ))}
           </div>

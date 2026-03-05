@@ -36,6 +36,28 @@ function buildImageryProvider(basemap) {
         minimumLevel: 0, maximumLevel: 19,
         credit: new Cesium.Credit('\u00a9 Esri, Maxar, Earthstar Geographics, USDA FSA, USGS, Aerogrid, IGN, IGP, and the GIS User Community'),
       });
+
+    case 'sentinel':
+      // Sentinel-2 S2Cloudless — ESA Copernicus, cloud-free optical mosaic at ~10m res.
+      // Free for non-commercial use via EOX IT Services. No API key required.
+      // Coverage: global, updated annually. Ideal for viewing military hotspot areas.
+      return new Cesium.UrlTemplateImageryProvider({
+        url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg',
+        minimumLevel: 0, maximumLevel: 14,
+        credit: new Cesium.Credit('Sentinel-2 cloudless \u00a9 EOX IT Services GmbH \u2014 Contains modified Copernicus Sentinel data 2021 \u00a9 ESA'),
+      });
+
+    case 'gibs': {
+      // NASA GIBS MODIS Terra — daily true-color imagery at ~250m resolution.
+      // 1–2 day lag. Shows real smoke plumes, fires, dust storms, military activity signatures.
+      // Free, no API key needed. Uses NASA Earthdata WMTS.
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      return new Cesium.UrlTemplateImageryProvider({
+        url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${today}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+        minimumLevel: 0, maximumLevel: 9,
+        credit: new Cesium.Credit('NASA GIBS \u2014 MODIS/Terra CorrectedReflectance/TrueColor'),
+      });
+    }
     case 'relief':
       return new Cesium.UrlTemplateImageryProvider({
         url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',

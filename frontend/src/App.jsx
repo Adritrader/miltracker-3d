@@ -55,8 +55,6 @@ function App() {
 
   // Tracking state — Map<id, { id, type }> supports multiple simultaneous entities
   const [trackedList, setTrackedList] = useState(new Map());
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const didFetchHistory = useRef(false);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -81,14 +79,6 @@ function App() {
 
   // Timeline replay
   const timeline = useTimeline(socketRef);
-
-  // Fetch history when timeline panel is opened for the first time
-  useEffect(() => {
-    if (timelineOpen && !didFetchHistory.current) {
-      didFetchHistory.current = true;
-      timeline.controls.requestHistory();
-    }
-  }, [timelineOpen, timeline.controls]);
 
   // When ESC pressed in replay mode, stop and go live
   useEffect(() => {
@@ -310,38 +300,19 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Bottom-center: Timeline panel (replay mode) */}
-      {timelineOpen && (
-        <TimelinePanel
-          snapshots={timeline.snapshots}
-          currentIndex={timeline.currentIndex}
-          playing={timeline.playing}
-          speed={timeline.speed}
-          replayMode={timeline.replayMode}
-          currentTs={timeline.currentTs}
-          controls={timeline.controls}
-        />
-      )}
+      {/* Bottom-center: Timeline — always visible video-controls bar (auto-fetches history on mount) */}
+      <TimelinePanel
+        snapshots={timeline.snapshots}
+        currentIndex={timeline.currentIndex}
+        playing={timeline.playing}
+        speed={timeline.speed}
+        replayMode={timeline.replayMode}
+        currentTs={timeline.currentTs}
+        controls={timeline.controls}
+      />
 
-      {/* Bottom-right: Map layer switcher + Timeline toggle */}
+      {/* Bottom-right: Map layer switcher */}
       <div className="absolute bottom-8 right-4 z-30 flex flex-col gap-2 items-end pointer-events-auto">
-        <button
-          onClick={() => setTimelineOpen(v => !v)}
-          title="Timeline replay"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold
-                       border transition shadow-lg
-                       ${ timelineOpen
-                          ? 'bg-amber-400/25 border-amber-400/60 text-amber-200'
-                          : 'bg-black/60 border-white/15 text-white/50 hover:text-white/80 hover:border-white/30' }`}
-        >
-          <span>⏱</span>
-          <span>{timelineOpen ? 'CLOSE' : 'TIMELINE'}</span>
-          {timeline.replayMode && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] bg-amber-400/30 text-amber-300 border border-amber-400/30">
-              REPLAY
-            </span>
-          )}
-        </button>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
       </div>
 
