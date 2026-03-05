@@ -139,7 +139,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
 
   if (mode === 'done') {
     return (
-      <div className="fixed bottom-[120px] right-4 z-30 hud-panel px-3 py-2 space-y-2" style={{ minWidth: 180 }}>
+      <div className="fixed bottom-[172px] right-4 z-30 hud-panel px-3 py-2 space-y-2" style={{ minWidth: 180 }}>
         <div className="text-hud-green font-mono text-xs font-bold">✓ SITREP SAVED</div>
         <div className="text-hud-text font-mono text-[10px] truncate max-w-[160px]">{dlName}</div>
         <div className="flex gap-2">
@@ -160,7 +160,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
 
   if (mode === 'menu') {
     return (
-      <div className="fixed bottom-[120px] right-4 z-30 hud-panel px-3 py-2 space-y-1.5" style={{ minWidth: 180 }}>
+      <div className="fixed bottom-[172px] right-4 z-30 hud-panel px-3 py-2 space-y-1.5" style={{ minWidth: 180 }}>
         <div className="hud-title text-xs mb-2">📷 SITREP CAPTURE</div>
         <button
           onClick={takeScreenshot}
@@ -191,7 +191,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
   return (
     <button
       onClick={() => setMode('menu')}
-      className="fixed bottom-[120px] right-4 z-30 hud-btn text-xs px-3 py-1.5 font-bold"
+      className="fixed bottom-[172px] right-4 z-30 hud-btn text-xs px-3 py-1.5 font-bold"
       title="Generate SITREP — screenshot or cinematic video clip"
     >
       📷 SITREP

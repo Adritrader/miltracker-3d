@@ -57,18 +57,26 @@ const SOURCES = [
   },
 ];
 
-/* Build a GIBS WMS GetMap URL → returns a real JPEG satellite image */
-function buildGibsUrl(layer, lat, lon, dateStr, deg = 1.5) {
+/* Build a GIBS WMS GetMap URL → returns a real JPEG satellite image.
+ * Notes:
+ * - CRS:84 = lon/lat axis order (needed for WMS 1.3.0 — avoids EPSG:4326 flip)
+ * - Fire layer is transparent: combine with background layer
+ * - GIBS has ~24h lag: yesterday is the safest date for daily products */
+function buildGibsUrl(layers, lat, lon, dateStr, deg = 1.5) {
   const latMin = (lat - deg * 0.75).toFixed(4);
   const latMax = (lat + deg * 0.75).toFixed(4);
   const lonMin = (lon - deg).toFixed(4);
   const lonMax = (lon + deg).toFixed(4);
+  const layerStr = Array.isArray(layers) ? layers.join(',') : layers;
   const params = new URLSearchParams({
     SERVICE: 'WMS', REQUEST: 'GetMap', VERSION: '1.3.0',
-    LAYERS: layer, CRS: 'CRS:84',
+    LAYERS: layerStr,
+    STYLES: '',
+    CRS: 'CRS:84',
     BBOX: `${lonMin},${latMin},${lonMax},${latMax}`,
     WIDTH: '900', HEIGHT: '600',
     FORMAT: 'image/jpeg',
+    TRANSPARENT: 'false',
     TIME: dateStr,
   });
   return `${GIBS_WMS}?${params.toString()}`;
@@ -90,7 +98,7 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
   const defaultSource = (title?.includes('FIRMS') || title?.includes('FIRE') || title?.includes('fire'))
     ? 'gibs_fire' : 'viirs';
   const [source,  setSource]  = useState(defaultSource);
-  const [dayOff,  setDayOff]  = useState(0);
+  const [dayOff,  setDayOff]  = useState(1); // default: yesterday — today's imagery rarely available yet
   const [imgError, setImgError] = useState(false);
 
   const sourceDef = SOURCES.find(s => s.id === source);
@@ -98,10 +106,14 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
   const extUrl    = sourceDef?.extUrl?.(lat, lon) ?? null;
 
   // GIBS image URL — null for Sentinel-2 (external-only)
+  // Fire layer needs background layer combined, otherwise it's transparent
   const imgUrl = useMemo(() => {
     if (!lat || !lon || !sourceDef?.layer) return null;
-    return buildGibsUrl(sourceDef.layer, lat, lon, dateStr);
-  }, [lat, lon, sourceDef, dateStr]);
+    const layers = source === 'gibs_fire'
+      ? ['VIIRS_NOAA21_CorrectedReflectance_TrueColor', 'VIIRS_NOAA21_Fires_Day']
+      : sourceDef.layer;
+    return buildGibsUrl(layers, lat, lon, dateStr);
+  }, [lat, lon, source, sourceDef, dateStr]);
 
   // Reset error when source or date changes
   React.useEffect(() => setImgError(false), [imgUrl]);
@@ -239,14 +251,14 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
           <span className="text-[10px] font-mono text-hud-text/50">
             {source !== 'sentinel2' ? 'NASA GIBS WMS — public domain satellite imagery' : 'ESA Copernicus open data'}
           </span>
-          {extUrl && source !== 'sentinel2' && (
+          {source !== 'sentinel2' && lat && lon && (
             <a
-              href={extUrl}
+              href={`https://firms.modaps.eosdis.nasa.gov/map/#d:${dateStr};@${lon.toFixed(4)},${lat.toFixed(4)},10z`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] font-mono text-hud-green hover:underline"
             >
-              ↗ OPEN IN NASA WORLDVIEW
+              ↗ OPEN IN NASA FIRMS
             </a>
           )}
         </div>

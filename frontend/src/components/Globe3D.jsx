@@ -38,13 +38,12 @@ function buildImageryProvider(basemap) {
       });
 
     case 'sentinel':
-      // Sentinel-2 S2Cloudless — ESA Copernicus, cloud-free optical mosaic at ~10m res.
-      // Free for non-commercial use via EOX IT Services. No API key required.
-      // Coverage: global, updated annually. Ideal for viewing military hotspot areas.
+      // Sentinel-2 S2Cloudless 2020 — EOX IT Services, cloud-free annual mosaic.
+      // TileMatrixSet changed from 'GoogleMapsCompatible' to 'g' in the 2020 layer.
       return new Cesium.UrlTemplateImageryProvider({
-        url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg',
+        url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020/default/g/{z}/{y}/{x}.jpg',
         minimumLevel: 0, maximumLevel: 14,
-        credit: new Cesium.Credit('Sentinel-2 cloudless \u00a9 EOX IT Services GmbH \u2014 Contains modified Copernicus Sentinel data 2021 \u00a9 ESA'),
+        credit: new Cesium.Credit('Sentinel-2 cloudless \u00a9 EOX IT Services GmbH \u2014 Copernicus Sentinel data 2020 \u00a9 ESA'),
       });
 
     case 'gibs': {
