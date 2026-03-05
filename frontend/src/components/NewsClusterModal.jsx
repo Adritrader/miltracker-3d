@@ -44,8 +44,8 @@ const NewsClusterModal = ({ items, onSelect, onClose }) => {
 
       {/* Centering overlay */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-        style={{ paddingTop: 72, paddingBottom: 88 }}
+        className="fixed z-50 flex items-center justify-center pointer-events-none"
+        style={{ top: 72, left: 0, right: 0, bottom: 88 }}
       >
       {/* Modal */}
       <div

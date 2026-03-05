@@ -53,7 +53,11 @@ function App() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [spaceView, setSpaceView]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [basemap, setBasemap]       = useState(() => localStorage.getItem('milt_basemap') || 'dark');
+  const [basemap, setBasemap] = useState(() => {
+    const stored = localStorage.getItem('milt_basemap') || 'dark';
+    // sentinel and gibs removed from UI — fall back to dark
+    return (stored === 'sentinel' || stored === 'gibs') ? 'dark' : stored;
+  });
 
   // Tracking state — Map<id, { id, type }> supports multiple simultaneous entities
   const [trackedList, setTrackedList] = useState(new Map());

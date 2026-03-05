@@ -15,16 +15,6 @@ export const BASEMAPS = {
     icon: '🛰',
     desc: 'ESRI World Imagery',
   },
-  sentinel: {
-    label: 'SENTINEL',
-    icon: '🟢',
-    desc: 'Sentinel-2 cloudless (ESA/EOX — 10m optical)',
-  },
-  gibs: {
-    label: 'NASA LIVE',
-    icon: '🟠',
-    desc: 'NASA GIBS MODIS Terra (daily true-color, 250m)',
-  },
   relief: {
     label: 'RELIEF',
     icon: '🏔',

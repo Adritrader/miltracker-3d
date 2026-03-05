@@ -20,7 +20,9 @@ if (ION_TOKEN) {
 // We attach to `window` so the SAME object survives Vite HMR module re-execution;
 // without this, every hot-reload in dev creates new objects → Viewer recreated.
 if (!window._milCreditContainer) window._milCreditContainer = document.createElement('div');
-if (!window._milContextOptions)  window._milContextOptions  = { requestWebgl2: true };
+if (!window._milContextOptions)  window._milContextOptions  = {};
+// Always ensure preserveDrawingBuffer=true so canvas.toDataURL() works for SITREP capture
+Object.assign(window._milContextOptions, { requestWebgl2: true, preserveDrawingBuffer: true });
 if (!window._milTerrainProvider) window._milTerrainProvider = new Cesium.EllipsoidTerrainProvider();
 const CREDIT_CONTAINER = window._milCreditContainer;
 const CONTEXT_OPTIONS  = window._milContextOptions;
