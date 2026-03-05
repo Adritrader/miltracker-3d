@@ -3,11 +3,14 @@
  * Each ICAO type-code maps to a unique, specific photograph.
  */
 
+/* LOCAL_IMAGES_v2 */
+const _LOCAL = new Set(["AH-64D_Apache_Longbow.jpg","Antonov_An-124_Ruslan.jpg","B-52_Stratofortress.jpg","EA-6B_Prowler.jpg","Eurofighter_Typhoon.jpg","F-16_June_2008.jpg","F-22_Raptor_edit1_(cropped).jpg","HH-60G_Pave_Hawk.jpg","HMS_Defender_(D36).jpg","HMS_Dragon_(D35).jpg","HMS_Portland_(F79).jpg","HMS_Somerset_(F82).jpg","HMS_Westminster_(F237).jpg","IL-78_Midas.jpg","INS_Visakhapatnam_(D66).jpg","JS_Izumo_(DDH-183).jpg","JS_Kaga_(DDH-184).jpg","JS_Maya_(DDG-179).jpg","Lockheed_SR-71_Blackbird.jpg","MH-53E_Sea_Dragon.jpg","MQ-9_Reaper_in_flight_(2007).jpg","PAVE_PAWS_Radar_Clear_AFS_Alaska.jpg","RQ-4_Global_Hawk.jpg","Tomahawk_Block_IV_cruise_missile.jpg","UH-60_Black_Hawk.jpg","USNS_Henry_J._Kaiser_(T-AO-187).jpg","USS_Bataan_(LHD-5).jpg","USS_Hurricane_(PC-3).jpg","USS_San_Jacinto_(CG-56).jpg","USS_Theodore_Roosevelt_(CVN-71).jpg","USS_Wasp_(LHD-1).jpg","USS_Zumwalt_(DDG-1000).jpg"]);
+
 const W = (filename, w = 400) => {
-  // encodeURIComponent over-encodes () which breaks Wikimedia lookup — keep them literal
+  if (_LOCAL.has(filename)) return '/images/mil/' + filename;
   const encoded = encodeURIComponent(filename)
     .replace(/%28/g, '(').replace(/%29/g, ')').replace(/%2C/g, ',').replace(/%21/g, '!');
-  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encoded}?width=${w}`;
+  return 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encoded + '?width=' + w;
 };
 
 // Aircraft: unique photo per ICAO type-code
