@@ -28,6 +28,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache Cesium assets and tiles aggressively
         runtimeCaching: [
           {

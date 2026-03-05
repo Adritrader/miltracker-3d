@@ -1,6 +1,6 @@
 {
   "name": "miltracker-3d-frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MilTracker 3D - Real-time military tracking on a 3D globe",
   "type": "module",
   "scripts": {
