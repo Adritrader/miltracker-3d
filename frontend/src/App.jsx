@@ -321,8 +321,8 @@ function App() {
         controls={timeline.controls}
       />
 
-      {/* Bottom-right: Map layer + SITREP — fixed row above timeline */}
-      <div className="fixed z-30 flex flex-row-reverse gap-2 items-end pointer-events-auto"
+      {/* Bottom-right: Map layer + SITREP stacked vertically */}
+      <div className="fixed z-30 flex flex-col gap-2 items-end pointer-events-auto"
            style={{ bottom: 116, right: 16 }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture
