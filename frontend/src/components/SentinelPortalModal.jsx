@@ -32,29 +32,6 @@ const SOURCES = [
       return `https://worldview.earthdata.nasa.gov/?p=geographic&l=MODIS_Terra_CorrectedReflectance_TrueColor,Coastlines_15m&t=${new Date().toISOString().split('T')[0]}&z=6&v=${v}`;
     },
   },
-  {
-    id: 'gibs_fire',
-    label: '🔴 ACTIVE FIRE',
-    desc: 'VIIRS 375m · NASA FIRMS thermal',
-    layer: 'VIIRS_NOAA21_Fires_Day',
-    baseLayer: 'VIIRS_NOAA21_CorrectedReflectance_TrueColor',
-    extUrl: (lat, lon) => {
-      const deg = 2.5;
-      const v = `${(lon-deg).toFixed(3)},${(lat-deg*0.7).toFixed(3)},${(lon+deg).toFixed(3)},${(lat+deg*0.7).toFixed(3)}`;
-      return `https://worldview.earthdata.nasa.gov/?p=geographic&l=VIIRS_NOAA21_Fires_Day,VIIRS_NOAA21_CorrectedReflectance_TrueColor,Coastlines_15m&t=${new Date().toISOString().split('T')[0]}&z=6&v=${v}`;
-    },
-  },
-  {
-    id: 'sentinel2',
-    label: '🔵 SENTINEL-2',
-    desc: '10m · ESA Copernicus · Opens externally',
-    layer: null, // no GIBS layer — opens external portal
-    extUrl: (lat, lon) => {
-      const today = new Date().toISOString().split('T')[0];
-      const from  = new Date(Date.now() - 30*86400*1000).toISOString().split('T')[0];
-      return `https://browser.dataspace.copernicus.eu/?zoom=13&lat=${lat.toFixed(4)}&lng=${lon.toFixed(4)}&themeId=DEFAULT-THEME&layerId=1_TRUE_COLOR&datasetId=S2L2A&cloudCoverage=30&fromTime=${from}T00:00:00.000Z&toTime=${today}T23:59:59.000Z`;
-    },
-  },
 ];
 
 /* Build a GIBS WMS GetMap URL → returns a real JPEG satellite image.
