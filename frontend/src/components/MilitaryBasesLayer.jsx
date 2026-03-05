@@ -202,7 +202,7 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
           horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
           scaleByDistance: new Cesium.NearFarScalar(5e4, 1.4, 8e6, 0.4),
           distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1.0e7),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          disableDepthTestDistance: 2e6,
         },
         label: {
           text: `${base.country} · ${base.name}`,
@@ -217,7 +217,7 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
           backgroundColor: new Cesium.Color(0, 0, 0, 0.6),
           backgroundPadding: new Cesium.Cartesian2(6, 3),
           scaleByDistance: new Cesium.NearFarScalar(5e4, 1.2, 4e6, 0.0),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          disableDepthTestDistance: 2e6,
         },
         // Custom data for popup
         _milData: {

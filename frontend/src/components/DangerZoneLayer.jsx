@@ -213,22 +213,21 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
     return dsRef.current;
   }, [viewer]);
 
-  // ── Visibility toggle — mirrors AircraftLayer / ConflictLayer pattern ─────
-  useEffect(() => {
-    if (!viewer) return;
-    const ds = getDS();
-    if (ds) ds.show = visible;
-  }, [viewer, visible, getDS]);
-
-  // ── Zone rendering ─────────────────────────────────────────────────────────
+  // ── Zone rendering ───────────────────────────────────────────────────
   useEffect(() => {
     if (!viewer) return;
     const ds = getDS();
     if (!ds) return;
 
+    // Toggle visibility: explicitly set show on each entity (polygon ds.show alone
+    // only multiplies alpha, so low-alpha fills appear to just dim rather than hide)
+    if (!visible) {
+      for (const e of zoneEntitiesRef.current) { e.show = false; }
+      return;
+    }
+
     for (const e of zoneEntitiesRef.current) ds.entities.remove(e);
     zoneEntitiesRef.current = [];
-    if (!visible) return;
 
     for (const zone of dangerZones) {
       const s   = SEV[zone.severity] || SEV.medium;
