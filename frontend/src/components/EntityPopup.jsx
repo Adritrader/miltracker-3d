@@ -97,7 +97,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   // ── Entity type detection ─────────────────────────────────────────────────
   const isAircraft = entity.type === 'aircraft' || !!entity.icao24;
   const isShip     = entity.type_entity === 'ship' || !!entity.mmsi;
-  const isConflict = entity.type === 'conflict';
+  const isConflict = entity.eventCategory === 'conflict' || entity.type === 'conflict';
   const isFirms    = entity.type === 'firms';
   const isBase     = entity.type === 'base';
   const isAlert    = !isAircraft && !isShip && !isConflict && !isFirms && !isBase &&

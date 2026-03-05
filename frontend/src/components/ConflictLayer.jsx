@@ -504,7 +504,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
             disableDepthTestDistance: 2e6,
           },
         }); } catch { continue; }
-        entity._milData = { ...ev, type: 'conflict' };
+        entity._milData = { ...ev, type: ev.type || 'conflict', eventCategory: 'conflict' };
         entityMapRef.current.set(safeId, entity);
       }
     } finally {
