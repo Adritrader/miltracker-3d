@@ -83,5 +83,12 @@ export function geocodeNewsItem(item) {
       };
     }
   }
-  return item; // Not geocoded, will be filtered out
+
+  // §0.11: mark ungeocodable items so callers can distinguish "no keyword match"
+  // from a successfully geocoded item. Also emit a dev-mode debug log so missing
+  // pins can be diagnosed without guessing which articles weren't matched.
+  if (import.meta.env.DEV) {
+    console.debug('[newsGeocoder] no keyword match — item will not appear on globe:', item.title?.slice(0, 80));
+  }
+  return { ...item, _noGeocode: true }; // will be filtered out by NewsLayer (.filter(n => n.lat && n.lon))
 }

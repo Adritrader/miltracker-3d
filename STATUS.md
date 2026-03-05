@@ -1,6 +1,6 @@
 # MILTRACKER 3D — Estado del Roadmap
 
-> Última actualización: `1d924bb` — 2026-03-05
+> Última actualización: batch bugs §0.1/0.11/0.12/0.17/0.18 — 2026-03-05
 
 ---
 
@@ -10,7 +10,7 @@
 
 | # | Archivo | Bug | Causa | Prioridad |
 |---|---------|-----|-------|-----------|
-| 0.1 | `NewsLayer.jsx` | Toggle NEWS: `buildEntities` hace `ds.entities.removeAll()` antes de `if (!visible) return` por lo que sí debería funcionar. Sin confirmar en live | `buildEntities` está en deps del rebuild effect vía `useCallback`, se recalcula cuando cambia `visible`. Pendiente verificar en mobile donde el camera moveEnd no se dispara | 🟡 Verificar |
+| 0.1 | `NewsLayer.jsx` | Toggle NEWS: efecto `ds.show = visible` separado podía competir con el rebuild effect | Se eliminó el efecto de visibilidad redundante — `buildEntities` ya maneja la visibilidad via `ds.entities.removeAll()` + retorno anticipado. Sin entidades no hay nada visible aunque `ds.show = true` | ✅ Arreglado — efecto separado eliminado |
 | 0.2 | `AircraftLayer.jsx` | `GHOST_TTL` y `ghostTimestampRef` dead code | Feature ghost eliminada en `3c59c30` pero no se limpió el código residual | ✅ Arreglado `34f1c42` |
 | 0.3 | `AircraftLayer.jsx` + `ShipLayer.jsx` | `getDS()` hace un O(n) scan de `viewer.dataSources` en cada ciclo | Inconsistencia arquitectural | ✅ Arreglado — `dsCache` ref O(1) |
 | 0.4 | `MilitaryBasesLayer.jsx` | Bases visibles a través del globo desde cualquier ángulo | `disableDepthTestDistance: Number.POSITIVE_INFINITY` — ARREGLADO en `fd13097` | ✅ Arreglado |
@@ -20,14 +20,14 @@
 | 0.8 | `militaryFilter.js` `filterShips` | Ships no respetan `missionType` filter | Por diseño — los barcos no tienen tipos de misión aéreos. Mostrar siempre junto a los aviones filtrados es el comportamiento correcto | ✅ Por diseño — cerrado |
 | 0.9 | `AircraftLayer.jsx` `_ghost` | Código `if (entity._ghost)` huérfano — `_ghost` nunca se establece | Residuo de la feature eliminada | ✅ Arreglado `34f1c42` |
 | 0.10 | `positionTracker.js` | Límite de snapshots en memoria | Ya tiene cap: `HISTORY_LIMIT = 120` + `splice` al final de `recordSnapshot` | ✅ No era bug — cerrado |
-| 0.11 | `newsGeocoder.js` | Geocoding falla silenciosamente — `geocodeNewsItem` puede retornar `null` sin log. La noticia desaparece del globo sin avisar por qué | Sin manejo diferenciado de "no geocodeable" vs "error de red" | 🟡 Media |
-| 0.12 | `ConflictLayer.jsx` | Deduplicación por proximidad usa 0.3° (~33 km). Un evento en Kiev y otro en la periferia de Kiev pueden colapsar en uno solo | La deduplicación es correcta para performance, pero borra eventos válidos cercanos | 🟡 Media |
+| 0.11 | `newsGeocoder.js` | Geocoding falla silenciosamente — `geocodeNewsItem` retorna item sin lat/lon sin log. La noticia desaparece del globo sin avisar por qué | Sin manejo diferenciado de "no geocodeable" vs "error de red" | ✅ Arreglado — añadido `_noGeocode: true` marker + `console.debug` en modo DEV |
+| 0.12 | `ConflictLayer.jsx` | Deduplicación por proximidad usaba 0.3° (~33 km). Eventos en Kiev y periferia colapsaban | La deduplicación es correcta para performance, pero borraba eventos válidos cercanos | ✅ Arreglado — reducido a 0.08° (~9 km) |
 | 0.13 | `STATUS.md` item 6.1 | "Ghost tracking aviones (30% opacidad 5 min)" marcado ✅ pero la feature se eliminó intencionalmente en `3c59c30` | Documentación incorrecta | 🟢 Baja |
 | 0.14 | `STATUS.md` item 10.1 | "Replay histórico" marcado ❌ pero `TimelinePanel`, `useTimeline`, `positionTracker`, historyTrack en Aircraft/ShipLayer ya implementados | Documentación incorrecta | 🟢 Baja |
 | 0.15 | `FilterPanel.jsx` `Toggle` | `<label onClick>` + `<input type="checkbox">` implícito → doble-firing del evento en algunos browsers cuando se clica el texto | Se añadió `e.preventDefault()` en `6cde758` pero debería marcarse como verificado en mobile | 🟢 Baja |
 | 0.16 | `firmsService.js` | `FIRMS_MAP_KEY` no está disponible en Railway — el servicio falla silenciosamente y retorna `[]` | Variable de entorno no configurada en el hosting | ⚠️ Requiere acción manual en Railway dashboard |
-| 0.17 | `AircraftLayer.jsx` | `on_ground` filter de `filters.showOnGround` puede no funcionar correctamente si la fuente ADS-B no envía el campo `on_ground` — la condición `ac.on_ground && !filters.showOnGround` falla silenciosamente | Depende de que ADS-B envíe el campo; algunas fuentes lo omiten | 🟡 Media |
-| 0.18 | `Globe3D.jsx` + capas | Múltiples `ScreenSpaceEventHandler` registrados (AircraftLayer, ShipLayer, NewsLayer, ConflictLayer, MilitaryBasesLayer) — cada capa añade su propio handler. En click se disparan todos en secuencia; el primero que encuentre `_milData` lo procesa pero los otros también corren inútilmente | Falta un único event handler central en Globe3D que delega | 🟡 Media |
+| 0.17 | `militaryFilter.js` | `on_ground` filter fallaba silenciosamente si la fuente ADS-B no enviaba el campo | Depende de que ADS-B envíe el campo; algunas fuentes lo omiten | ✅ Arreglado — heurística de altitud: `on_ground \|\| altitudeFt < 100 \|\| altitude < 30` |
+| 0.18 | `Globe3D.jsx` + capas | Múltiples `ScreenSpaceEventHandler` registrados (AircraftLayer, NewsLayer, ConflictLayer, MilitaryBasesLayer) — cada capa añadía su propio handler. En click se disparaban todos en secuencia | Falta un único event handler central en Globe3D que delega | ✅ Arreglado — eliminados handlers de AircraftLayer, ConflictLayer, MilitaryBasesLayer. NewsLayer ahora pone `_milData` en entidades cluster (`{ type:'news-cluster', items }`) para que Globe3D las route. App.jsx `handleEntityClick` abre el modal de cluster. |
 
 ---
 

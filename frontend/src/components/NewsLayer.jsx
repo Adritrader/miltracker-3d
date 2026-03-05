@@ -181,7 +181,12 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
         });
         entity._newsCluster = cluster;
         entity._newsData    = isSingle ? item : null;
-        entity._milData     = isSingle ? { ...item, type: 'news' } : null;
+        // §0.18: always set _milData so Globe3D's single handler can route the click.
+        // For clusters, Globe3D will call onEntityClick({ type:'news-cluster', items:[...] })
+        // and App.jsx handleEntityClick will open the cluster modal.
+        entity._milData     = isSingle
+          ? { ...item, type: 'news' }
+          : { type: 'news-cluster', items: cluster.items };
         entityMapRef.current.set(safeId, entity);
       }
     } finally {
@@ -190,12 +195,8 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
   }, [viewer, news, visible, getDS]);
 
   // â”€â”€ Visibility toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  useEffect(() => {
-    if (!viewer) return;
-    const ds = getDS();
-    if (ds) ds.show = visible;
-  }, [viewer, visible, getDS]);
-
+  // §0.1: Separate visibility effect removed — buildEntities already
+  // handles visibility by clearing entities when !visible (no race possible).
   // â”€â”€ Rebuild when news data or viewer changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     if (!viewer) return;
@@ -221,23 +222,9 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
     };
   }, [viewer, buildEntities]);
 
-  // â”€â”€ Click handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  useEffect(() => {
-    if (!viewer || viewer.isDestroyed()) return;
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction((click) => {
-      const picked = viewer.scene.pick(click.position);
-      if (!picked?.id) return;
-      const cluster = picked.id._newsCluster;
-      if (!cluster) return;
-      if (cluster.count === 1) {
-        onSelect?.(cluster.topItem);
-      } else {
-        onClusterSelect?.(cluster.items);
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    return () => { if (!handler.isDestroyed()) handler.destroy(); };
-  }, [viewer, onSelect, onClusterSelect]);
+  // ── Click selection handled centrally by Globe3D (§0.18) ──────────────────
+  // _milData is set on both single-item and cluster entities above so Globe3D's
+  // screenSpaceEventHandler picks every click and App.jsx routes accordingly.
 
   return null;
 };

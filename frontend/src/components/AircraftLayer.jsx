@@ -321,23 +321,8 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     }
   }, [viewer, aircraft, visible, trackedList, getDS]);
 
-  // ── Click selection ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !onSelect) return;
-
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction((click) => {
-      const picked = viewer.scene.pick(click.position);
-      if (Cesium.defined(picked?.id?._milData)) {
-        const data = picked.id._milData;
-        if (data.type === 'aircraft') onSelect(data);
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-    return () => {
-      if (!handler.isDestroyed()) handler.destroy();
-    };
-  }, [viewer, onSelect]);
+  // ── Click selection handled centrally by Globe3D's screenSpaceEventHandler ─
+  // (§0.18: removed per-layer handler — Globe3D picks _milData and calls onEntityClick)
 
   return null;
 };

@@ -241,18 +241,7 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
     if (ds) ds.show = visible;
   }, [viewer, visible, getDS]);
 
-  // Click selection
-  useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !onSelect) return;
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction((click) => {
-      const picked = viewer.scene.pick(click.position);
-      if (picked?.id?._milData?.type === 'base') {
-        onSelect(picked.id._milData);
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    return () => { if (!handler.isDestroyed()) handler.destroy(); };
-  }, [viewer, onSelect]);
+  // Click selection handled centrally by Globe3D (§0.18)
 
   return null;
 };

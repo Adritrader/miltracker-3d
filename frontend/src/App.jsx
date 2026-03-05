@@ -139,7 +139,13 @@ function App() {
   }, []);
 
   const handleEntityClick = useCallback((entity) => {
-    setSelectedEntity(entity);
+    // §0.18: news-cluster entities now carry _milData with type='news-cluster'
+    // so Globe3D's single handler can route them here instead of NewsLayer's own handler
+    if (entity?.type === 'news-cluster') {
+      setNewsCluster(entity.items);
+    } else {
+      setSelectedEntity(entity);
+    }
   }, []);
 
   const handleNewsSelect = useCallback((newsItem) => {

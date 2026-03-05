@@ -411,7 +411,9 @@ function buildIcon(type, severity) {
 
 // ── Geographic deduplication — keep only the highest-priority event within
 // minDeg degrees of any already-placed pin. Prevents icon pile-ups at global zoom.
-function deduplicateByProximity(items, minDeg = 0.3) {
+// §0.12: reduced default from 0.3° (~33 km) to 0.08° (~9 km) so nearby distinct
+// events (e.g. Kyiv city + suburbs) are not collapsed into a single pin.
+function deduplicateByProximity(items, minDeg = 0.08) {
   const PRIORITY = { critical: 4, high: 3, medium: 2, low: 1 };
   const sorted = [...items].sort((a, b) =>
     (PRIORITY[b.severity] || 0) - (PRIORITY[a.severity] || 0)
@@ -464,7 +466,7 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
 
     if (!visible || !conflicts.length) return;
 
-    const visibleConflicts = deduplicateByProximity(conflicts, 0.3);
+    const visibleConflicts = deduplicateByProximity(conflicts, 0.08);
 
     ds.entities.suspendEvents();
     try {
@@ -516,19 +518,8 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
     }
   }, [viewer, conflicts, visible, getDS]);
 
-  // click selection
-  useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !onSelect) return;
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction((click) => {
-      const picked = viewer.scene.pick(click.position);
-      if (Cesium.defined(picked?.id?._milData)) {
-        const d = picked.id._milData;
-        if (d.type === 'conflict') onSelect(d);
-      }
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    return () => { if (!handler.isDestroyed()) handler.destroy(); };
-  }, [viewer, onSelect]);
+  // ── Click selection handled centrally by Globe3D's screenSpaceEventHandler ─
+  // (§0.18: removed per-layer handler — Globe3D picks _milData and calls onEntityClick)
 
   return null;
 };

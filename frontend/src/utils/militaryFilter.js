@@ -347,7 +347,13 @@ export function filterAircraft(aircraft, filters) {
     if (!filters.showAircraft) return false;
     if (filters.country !== 'ALL' && ac.country !== filters.country) return false;
     if (filters.alliance !== 'ALL' && getAlliance(ac.country) !== filters.alliance) return false;
-    if (ac.on_ground && !filters.showOnGround) return false;
+    // §0.17: some ADS-B sources don't emit the on_ground boolean, so fall back to
+    // an altitude heuristic — below 100 ft / 30 m is considered on the ground.
+    // ac.altitudeFt comes from OpenSky normalised data; ac.altitude is the raw
+    // baroAltitude field (metres) from some sources.
+    const likelyOnGround = ac.on_ground
+      || (ac.altitudeFt != null ? ac.altitudeFt < 100 : (ac.altitude != null ? ac.altitude < 30 : false));
+    if (likelyOnGround && !filters.showOnGround) return false;
     // When no country/alliance is selected, hide aircraft far from conflict zones
     if (geoFilter && !isInOperationalZone(ac.lat, ac.lon)) return false;
     if (filters.missionType && filters.missionType !== 'ALL') {
