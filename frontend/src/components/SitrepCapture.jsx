@@ -256,7 +256,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
   return (
     <button
       onClick={() => setMode('menu')}
-      className="fixed bottom-[172px] right-4 z-30 hud-btn text-xs px-3 py-1.5 font-bold"
+      className="fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold"
       title="Generar SITREP — captura de pantalla o vídeo cinematic"
     >
       &#x1F4F7; SITREP

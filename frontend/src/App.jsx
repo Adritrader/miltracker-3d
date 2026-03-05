@@ -347,7 +347,10 @@ function App() {
         onSatellite={setSatellitePortal}
       />
 
-      {/* SITREP capture button */}
+      {/* SITREP capture — intentionally OUTSIDE the uiHidden wrapper
+           so it stays visible (capturing indicator, done modal) even when the
+           UI is hidden for globe-only frame recording. */}
+      </div>{/* end UI overlay wrapper */}
       <SitrepCapture
         viewer={viewer}
         onUiHide={() => setUiHidden(true)}
@@ -404,7 +407,6 @@ function App() {
         </div>
       )}
 
-      </div>{/* end UI overlay wrapper */}
     </div>
   );
 }
