@@ -32,25 +32,25 @@ function bestMime() {
 const NETWORKS = [
   {
     id: 'twitter',
-    label: 'ð• Twitter',
+    label: 'Twitter / X',
     color: '#1d9bf0',
     url: () => `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(PAGE_URL())}`,
   },
   {
     id: 'whatsapp',
-    label: 'ðŸ’¬ WhatsApp',
+    label: 'WhatsApp',
     color: '#25d366',
     url: () => `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT + ' ' + PAGE_URL())}`,
   },
   {
     id: 'telegram',
-    label: 'âœˆ Telegram',
+    label: 'Telegram',
     color: '#0088cc',
     url: () => `https://t.me/share/url?url=${encodeURIComponent(PAGE_URL())}&text=${encodeURIComponent(SHARE_TEXT)}`,
   },
   {
     id: 'reddit',
-    label: 'ðŸ”´ Reddit',
+    label: 'Reddit',
     color: '#ff4500',
     url: () => `https://reddit.com/submit?url=${encodeURIComponent(PAGE_URL())}&title=${encodeURIComponent(SHARE_TEXT)}`,
   },
@@ -131,7 +131,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
   const recordVideo = useCallback(() => {
     if (!viewer) return;
     if (typeof MediaRecorder === 'undefined' || !viewer.canvas.captureStream) {
-      alert('Su navegador no soporta grabaciÃ³n de vÃ­deo. Use Captura de Pantalla.');
+      alert('Su navegador no soporta grabacion de video. Use Captura de Pantalla.');
       return;
     }
     setCaptType('video');
@@ -274,7 +274,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         <span className="text-red-400 text-xl animate-pulse">&#x23FA;</span>
         <div>
           <div className="text-red-400 font-mono text-xs font-bold animate-pulse">
-            {countdown === 0 ? 'CAPTURANDOâ€¦' : `REC ${countdown}s`}
+            {countdown === 0 ? 'CAPTURANDO...' : `REC ${countdown}s`}
           </div>
           <div className="text-hud-text text-[10px] font-mono">SITREP CAPTURE</div>
         </div>
@@ -292,7 +292,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           <div>
             <div className="hud-title text-xs mb-1 text-hud-green">&#x2713; SITREP GUARDADO</div>
             <div className="text-white font-mono font-bold text-sm">
-              {isVideo ? `VÃ­deo ${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} 6s` : 'Captura PNG'}
+              {isVideo ? `Video ${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} 6s` : 'Captura PNG'}
             </div>
             <div className="text-hud-text font-mono text-[10px] truncate mt-0.5 opacity-60">{dlName}</div>
           </div>
@@ -323,7 +323,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
                 onClick={handleNativeShare}
                 className="hud-btn text-xs py-2 text-center col-span-2"
               >
-                &#x2197; Compartir archivo {isVideo ? '(vÃ­deo)' : '(imagen)'}
+                &#x2197; Compartir archivo {isVideo ? '(video)' : '(imagen)'}
               </button>
               {NETWORKS.map(n => (
                 <a
@@ -382,7 +382,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         ? 'hud-btn text-xs px-3 py-2 font-bold'
         : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold'
       }
-      title="Generar SITREP â€” captura de pantalla o vÃ­deo"
+      title="Generar SITREP â€” captura de pantalla o video"
     >
       &#x1F4F7; SITREP
     </button>
