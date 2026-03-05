@@ -95,25 +95,18 @@ function offsetDate(offset) {
 }
 
 const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
-  const defaultSource = (title?.includes('FIRMS') || title?.includes('FIRE') || title?.includes('fire'))
-    ? 'gibs_fire' : 'viirs';
-  const [source,  setSource]  = useState(defaultSource);
-  const [dayOff,  setDayOff]  = useState(1); // default: yesterday — today's imagery rarely available yet
+  const [source,  setSource]  = useState('viirs');
+  const [dayOff,  setDayOff]  = useState(1);
   const [imgError, setImgError] = useState(false);
 
   const sourceDef = SOURCES.find(s => s.id === source);
   const dateStr   = offsetDate(dayOff);
-  const extUrl    = sourceDef?.extUrl?.(lat, lon) ?? null;
 
-  // GIBS image URL — null for Sentinel-2 (external-only)
-  // Fire layer needs background layer combined, otherwise it's transparent
+  // GIBS image URL
   const imgUrl = useMemo(() => {
     if (!lat || !lon || !sourceDef?.layer) return null;
-    const layers = source === 'gibs_fire'
-      ? ['VIIRS_NOAA21_CorrectedReflectance_TrueColor', 'VIIRS_NOAA21_Fires_Day']
-      : sourceDef.layer;
-    return buildGibsUrl(layers, lat, lon, dateStr);
-  }, [lat, lon, source, sourceDef, dateStr]);
+    return buildGibsUrl(sourceDef.layer, lat, lon, dateStr);
+  }, [lat, lon, sourceDef, dateStr]);
 
   // Reset error when source or date changes
   React.useEffect(() => setImgError(false), [imgUrl]);
@@ -191,37 +184,11 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
 
         {/* Image area */}
         <div className="relative flex-1 min-h-0 flex items-center justify-center" style={{ minHeight: 320 }}>
-          {/* Sentinel-2 — external only */}
-          {source === 'sentinel2' ? (
-            <div className="flex flex-col items-center gap-4 p-8 text-center">
-              <div className="text-4xl">🛰</div>
-              <div className="hud-title text-sm">SENTINEL-2 · ESA COPERNICUS</div>
-              <div className="text-hud-text text-xs font-mono max-w-xs">
-                10m resolution optical imagery. Cannot be embedded — opens in the official ESA EO Browser.
-              </div>
-              <a
-                href={extUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 px-4 py-2 rounded-lg border border-hud-green text-hud-green
-                           font-mono text-xs bg-hud-green/10 hover:bg-hud-green/25 transition-all duration-150"
-              >
-                ↗ OPEN ESA COPERNICUS BROWSER
-              </a>
-              <div className="text-hud-text/50 text-[10px] font-mono">
-                {lat.toFixed(4)}°, {lon.toFixed(4)}° — free, no login required
-              </div>
-            </div>
-          ) : imgError ? (
-            /* GIBS image load error */
+          {imgError ? (
             <div className="flex flex-col items-center gap-3 p-6 text-center">
-              <div className="text-3xl">⚠</div>
+              <div className="text-3xl">&#9888;</div>
               <div className="text-hud-amber text-xs font-mono">IMAGE UNAVAILABLE FOR THIS DATE</div>
-              <div className="text-hud-text/60 text-[10px] font-mono">Try a different date — some areas have no coverage</div>
-              <a href={extUrl} target="_blank" rel="noopener noreferrer"
-                className="mt-1 text-xs font-mono text-hud-green hover:underline">
-                ↗ Open in NASA Worldview
-              </a>
+              <div className="text-hud-text/60 text-[10px] font-mono">Try a different date &mdash; some areas have no coverage</div>
             </div>
           ) : (
             /* GIBS WMS real satellite image */
@@ -249,9 +216,9 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
         {/* Footer */}
         <div className="px-3 py-1.5 border-t border-hud-border flex-shrink-0 flex items-center justify-between">
           <span className="text-[10px] font-mono text-hud-text/50">
-            {source !== 'sentinel2' ? 'NASA GIBS WMS — public domain satellite imagery' : 'ESA Copernicus open data'}
+            NASA GIBS WMS \u2014 public domain satellite imagery
           </span>
-          {source !== 'sentinel2' && lat && lon && (
+          {lat && lon && (
             <a
               href={`https://firms.modaps.eosdis.nasa.gov/map/#d:${dateStr};@${lon.toFixed(4)},${lat.toFixed(4)},10z`}
               target="_blank"

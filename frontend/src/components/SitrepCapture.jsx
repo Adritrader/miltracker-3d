@@ -123,7 +123,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow }) {
   if (mode === 'countdown') {
     return (
       <div
-        className="fixed bottom-[120px] right-4 z-30 hud-panel px-3 py-2 flex items-center gap-3 pointer-events-none"
+        className="fixed bottom-[172px] right-4 z-30 hud-panel px-3 py-2 flex items-center gap-3 pointer-events-none"
         style={{ minWidth: 160 }}
       >
         <span className="text-red-400 text-xl animate-pulse">⏺</span>
