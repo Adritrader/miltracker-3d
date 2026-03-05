@@ -79,7 +79,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
       if (!dragState.current.active) return;
       setPos({
         left: Math.max(0, dragState.current.startLeft + (me.clientX - dragState.current.startX)),
-        top:  Math.max(0, dragState.current.startTop  + (me.clientY - dragState.current.startY)),
+        top:  Math.max(70, dragState.current.startTop  + (me.clientY - dragState.current.startY)),
       });
     };
     const onUp = () => {
@@ -181,18 +181,23 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
         onClick={onClose}
       />
 
-      {/* Panel – centered by default; draggable by header */}
+      {/* Centering overlay — flex so panel never overflows top/bottom chrome */}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+        style={{ paddingTop: 72, paddingBottom: 88 }}
+      >
+      {/* Panel – positioned by overlay when not dragged; draggable by header */}
       <div
         ref={panelRef}
-        className="fixed hud-panel z-50"
+        className="hud-panel pointer-events-auto"
         style={{
           borderColor,
           ...(pos
-            ? { top: pos.top, left: pos.left, transform: 'none' }
-            : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
+            ? { position: 'fixed', top: pos.top, left: pos.left, transform: 'none' }
+            : { position: 'relative' }
           ),
           width: isMobile ? 'min(340px, calc(100vw - 24px))' : 'min(520px, calc(100vw - 32px))',
-          maxHeight: 'calc(100vh - 120px)',
+          maxHeight: '100%',
           overflowY: 'auto',
           userSelect: dragging ? 'none' : undefined,
         }}
@@ -400,6 +405,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
             </button>
           )}
         </div>
+      </div>
       </div>
     </>
   );

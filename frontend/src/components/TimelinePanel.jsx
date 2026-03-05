@@ -1,6 +1,6 @@
 ﻿/**
  * TimelinePanel — compact single-row video-controls bar at the bottom of the globe.
- * Position: fixed bottom-10 (above the CoordinateHUD status bar).
+ * Position: fixed bottom-[28px] (flush above the CoordinateHUD status bar).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -77,7 +77,7 @@ export default function TimelinePanel({
 
   if (minimized) {
     return (
-      <div className="fixed bottom-10 left-0 right-0 z-30 flex justify-center pointer-events-auto">
+      <div className="fixed bottom-[28px] left-0 right-0 z-30 flex justify-center pointer-events-auto">
         <button
           onClick={() => setMinimized(false)}
           title="Expand timeline"
@@ -100,7 +100,7 @@ export default function TimelinePanel({
   }
 
   return (
-    <div className="fixed bottom-10 left-0 right-0 z-30 flex justify-center pointer-events-none">
+    <div className="fixed bottom-[28px] left-0 right-0 z-30 flex justify-center pointer-events-none">
       <div className="w-full max-w-2xl mx-4 mb-1 pointer-events-auto select-none">
         <div
           className="rounded-xl border border-white/10 overflow-hidden"

@@ -42,15 +42,17 @@ const NewsClusterModal = ({ items, onSelect, onClose }) => {
         onClick={onClose}
       />
 
+      {/* Centering overlay */}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+        style={{ paddingTop: 72, paddingBottom: 88 }}
+      >
       {/* Modal */}
       <div
-        className="fixed z-50 hud-panel"
+        className="hud-panel pointer-events-auto"
         style={{
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
           width: 'min(520px, calc(100vw - 24px))',
-          maxHeight: 'calc(100vh - 100px)',
+          maxHeight: '100%',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -111,6 +113,7 @@ const NewsClusterModal = ({ items, onSelect, onClose }) => {
             CLICK AN EVENT TO VIEW DETAILS · ESC TO CLOSE
           </p>
         </div>
+      </div>
       </div>
     </>
   );

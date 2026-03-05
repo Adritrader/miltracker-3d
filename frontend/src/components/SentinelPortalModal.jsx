@@ -122,13 +122,17 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
         onClick={onClose}
       />
 
+      {/* Centering overlay */}
+      <div
+        className="fixed inset-0 z-[61] flex items-center justify-center pointer-events-none"
+        style={{ paddingTop: 72, paddingBottom: 88 }}
+      >
       {/* Panel */}
       <div
-        className="fixed z-[61] hud-panel flex flex-col"
+        className="hud-panel flex flex-col pointer-events-auto"
         style={{
-          top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           width: 'min(860px, calc(100vw - 24px))',
-          maxHeight: 'calc(100vh - 80px)',
+          maxHeight: '100%',
         }}
       >
         {/* Header */}
@@ -229,6 +233,7 @@ const SentinelPortalModal = ({ lat, lon, title, onClose }) => {
             </a>
           )}
         </div>
+      </div>
       </div>
     </>
   );
