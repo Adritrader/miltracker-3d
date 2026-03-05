@@ -66,6 +66,7 @@ function App() {
   const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
   const [alertPanelOpen, setAlertPanelOpen] = useState(false);
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
+  const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -324,6 +325,7 @@ function App() {
         onUntrack={handleUntrack}
         onUntrackAll={handleUntrackAll}
         isMobile={isMobile}
+        onHeightChange={setTrackingPanelHeight}
       />
 
       {/* Bottom-center: Timeline — always visible video-controls bar (auto-fetches history on mount) */}
@@ -335,7 +337,7 @@ function App() {
         replayMode={timeline.replayMode}
         currentTs={timeline.currentTs}
         controls={timeline.controls}
-        alertPanelHeight={alertPanelHeight}
+        trackingPanelHeight={trackingPanelHeight}
         isMobile={isMobile}
       />
 

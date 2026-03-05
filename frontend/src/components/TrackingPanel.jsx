@@ -9,15 +9,26 @@
  *  68–108px  TrackingPanel (collapsed)
  * 108px+     Globe / MapLayerSwitcher
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as Cesium from 'cesium';
 
 const BOTTOM_NEWS   = 68;   // CoordinateHUD(28) + NewsPanel(40)
 const PANEL_H_COLL  = 40;   // collapsed pill-bar height
 const CARD_H        = 88;   // approx expanded card height
 
-const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false }) => {
+const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false, onHeightChange }) => {
   const [expanded, setExpanded] = useState(false);
+  const panelRef = useRef(null);
+
+  // Report rendered height to parent so Timeline can move above us
+  useEffect(() => {
+    if (!panelRef.current || !onHeightChange) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) onHeightChange(e.contentRect.height);
+    });
+    ro.observe(panelRef.current);
+    return () => { ro.disconnect(); onHeightChange(0); };
+  }, [onHeightChange]);
 
   if (!trackedList || trackedList.size === 0) return null;
 
@@ -43,6 +54,7 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
 
   return (
     <div
+      ref={panelRef}
       className="fixed left-0 right-0"
       style={{ bottom: BOTTOM_NEWS, zIndex: 38 }}
     >
