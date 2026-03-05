@@ -307,12 +307,49 @@ export function getAlliance(country) {
   return 'Unknown';
 }
 
+// ── Active-conflict operational zones ─────────────────────────────────────
+// Any aircraft or ship outside these bounding boxes is likely on a routine
+// home-nation sortie and should be hidden to avoid cluttering the map.
+// The filter is bypassed when the user selects a specific country/alliance.
+const OPERATIONAL_ZONES = [
+  // Middle East: Israel/Gaza/Lebanon/Syria/Iraq/Iran/Yemen/Gulf
+  { name: 'middle-east',    minLat:  8, maxLat: 43, minLon: 24, maxLon: 66 },
+  // Ukraine + Russia frontline + Black Sea
+  { name: 'ukraine',        minLat: 43, maxLat: 58, minLon: 22, maxLon: 45 },
+  // Caucasus
+  { name: 'caucasus',       minLat: 37, maxLat: 45, minLon: 38, maxLon: 53 },
+  // Horn of Africa / East Africa / Red Sea
+  { name: 'horn-africa',    minLat: -5, maxLat: 16, minLon: 38, maxLon: 56 },
+  // North Africa / Libya / Sahel
+  { name: 'sahel',          minLat:  5, maxLat: 35, minLon:-18, maxLon: 42 },
+  // South Asia / Pakistan / Afghanistan / Kashmir
+  { name: 'south-asia',     minLat: 22, maxLat: 38, minLon: 60, maxLon: 82 },
+  // East Asia: Taiwan Strait / South China Sea / Korea Peninsula
+  { name: 'east-asia',      minLat:  5, maxLat: 46, minLon:107, maxLon:135 },
+  // Myanmar / Southeast Asia
+  { name: 'southeast-asia', minLat:  8, maxLat: 28, minLon: 92, maxLon:102 },
+  // Mediterranean (NATO deployments, Libya, Cyprus)
+  { name: 'mediterranean',  minLat: 30, maxLat: 42, minLon:-6,  maxLon: 36 },
+  // Baltic / Eastern Europe (NATO reinforcement)
+  { name: 'baltic',         minLat: 53, maxLat: 60, minLon: 14, maxLon: 30 },
+];
+
+export function isInOperationalZone(lat, lon) {
+  if (lat == null || lon == null) return false;
+  return OPERATIONAL_ZONES.some(
+    z => lat >= z.minLat && lat <= z.maxLat && lon >= z.minLon && lon <= z.maxLon,
+  );
+}
+
 export function filterAircraft(aircraft, filters) {
+  const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
   return aircraft.filter(ac => {
     if (!filters.showAircraft) return false;
     if (filters.country !== 'ALL' && ac.country !== filters.country) return false;
     if (filters.alliance !== 'ALL' && getAlliance(ac.country) !== filters.alliance) return false;
     if (ac.on_ground && !filters.showOnGround) return false;
+    // When no country/alliance is selected, hide aircraft far from conflict zones
+    if (geoFilter && !isInOperationalZone(ac.lat, ac.lon)) return false;
     if (filters.missionType && filters.missionType !== 'ALL') {
       const cat = categorizeAircraft(ac);
       const mt = filters.missionType;
@@ -328,8 +365,11 @@ export function filterAircraft(aircraft, filters) {
 }
 
 export function filterShips(ships, filters) {
+  const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
   return ships.filter(sh => {
     if (!filters.showShips) return false;
+    // When no country/alliance is selected, hide ships far from conflict zones
+    if (geoFilter && !isInOperationalZone(sh.lat, sh.lon)) return false;
     if (filters.country !== 'ALL') {
       // Ship 'flag' is 2-letter code; map from country name
       const flagMap = {

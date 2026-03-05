@@ -178,21 +178,6 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect }) => {
             scaleByDistance: new Cesium.NearFarScalar(2e5, 0.8, 1.5e7, isSingle ? 1.6 : 1.8),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2e7),
           },
-          label: isSingle ? {
-            text: item.title?.slice(0, 45) + (item.title?.length > 45 ? 'â€¦' : ''),
-            font: 'bold 12px "Share Tech Mono", monospace',
-            fillColor: Cesium.Color.fromCssColorString(color),
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 3,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -30),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            scaleByDistance: new Cesium.NearFarScalar(1e4, 1.2, 4e6, 0.0),
-            showBackground: true,
-            backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
-            backgroundPadding: new Cesium.Cartesian2(5, 3),
-          } : undefined,
         });
         entity._newsCluster = cluster;
         entity._newsData    = isSingle ? item : null;

@@ -118,6 +118,9 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     const trailDS = getDS('ship-trails');
     if (!shipDS || !trailDS) return;
 
+    const validShips = ships.filter(s => isValidCoord(s.lat, s.lon));
+    console.log(`[ShipLayer] ships=${ships.length} valid=${validShips.length} viewer=${!!viewer}`);
+
     const currentIds = new Set(ships.map(s => s.mmsi || s.id));
 
     shipDS.entities.suspendEvents();

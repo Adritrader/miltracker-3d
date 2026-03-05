@@ -4,6 +4,9 @@
  * Fetches real geolocated conflict events from:
  *   1. GDELT GEO API — conflict & military event point data (free, no key)
  *   2. GDELT DOC API — geocoded recent articles about strikes/explosions
+ *   3. NASA FIRMS     — VIIRS thermal anomalies (explosions/fires) over conflict zones
+ *   4. ReliefWeb      — UN humanitarian situation reports
+ *   5. ACLED          — Armed Conflict Location & Event Data (requires free API key)
  *
  * Each event has: id, type, title, lat, lon, country, source, publishedAt, severity
  *
@@ -12,6 +15,7 @@
  */
 
 import fetch from 'node-fetch';
+import { fetchFIRMSEvents } from './firmsService.js';
 
 const GDELT_BASE = 'https://api.gdeltproject.org/api/v2';
 const TIMEOUT = 25000; // GDELT public API can be slow; Middle East queries return more data
@@ -512,31 +516,34 @@ function getSeedConflicts() {
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 export async function fetchConflictEvents() {
-  const [geo, doc, rw, acled] = await Promise.allSettled([
+  const [geo, doc, rw, acled, firms] = await Promise.allSettled([
     fetchGDELTGeoConflicts(),
     fetchGDELTDocConflicts(),
     fetchReliefWebConflicts(),
     fetchACLEDConflicts(),
+    fetchFIRMSEvents(),
   ]);
 
   const geoItems   = geo.status   === 'fulfilled' ? geo.value   : [];
   const docItems   = doc.status   === 'fulfilled' ? doc.value   : [];
   const rwItems    = rw.status    === 'fulfilled' ? rw.value    : [];
   const acledItems = acled.status === 'fulfilled' ? acled.value : [];
+  const firmsItems = firms.status === 'fulfilled' ? firms.value : [];
   const seeds      = getSeedConflicts(); // always-present baseline covering all hotspots
 
-  // Priority order: ACLED (most precise) > GDELT-GEO > GDELT-DOC > ReliefWeb > seeds
-  const all = [...acledItems, ...geoItems, ...docItems, ...rwItems, ...seeds];
+  // Priority order: ACLED & FIRMS (most precise/real-time) > GDELT-GEO > GDELT-DOC > ReliefWeb > seeds
+  const all = [...acledItems, ...firmsItems, ...geoItems, ...docItems, ...rwItems, ...seeds];
 
-  // Deduplicate by ~0.5° grid + type (first-seen wins, so precise sources win)
+  // Deduplicate: ACLED & FIRMS use a tighter 0.1° grid; all others use 0.5°
   const seen = new Set();
   const deduped = all.filter(ev => {
-    const key = `${(ev.lat / 0.5).toFixed(0)}_${(ev.lon / 0.5).toFixed(0)}_${ev.type}`;
+    const precision = (ev.source === 'ACLED' || ev.source === 'NASA FIRMS') ? 0.1 : 0.5;
+    const key = `${(ev.lat / precision).toFixed(0)}_${(ev.lon / precision).toFixed(0)}_${ev.type}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 
-  console.log(`[Conflicts] ${deduped.length} events (${acledItems.length} ACLED + ${geoItems.length} geo + ${docItems.length} doc + ${rwItems.length} reliefweb + ${seeds.length} seeds)`);
-  return deduped.slice(0, 400);
+  console.log(`[Conflicts] ${deduped.length} events — ACLED:${acledItems.length} FIRMS:${firmsItems.length} geo:${geoItems.length} doc:${docItems.length} rw:${rwItems.length} seeds:${seeds.length}`);
+  return deduped.slice(0, 600);
 }
