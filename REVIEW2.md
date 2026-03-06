@@ -8,29 +8,29 @@
 
 ## § B — Bugs y Comportamiento Incorrecto
 
-- [ ] **B1** 🔴 `EntityPopup.jsx` — detección de `isAlert` frágil: verifica presencia de campos `title+message+severity` en lugar de revisar `type === 'alert'`. Un conflicto con esos tres campos sería clasificado incorrectamente como alerta, renderizando el formato equivocado.
+- [x] **B1** 🔴 `EntityPopup.jsx` — detección de `isAlert` frágil: verifica presencia de campos `title+message+severity` en lugar de revisar `type === 'alert'`. Un conflicto con esos tres campos sería clasificado incorrectamente como alerta, renderizando el formato equivocado.
 
-- [ ] **B2** 🟡 `opensky.js` — `fetchGulfRegion()` marcada como `@deprecated` pero sigue presente en el módulo (código muerto). Ocupa ~3KB de bundle y genera confusión en futuros contribuidores. Eliminar.
+- [x] **B2** 🟡 `opensky.js` — `fetchGulfRegion()` marcada como `@deprecated` pero sigue presente en el módulo (código muerto). Ocupa ~3KB de bundle y genera confusión en futuros contribuidores. Eliminar.
 
-- [ ] **B3** 🔴 `Globe3D.jsx` — URL param `?fly=lat,lon,alt,hdg,pitch` se parsea con `parseFloat()` sin validación de rango. Una URL maliciosa con `lat=91` o `lon=999` puede causar comportamientos inesperados en Cesium. Validar: `Math.abs(lat) <= 90`, `Math.abs(lon) <= 180`, `alt > 0`.
+- [x] **B3** 🔴 `Globe3D.jsx` — URL param `?fly=lat,lon,alt,hdg,pitch` se parsea con `parseFloat()` sin validación de rango. Una URL maliciosa con `lat=91` o `lon=999` puede causar comportamientos inesperados en Cesium. Validar: `Math.abs(lat) <= 90`, `Math.abs(lon) <= 180`, `alt > 0`.
 
-- [ ] **B4** 🟡 `NewsPanel.jsx` — el efecto de "trickle reveal" (`visibleCount`) no se reinicia cuando la lista de noticias se reemplaza por completo con el mismo número de ítems. Sólo detecta cambios en `news.length`. Resultado: para actualizaciones donde el servidor devuelve exactamente 30 artículos nuevos (N=30 siempre), los nuevos artículos no se animan.
+- [x] **B4** 🟡 `NewsPanel.jsx` — el efecto de "trickle reveal" (`visibleCount`) no se reinicia cuando la lista de noticias se reemplaza por completo con el mismo número de ítems. Sólo detecta cambios en `news.length`. Resultado: para actualizaciones donde el servidor devuelve exactamente 30 artículos nuevos (N=30 siempre), los nuevos artículos no se animan.
 
-- [ ] **B5** 🟡 `positionTracker.js` — al cargar desde disco, los snapshots sólo se recortan por **cantidad** (`snapshots.length > HISTORY_LIMIT`) pero no por **antigüedad**. Tras un reinicio del servidor, el timeline puede mostrar snapshots de hace >2 horas mezclados con datos frescos. Añadir filtro de TTL al cargar (ej: descartar entradas >90 minutos).
+- [x] **B5** 🟡 `positionTracker.js` — al cargar desde disco, los snapshots sólo se recortan por **cantidad** (`snapshots.length > HISTORY_LIMIT`) pero no por **antigüedad**. Tras un reinicio del servidor, el timeline puede mostrar snapshots de hace >2 horas mezclados con datos frescos. Añadir filtro de TTL al cargar (ej: descartar entradas >90 minutos).
 
-- [ ] **B6** 🟡 `newsService.js` — `extractRSSImage()` acepta URLs que empiezan con `http://` (sin TLS), causando mixed-content warnings en el navegador. El check actual es `m[1].startsWith('http')`. Cambiar a `startsWith('https://')`.
+- [x] **B6** 🟡 `newsService.js` — `extractRSSImage()` acepta URLs que empiezan con `http://` (sin TLS), causando mixed-content warnings en el navegador. El check actual es `m[1].startsWith('http')`. Cambiar a `startsWith('https://')`.
 
-- [ ] **B7** 🟡 `conflictService.js` — `classifyEvent()` usa lógica "primer match gana". Un titular con "drone" y "troops" queda clasificado como `troops` porque `drone` aparece antes en el array pero coincide con el patrón `troops` más tarde. En realidad debería devolver el tipo más específico según el orden de prioridad del array, que actualmente es: airstrike→missile→explosion→artillery→drone→naval→troops. El problema es que "drone strike" matchea `airstrike` por "strike", no `drone`. Revisar patrones de regex para evitar colisiones.
+- [x] **B7** 🟡 `conflictService.js` — `classifyEvent()` usa lógica "primer match gana". Un titular con "drone" y "troops" queda clasificado como `troops` porque `drone` aparece antes en el array pero coincide con el patrón `troops` más tarde. En realidad debería devolver el tipo más específico según el orden de prioridad del array, que actualmente es: airstrike→missile→explosion→artillery→drone→naval→troops. El problema es que "drone strike" matchea `airstrike` por "strike", no `drone`. Revisar patrones de regex para evitar colisiones.
 
-- [ ] **B8** 🟢 `server.js` — el endpoint `/api/status` no reporta el conteo de FIRMS hotspots ni el timestamp de la última actualización de FIRMS, aunque sí lo hace con conflicts y news. Añadir `firms: cache.firms?.length ?? 0` y `lastFirmsUpdate`.
+- [x] **B8** 🟢 `server.js` — el endpoint `/api/status` no reporta el conteo de FIRMS hotspots ni el timestamp de la última actualización de FIRMS, aunque sí lo hace con conflicts y news. Añadir `firms: cache.firms?.length ?? 0` y `lastFirmsUpdate`.
 
-- [ ] **B9** 🟡 `ShipLayer.jsx` — `saveTrails()` a `sessionStorage` se llama dentro del `useEffect` principal sin debounce alguno. En cada ciclo de actualización (30s) se serializa todo el mapa de trails (hasta 60 posiciones × N ships) a JSON. Con 100+ barcos, esto es ~200KB+ de escritura síncrona al DOM storage en cada tick. Añadir debounce de al menos 10s.
+- [x] **B9** 🟡 `ShipLayer.jsx` — `saveTrails()` a `sessionStorage` se llama dentro del `useEffect` principal sin debounce alguno. En cada ciclo de actualización (30s) se serializa todo el mapa de trails (hasta 60 posiciones × N ships) a JSON. Con 100+ barcos, esto es ~200KB+ de escritura síncrona al DOM storage en cada tick. Añadir debounce de al menos 10s.
 
-- [ ] **B10** 🟢 `AlertPanel.jsx` — la vista SITREP muestra la hora como "LOCAL" pero usa `toLocaleDateString` / `toLocaleTimeString` sin fijar zona horaria, lo que efectivamente muestra la hora local del navegador. La mayor parte de la audiencia objetivo espera hora de operaciones (UTC). Añadir aclaración "UTC" o unificar con el reloj del CoordinateHUD.
+- [x] **B10** 🟢 `AlertPanel.jsx` — la vista SITREP muestra la hora como "LOCAL" pero usa `toLocaleDateString` / `toLocaleTimeString` sin fijar zona horaria, lo que efectivamente muestra la hora local del navegador. La mayor parte de la audiencia objetivo espera hora de operaciones (UTC). Añadir aclaración "UTC" o unificar con el reloj del CoordinateHUD.
 
-- [ ] **B11** 🟡 `useRealTimeData.js` — al reconectar (`socket.on('connect')`), el hook emite `request_data` con `since: lastUpdateRef.current`. Sin embargo `lastUpdateRef` nunca se actualiza para `dangerZones` ni `alerts`, por lo que cada reconexión re-solicita todos los datos de peligro aunque no hayan cambiado. Añadir `alerts` y `dangerZones` timestamps al ref.
+- [x] **B11** 🟡 `useRealTimeData.js` — al reconectar (`socket.on('connect')`), el hook emite `request_data` con `since: lastUpdateRef.current`. Sin embargo `lastUpdateRef` nunca se actualiza para `dangerZones` ni `alerts`, por lo que cada reconexión re-solicita todos los datos de peligro aunque no hayan cambiado. Añadir `alerts` y `dangerZones` timestamps al ref.
 
-- [ ] **B12** 🟢 `FilterPanel.jsx` — los timestamps de última actualización (ej: "Aircraft: 32s ago") usan `timeAgo()` pero sólo se re-renderizan cuando llega nueva data, no cada segundo. Para un usuario que acaba de conectarse, el texto puede mostrar "0s ago" durante un minuto completo sin actualizarse. Usar un estado con tick de 1s o la función `timeAgo` como un hook reactivo.
+- [x] **B12** 🟢 `FilterPanel.jsx` — ~~N/A: `useMissionClock()` ya hace re-render cada segundo, `timeAgo()` se actualiza correctamente~~ — los timestamps de última actualización (ej: "Aircraft: 32s ago") usan `timeAgo()` pero sólo se re-renderizan cuando llega nueva data, no cada segundo. Para un usuario que acaba de conectarse, el texto puede mostrar "0s ago" durante un minuto completo sin actualizarse. Usar un estado con tick de 1s o la función `timeAgo` como un hook reactivo.
 
 ---
 
@@ -223,7 +223,7 @@
 
 ## § S — Seguridad
 
-- [ ] **S1** 🔴 `Globe3D.jsx` — `flyParam` se parsea sin validación de rango:
+- [x] **S1** 🔴 `Globe3D.jsx` — `flyParam` se parsea sin validación de rango:
   ```js
   // VULNERABLE:
   const [lat, lon, alt] = param.split(',').map(parseFloat);
@@ -234,14 +234,14 @@
   ```
   Sin esto, `?fly=NaN,NaN,NaN,NaN,NaN` puede pasar NaN a `Cesium.Cartesian3.fromDegrees()` y lanzar errores no manejados.
 
-- [ ] **S2** 🟡 `newsService.js` — `extractRSSImage()` acepta URLs `http://` de feeds externos. Renderizar una imagen `http://` desde un iframe sandbox puede filtrar la IP del usuario a servidores externos a través de mixed-content requests. Filtrar a `https://` únicamente:
+- [x] **S2** 🟡 `newsService.js` — `extractRSSImage()` acepta URLs `http://` de feeds externos. Renderizar una imagen `http://` desde un iframe sandbox puede filtrar la IP del usuario a servidores externos a través de mixed-content requests. Filtrar a `https://` únicamente:
   ```js
   if (m && m[1].startsWith('https://')) return m[1];
   ```
 
-- [ ] **S3** 🟡 `server.js` `hashArr()` — la función de hash usa concatenación de campos con separadores `|`. Si un campo contiene `|`, puede generar colisiones de hash (ej: callsign `UAB|123`). Usar un separador no imprimible `\x00` o calcular un hash real (CRC32, FNV1a).
+- [x] **S3** 🟡 `server.js` `hashArr()` — la función de hash usa concatenación de campos con separadores `|`. Si un campo contiene `|`, puede generar colisiones de hash (ej: callsign `UAB|123`). Usar un separador no imprimible `\x00` o calcular un hash real (CRC32, FNV1a).
 
-- [ ] **S4** 🟢 `server.js` — el rate limiter es por IP (`req.ip`). En deployment de Railway detrás de un proxy, `req.ip` puede ser la IP del proxy, haciendo el rate limit ineficaz. Añadir `app.set('trust proxy', 1)` para que Express respete `X-Forwarded-For` y el rate limiter use la IP real del cliente.
+- [x] **S4** 🟢 `server.js` — el rate limiter es por IP (`req.ip`). En deployment de Railway detrás de un proxy, `req.ip` puede ser la IP del proxy, haciendo el rate limit ineficaz. Añadir `app.set('trust proxy', 1)` para que Express respete `X-Forwarded-For` y el rate limiter use la IP real del cliente.
 
 - [ ] **S5** 🟢 `newsService.js` — algunos títulos de artículos RSS pasan sin sanitizar al frontend. Si una fuente RSS sirve HTML en el título (`<script>alert(1)</script>`), React lo escapa correctamente al renderizar como texto, pero si en algún punto se usa `dangerouslySetInnerHTML`, sería XSS. Auditar que ningún componente use `dangerouslySetInnerHTML` con datos de news.
 

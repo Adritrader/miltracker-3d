@@ -21,12 +21,16 @@ const GDELT_BASE = 'https://api.gdeltproject.org/api/v2';
 const TIMEOUT = 25000; // GDELT public API can be slow; Middle East queries return more data
 
 // Patterns to classify event type from title/description
+// Priority order: most specific / unambiguous types come first so that
+// "drone bomb" is classified as 'drone', not 'airstrike', and
+// "nuclear site bombing" is classified as 'cbrn', not 'airstrike'.
 const EVENT_PATTERNS = [
-  { type: 'airstrike',  pat: /airstrike|air strike|air.?raid|warplane|fighter.?jet|bombing.?run|bomb/i },
+  { type: 'cbrn',      pat: /chemical.?weapon|nuclear|radiolog|biological.?weapon|chlorine|sarin|novichok/i },
+  { type: 'drone',     pat: /drone|UAV|kamikaze.?drone|shahed/i },
   { type: 'missile',   pat: /missile|rocket.?attack|ballistic|cruise.?missile|launch/i },
+  { type: 'airstrike',  pat: /airstrike|air strike|air.?raid|warplane|fighter.?jet|bombing.?run|bomb/i },
   { type: 'explosion', pat: /explosion|blast|detonation|IED|car.?bomb|suicide.?bomb/i },
   { type: 'artillery', pat: /artillery|shell|shelling|mortar|bombardment|howitzer/i },
-  { type: 'drone',     pat: /drone|UAV|kamikaze.?drone|shahed/i },
   { type: 'naval',     pat: /naval|warship|submarine|torpedo|sea.?mine|vessel/i },
   { type: 'troops',    pat: /troops|soldiers|infantry|advance|offensive|ground.?assault/i },
   { type: 'casualties',pat: /killed|dead|casualties|fatalities|wounded|injured|victims|civilian.?death|massacre/i },
@@ -35,7 +39,6 @@ const EVENT_PATTERNS = [
   { type: 'siege',     pat: /siege|besieged|encircled|blockade|surrounded|cut.?off/i },
   { type: 'cyber',     pat: /cyber.?attack|hack|ransomware|infrastructure.?attack|power.?grid/i },
   { type: 'infrastructure', pat: /refinery|oil.?facilit|petroleum|pipeline.?attack|oil.?field|bapco|aramco|power.?plant|water.?plant|gas.?facilit/i },
-  { type: 'cbrn',      pat: /chemical.?weapon|nuclear|radiolog|biological.?weapon|chlorine|sarin|novichok/i },
   { type: 'hostage',   pat: /hostage|kidnap|abduct|taken.?captive|prisoner/i },
   { type: 'unrest',    pat: /protest|riot|uprising|demonstration|civil.?unrest|coup/i },
 ];

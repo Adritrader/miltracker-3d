@@ -36,6 +36,7 @@ const ALLOWED_ORIGINS = (origin, cb) => {
 };
 
 const app = express();
+app.set('trust proxy', 1); // S4: respect X-Forwarded-For behind Railway proxy so rate-limiter uses real client IP
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
@@ -72,8 +73,9 @@ app.use('/api/', (req, res, next) => {
 const prevHash = { aircraft: '', ships: '', news: '', conflicts: '', danger: '' };
 function hashArr(arr) {
   if (!arr || arr.length === 0) return '';
+  // S3: use \x00 as field separator — printable chars like '|' can appear in callsigns/ids
   return arr.map(i =>
-    `${i.id || i.mmsi || ''}|${i.lat ?? ''}|${i.lon ?? ''}|${Math.round(i.heading || i.track || 0)}|${Math.round(i.altitudeFt || (i.altitude || 0) * 3.28)}`
+    [i.id || i.mmsi || '', i.lat ?? '', i.lon ?? '', Math.round(i.heading || i.track || 0), Math.round(i.altitudeFt || (i.altitude || 0) * 3.28)].join('\x00')
   ).join(',');
 }
 function hashDanger(zones, alerts) {
@@ -163,16 +165,20 @@ let cache = {
 
 // ─── REST endpoints ──────────────────────────────────────────────────────────
 app.get('/api/status', (req, res) => {
+  const firmsCount = cache.conflicts.filter(c => c.source === 'NASA FIRMS').length;
   res.json({
     status: 'online',
     clients: io.engine.clientsCount,
     aircraft: cache.aircraft.length,
     ships: cache.ships.length,
     news: cache.news.length,
+    conflicts: cache.conflicts.length - firmsCount,
+    firms: firmsCount,
     alerts: cache.alerts.length,
     lastAircraftUpdate: cache.lastAircraftUpdate,
     lastShipUpdate: cache.lastShipUpdate,
     lastNewsUpdate: cache.lastNewsUpdate,
+    lastConflictUpdate: cache.lastConflictUpdate,
     version: process.env.npm_package_version || '2.1.0',
   });
 });
