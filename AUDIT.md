@@ -250,4 +250,198 @@
 
 ---
 
+## 10. OPTIMIZACIONES Y MEJORAS ADICIONALES
+
+> Identificadas en segunda pasada de auditoría (2026-03-06). Ordenadas por impacto.
+
+---
+
+### Rendimiento — Frontend
+
+- [ ] 🟠 **O1 — `CoordinateHUD`: MOUSE_MOVE dispara `setCoords` en cada píxel → hasta 60 re-renders/s**
+  - **Archivo:** `frontend/src/components/CoordinateHUD.jsx` → segundo `useEffect`
+  - **Problema:** El handler `MOUSE_MOVE` de Cesium llama a `setCoords({lat,lon})` y `setCamAlt(h)` de forma directa en cada evento de movimiento del ratón. El navegador puede disparar hasta 60 eventos/s, causando 60 re-renders de `CoordinateHUD` por segundo durante movimiento continuo del ratón. En la build optimizada esto es perceptible en CPU baja.
+  - **Fix:** Añadir un gate temporal de 100 ms:
+    ```js
+    let lastCoordUpdate = 0;
+    handler.setInputAction((movement) => {
+      const now = Date.now();
+      if (now - lastCoordUpdate < 100) return;
+      lastCoordUpdate = now;
+      // ... resto del handler
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+    ```
+
+- [ ] 🟡 **O2 — `SearchBar`: sin debounce → filtro O(n) en cada keystroke sobre 1000+ entidades**
+  - **Archivo:** `frontend/src/components/SearchBar.jsx` → `useEffect` línea ~35
+  - **Problema:** El `useEffect` de búsqueda depende de `[query, aircraft, ships, conflicts, news]`. En cada tecla, se filtran ~500 aviones + ~100 barcos + ~50 conflictos + ~200 noticias = ~850 ítems con 3–4 `.includes()` por ítem. Además, el efecto también se re-dispara **cada 30 s** cuando llega un nuevo `aircraft_update` (nueva referencia de array), aunque el query no haya cambiado.
+  - **Fix:** Debounce de 250 ms en `query` + `useMemo` en lugar de `useEffect+setState`:
+    ```js
+    const results = useMemo(() => {
+      if (!query.trim()) return [];
+      // ... filtros actuales
+    }, [debouncedQuery, aircraft, ships, conflicts, news]);
+    ```
+
+- [ ] 🟡 **O3 — `TrackingPanel`: `.find()` en arrays completos sin `useMemo`**
+  - **Archivo:** `frontend/src/components/TrackingPanel.jsx` → función `entries` en render
+  - **Problema:**
+    ```js
+    const entries = [...trackedList.entries()].map(([id, meta]) => {
+      const entity = type === 'aircraft'
+        ? aircraft.find(a => a.id === id || a.icao24 === id) // O(n)
+        : ships.find(s => (s.mmsi || s.id) === id);
+    });
+    ```
+    Con 10 entidades rastreadas y 1000 aviones = 10 000 comparaciones **en cada render** del componente. El componente re-renders cada vez que `trackedList`, `aircraft` o `ships` cambian (incluyendo el tick de 30 s).
+  - **Fix:** Envolver en `useMemo([trackedList, aircraft, ships])`.
+
+- [ ] 🟡 **O4 — `AircraftLayer`: `saveTrails()` escribe hasta 500 KB en `sessionStorage` cada 30 s**
+  - **Archivo:** `frontend/src/components/AircraftLayer.jsx` → `saveTrails()`
+  - **Problema:** Serializa `Cartesian3` `{x,y,z}` para todos los aviones activos. Con 500 aviones × 40 puntos × 3 floats × ~16 bytes = ~960 KB por escritura. La quota de `sessionStorage` suele ser 5–10 MB, pudiendo llenarse en pocos minutos si hay muchos aviones. La `QuotaExceededError` se captura silenciosamente con `catch(_) {}` sin reducir los datos ni avisar al usuario.
+  - **Fix:** Solo persistir trails de entidades en `trackedList`, o limitar a los últimos 200 aviones por tamaño estimado antes de llamar a `setItem`.
+
+- [ ] 🟡 **O5 — `useRealTimeData`: `setLastUpdate` crea un nuevo objeto en cada update aunque solo cambie un campo**
+  - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
+  - **Problema:**
+    ```js
+    setLastUpdate(prev => ({ ...prev, aircraft: timestamp })); // nuevo objeto cada vez
+    ```
+    Cualquier componente que consuma `lastUpdate` (ej. `FilterPanel`) recibe una nueva referencia en cada update, forzando re-renders aunque solo le importe `lastUpdate.ships`. Con 3 fuentes que actualizan cada 30–300 s, esto crea re-renders innecesarios continuamente.
+  - **Fix:** Dividir en 3 estados atómicos: `lastAircraftUpdate`, `lastShipUpdate`, `lastNewsUpdate`, o usar `useReducer`.
+
+- [ ] 🟡 **O6 — `MapLayerSwitcher` y `CoordinateHUD` sin `React.memo` → re-renders cada 30 s**
+  - **Archivos:** `frontend/src/components/MapLayerSwitcher.jsx`, `frontend/src/components/CoordinateHUD.jsx`
+  - **Problema:** Ambos componentes reciben props estables (`basemap`, callbacks `useCallback`), pero re-renderizan en cada actualización de estado de `App.jsx` (cada 30 s: nuevo `aircraft`, `ships`, etc.). `MapLayerSwitcher` no tiene estado local ni efectos costosos. `CoordinateHUD` recibe `aircraft` y `ships` solo para mostrar el conteo — estos cambian en cada tick.
+  - **Fix:**
+    - `MapLayerSwitcher`: envolver en `React.memo`
+    - `CoordinateHUD`: recibir `aircraftCount`/`shipCount`/`conflictCount` como números en vez de los arrays completos, y envolver en `React.memo`
+
+---
+
+### Rendimiento — Backend
+
+- [ ] 🟡 **O7 — `newsService.js`: GDELT queries en batches secuenciales de 4 → hasta 50 s de bloqueo**
+  - **Archivo:** `backend/services/newsService.js` → `fetchGDELTNews()`
+  - **Problema:**
+    ```js
+    for (let i = 0; i < queries.length; i += 4) {
+      const batch = await Promise.all(queries.slice(i, i+4).map(fetchOne)); // cada batch es awaited
+    }
+    ```
+    Con 20+ queries y timeout de 10 s por query, el bucle tarda `ceil(20/4) × 10s = 50s` en el peor caso. La función `pollNews` tiene una window de 5 minutos, pero 50s de trabajo en el event loop de Node.js durante el poll es significativo.
+  - **Fix:** Ejecutar todas las queries simultáneamente:
+    ```js
+    const results = await Promise.allSettled(queries.map(fetchOne));
+    ```
+
+- [ ] 🟡 **O8 — `positionTracker.js`: `splice(0, n)` al llenarse el ring buffer es O(remaining)**
+  - **Archivo:** `backend/services/positionTracker.js` línea ~53
+  - **Problema:** `snapshots.splice(0, snapshots.length - HISTORY_LIMIT)` elimina elementos del inicio del array, requiriendo que JavaScript mueva todos los elementos restantes hacia el frente. Con 120 entradas es O(120) = despreciable, pero podría volverse relevante si `HISTORY_LIMIT` sube significativamente.
+  - **Fix menor:** Usar un puntero circular (`head` index) en lugar de mutar el array, o simplemente `snapshots.shift()` (que es O(1) en V8 para arrays compactos).
+
+- [ ] 🔵 **O9 — `useRealTimeData`: `cacheLoad()` llamado 8 veces en `useState` + 4 veces extra en `hasCachedData`**
+  - **Archivo:** `frontend/src/hooks/useRealTimeData.js` líneas ~38–53
+  - **Problema:** Las 6 llamadas a `cacheLoad(x)` en los `useState(() => ...)` inicializadores ya leen localStorage. Luego, `hasCachedData` llama a otros 4 `cacheLoad()` duplicando la lectura de los mismos datos. Al montar el hook, localStorage se lee **12 veces**. En dispositivos lentos con datos cacheados grandes (300+ KB de aircraft), esto añade latencia de montaje.
+  - **Fix:** Calcular `hasCachedData` a partir de las referencias de estado ya cargadas:
+    ```js
+    const [aircraft, ...] = useState(() => cacheLoad('aircraft') || []);
+    // ...después de todos los useState:
+    const hasCachedData = useRef(!!(aircraft.length || ships.length || news.length || conflicts.length)).current;
+    ```
+    *(o calcularlo en el body del hook como `const hasCachedData = aircraft.length > 0 || ...` y usar un ref solo para que no cambie)*
+
+---
+
+### Corrección / Robustez
+
+- [ ] 🟠 **O10 — `Globe3D`: listener `hashchange` de la URL de share-view no se limpia al desmontar**
+  - **Archivo:** `frontend/src/components/CoordinateHUD.jsx` → función `shareView`
+  - **Problema:** `shareView` escribe en `window.history.replaceState` y en el clipboard, pero `CoordinateHUD` no registra un listener para que la URL sea leída al montarse (para implementar el "fly to shared view" al cargar). Si en el futuro se añade un `window.addEventListener('hashchange', ...)` o `popstate`, deberá limpiarse en `useEffect` cleanup.
+  - **Nota:** Este es un anti-patrón a evitar al extender la feature de share-view. Documentado para prevención.
+  - **Fix preventivo:** Mover la lógica de "leer URL al boot" a `useEffect` en `App.jsx` con cleanup apropiado.
+
+- [ ] 🟡 **O11 — `useTimeline`: el socket `history_data` handler captura `replayMode` como closure stale (B10 — confirmado)**
+  - **Archivo:** `frontend/src/hooks/useTimeline.js` → `useEffect` de socket subscription
+  - **Problema:**
+    ```js
+    useEffect(() => {
+      const handler = ({ snapshots: snaps }) => {
+        setCurrentIndex(prev => {
+          if (replayMode) return Math.min(prev, snaps.length - 1); // replayMode es closure stale
+          return snaps.length - 1;
+        });
+      };
+      socket.on('history_data', handler);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [socketRef]); // falta replayMode en deps
+    ```
+    Si el usuario entra en replay mode y llegan nuevos snapshots del servidor, `replayMode` puede leerse como `false` (valor del primer render), avanzando el índice al último snapshot en lugar de mantener la posición actual.
+  - **Fix:** Usar un `useRef` para trackear `replayMode` en paralelo:
+    ```js
+    const replayModeRef = useRef(false);
+    useEffect(() => { replayModeRef.current = replayMode; }, [replayMode]);
+    // En el handler:
+    if (replayModeRef.current) return Math.min(prev, snaps.length - 1);
+    ```
+
+- [ ] 🟡 **O12 — `AircraftLayer` + `ShipLayer`: `getDS()` llama a `viewer.dataSources.contains()` en cada render sin cache de estado**
+  - **Archivos:** `frontend/src/components/AircraftLayer.jsx`, `frontend/src/components/ShipLayer.jsx`
+  - **Problema:** `getDS(name)` valida `viewer.dataSources.contains(dsCache.current[name])` en cada llamada. `dataSources.contains()` en Cesium itera la lista de dataSources (linear search). Se llama múltiples veces por render para cada datasource. Con 5+ datasources activos, esto suma 10–15 iteraciones en cada update de aviones о barcos.
+  - **Fix menor:** Cachear el resultado de `contains()` en un flag booleano dentro de `dsCache`, reseteado solo en cleanup del `useEffect`.
+
+- [ ] 🔵 **O13 — `SitrepCapture`: `document.execCommand('copy')` está deprecado como fallback de clipboard**
+  - **Archivo:** `frontend/src/components/CoordinateHUD.jsx` → `shareView()` / y posiblemente `SitrepCapture.jsx`
+  - **Problema:** El fallback usa `document.execCommand('copy')` que está marcado como deprecated en MDN y puede ser eliminado en versiones futuras de Chrome/Firefox.
+  - **Fix:** Usar el [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText) exclusivamente con un try/catch sin fallback, o mostrar un toast con el URL para copiar manualmente.
+
+---
+
+### Arquitectura / Mantenibilidad
+
+- [ ] 🟡 **O14 — `positionTracker.js` no comprueba coordenadas válidas antes de guardar en snapshot**
+  - **Archivo:** `backend/services/positionTracker.js` → `recordSnapshot()`
+  - **Problema:** Si un avión tiene `lat: null` o `lon: null` (posición desconocida, frecuente en ADS-B), se almacena igualmente en el snapshot. Cuando el frontend recibe estos snapshots y construye `historyTrack`, llama a `Cesium.Cartesian3.fromDegrees(null, null)` lo cual genera `NaN` en las posiciones y errores silenciosos en Cesium.
+  - **Fix:** Filtrar antes de snapshot:
+    ```js
+    aircraft: aircraft
+      .filter(ac => ac.lat != null && ac.lon != null)
+      .map(ac => ({ ... })),
+    ```
+
+- [ ] 🟡 **O15 — `conflictService.js`: `mergeIntoStore` con TTL de 7 días puede acumular eventos obsoletos indefinidamente si el servidor no se reinicia**
+  - **Archivo:** `backend/services/conflictService.js`
+  - **Problema:** `conflictStore` es un `Map` global en memoria. Eventos con `createdAt` dentro del TTL (7 días) nunca se eliminan hasta que caducan naturalmente. Si hay un spike de eventos (crisis geopolítica con 500+ eventos en un día), el store puede crecer enormemente y el payload `conflict_update` enviado a todos los clientes puede exceder centenares de KB.
+  - **Fix:** Añadir un límite de tamaño máximo en `mergeIntoStore` (ej. `MAX_STORE_SIZE = 500`) con política de desalojo LRU o priorizando los más recientes.
+
+- [ ] 🔵 **O16 — Bundle size: `import * as Cesium from 'cesium'` en múltiples componentes sin tree-shaking**
+  - **Archivos:** `AircraftLayer.jsx`, `ShipLayer.jsx`, `ConflictLayer.jsx`, `DangerZoneLayer.jsx`, `NewsLayer.jsx`, `FIRMSLayer.jsx`, `CoordinateHUD.jsx`, `Globe3D.jsx`, `EntityPopup.jsx`
+  - **Problema:** CesiumJS (~2MB minified) se importa con `import * as Cesium` en 9 componentes. Aunque Vite debería deduplicarlo en el bundle, tener el namespace completo disponible impide al analizador eliminar exports no usados. El bundle resultante es substancialmente mayor de lo necesario.
+  - **Fix a largo plazo:** Usar named imports cuando sea posible: `import { Cartesian3, Color, ... } from 'cesium'`. O configurar `@cesium/engine` directamente.
+
+---
+
+## 11. RESUMEN DE NUEVAS OPTIMIZACIONES
+
+| ID | Tipo | Impacto | Coste |
+|----|------|---------|-------|
+| O1 | Perf / UX | Alto — CPU en mouse move | Bajo (1 variable de gate) |
+| O2 | Perf / UX | Medio — keystrokes + 30s refresh | Bajo (debounce + useMemo) |
+| O3 | Perf | Medio — render 10k ops | Bajo (1 useMemo) |
+| O4 | Estabilidad | Alto — QuotaExceededError silente | Medio (filtrar por trackedList) |
+| O5 | Perf | Bajo-Medio | Bajo (separar estados) |
+| O6 | Perf | Bajo-Medio | Bajo (React.memo en 2 componentes) |
+| O7 | Perf Backend | Medio — 50s news poll bloqueante | Bajo (quitar bucle secuencial) |
+| O8 | Perf Backend | Bajo (120 items) | Trivial |
+| O9 | Perf | Bajo | Bajo (reordenar inicializadores) |
+| O10 | Corrección | Bajo (preventivo) | N/A |
+| O11 | Corrección | Medio — replay mode stale closure | Bajo (useRef) |
+| O12 | Perf | Bajo | Bajo (boolean cache) |
+| O13 | Compatibilidad | Bajo-Medio (deprecated API) | Bajo |
+| O14 | Corrección | Medio — NaN en Cesium | Bajo (filter en recordSnapshot) |
+| O15 | Estabilidad | Medio-Alto (conflictStore unbounded) | Medio (MAX_STORE_SIZE) |
+| O16 | Bundle | Medio (tamaño inicial) | Alto (refactor imports) |
+
+---
+
 *Auditoría realizada mediante lectura directa de todos los archivos del proyecto. Los números de línea son aproximados y pueden variar tras ediciones recientes.*
