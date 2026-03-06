@@ -187,8 +187,8 @@ const SitrepView = ({ alerts, aiInsight }) => {
       {s.counts.critical > 0 && (
         <div>
           <div className="hud-label mb-1">LATEST CRITICAL EVENTS</div>
-          {alerts.filter(a => a.severity === 'critical').slice(0,4).map((a,i) => (
-            <div key={i} className="text-red-300 py-0.5 border-b border-red-900/30 text-[10px] leading-snug">
+          {alerts.filter(a => a.severity === 'critical').slice(0,4).map((a) => (
+            <div key={a.id} className="text-red-300 py-0.5 border-b border-red-900/30 text-[10px] leading-snug">
               &#x25A0; {a.title}
             </div>
           ))}

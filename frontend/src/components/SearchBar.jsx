@@ -186,7 +186,7 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
             <div className="hud-panel mt-0.5 py-0.5 overflow-hidden">
               {results.map((r, i) => (
                 <div
-                  key={i}
+                  key={r.id || r.label || i}
                   className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors duration-100
                     ${i === active
                       ? 'bg-hud-green/10 border-l-2 border-hud-green'

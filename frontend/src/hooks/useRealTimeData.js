@@ -59,6 +59,10 @@ export function useRealTimeData() {
   // avoids 4 extra cacheLoad() / localStorage reads at mount
   const hasCachedData = useRef(!!(aircraft.length || ships.length || news.length || conflicts.length)).current;
   const [isInitialLoad, setIsInitialLoad] = useState(() => !hasCachedData);
+  // A6: ref tracks the latest timestamps received from the server so reconnect
+  // 'request_data' can pass them as `since` — avoids re-sending unchanged data.
+  // Using a ref (not state) so the value is always current inside closures.
+  const lastUpdateRef = useRef({ aircraft: null, ships: null, news: null, conflicts: null });
 
   useEffect(() => {
     const socket = io(BACKEND_URL, {
@@ -72,7 +76,8 @@ export function useRealTimeData() {
 
     socket.on('connect', () => {
       setConnected(true);
-      socket.emit('request_data');
+      // A6: pass last-known timestamps so server skips unchanged data on reconnect
+      socket.emit('request_data', { since: lastUpdateRef.current });
     });
     socket.on('disconnect', () => setConnected(false));
     socket.on('connect_error', (e) => console.warn('[Socket] connect error:', e.message));
@@ -91,6 +96,7 @@ export function useRealTimeData() {
       }
       setIsInitialLoad(false);
       setLastAircraftUpdate(timestamp);
+      lastUpdateRef.current = { ...lastUpdateRef.current, aircraft: timestamp };
     });
 
     socket.on('ship_update', ({ ships: sh, timestamp }) => {
@@ -101,6 +107,7 @@ export function useRealTimeData() {
       }
       setIsInitialLoad(false);
       setLastShipUpdate(timestamp);
+      lastUpdateRef.current = { ...lastUpdateRef.current, ships: timestamp };
     });
 
     socket.on('news_update', ({ news: nw, timestamp }) => {
@@ -110,14 +117,16 @@ export function useRealTimeData() {
         cacheSave('news', list);
       }
       setLastNewsUpdate(timestamp);
+      lastUpdateRef.current = { ...lastUpdateRef.current, news: timestamp };
     });
 
-    socket.on('conflict_update', ({ conflicts: cf }) => {
+    socket.on('conflict_update', ({ conflicts: cf, timestamp }) => {
       const list = cf || [];
       if (list.length > 0) {
         setConflicts(list);
         cacheSave('conflicts', list);
       }
+      lastUpdateRef.current = { ...lastUpdateRef.current, conflicts: timestamp };
     });
 
     socket.on('danger_update', ({ dangerZones: dz, alerts: al }) => {
