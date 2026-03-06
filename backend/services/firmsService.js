@@ -35,6 +35,11 @@ const ZONES = [
   { name: 'iran-natanz',        bbox: '51,33,53,35',   minFRP: 30 }, // nuclear enrichment
   { name: 'iran-isfahan',       bbox: '51,31,53,33',   minFRP: 30 }, // air base + facility
   { name: 'hormuz-bandarabbas', bbox: '54,26,59,28',   minFRP: 30 }, // port/naval
+  // Gulf States — high minFRP cuts routine gas-flare noise; real explosions are 300-2000 MW
+  { name: 'bahrain',            bbox: '50,25,51.5,26.8', minFRP: 200 }, // BAPCO refinery + 5th Fleet
+  { name: 'kuwait-city',        bbox: '47,28.5,48.5,30', minFRP: 200 }, // US air base + oil
+  { name: 'uae-dubai-abudhabi', bbox: '53,24,56.5,25.8', minFRP: 200 }, // Dubai + Abu Dhabi
+  { name: 'saudi-dhahran',      bbox: '49,25.5,51,27',   minFRP: 200 }, // Aramco Dhahran/Ras Tanura
   { name: 'yemen',              bbox: '42,12,54,19',   minFRP:  8 },
   // Red Sea Houthi corridor
   { name: 'red-sea-houthi',     bbox: '38,13,45,22',   minFRP: 15 },
@@ -60,9 +65,9 @@ const PERSISTENT_HOTSPOTS = [
   [30.0, 50.0, 3.0], [32.0, 48.5, 2.5], [28.9, 50.8, 2.0],
   [30.5, 49.5, 2.0], [31.5, 49.0, 2.0], [31.0, 50.5, 1.5],
   [29.5, 50.5, 2.0], [30.8, 48.8, 2.0],
-  // Saudi Arabia / UAE oil/gas infrastructure
-  [26.0, 49.5, 3.0], [27.5, 48.5, 2.0], [24.5, 54.4, 2.0],
-  [26.3, 50.2, 1.5], // Bahrain/Dhahran
+  // Saudi Arabia / UAE oil/gas infrastructure — radii tightened so large explosions
+  // at refineries (FRP > 300) can still be detected (see isPersistentHotspot bypass below)
+  [27.5, 48.5, 1.5], // Saudi interior gas fields (away from coast)
   [25.7, 56.2, 1.5], // Oman Musandam gas
   // Sudan oil fields
   [10.0, 29.5, 1.5],
@@ -73,7 +78,12 @@ const PERSISTENT_HOTSPOTS = [
   [27.1, 27.6, 0.5], // Santorini caldera area
 ];
 
-function isPersistentHotspot(lat, lon) {
+// frp > 300 MW = almost certainly a major explosion/fire, not a routine gas flare
+// (gas flares are typically 10-80 MW; refinery/depot fires are 300-2000+ MW)
+const HOTSPOT_BYPASS_FRP = 300;
+
+function isPersistentHotspot(lat, lon, frp = 0) {
+  if (frp >= HOTSPOT_BYPASS_FRP) return false; // always show catastrophic events
   return PERSISTENT_HOTSPOTS.some(([hlat, hlon, r]) => {
     const dLat = lat - hlat;
     const dLon = lon - hlon;
@@ -130,8 +140,8 @@ async function fetchZone({ name, bbox, minFRP = 5 }) {
     // Confidence check: VIIRS uses 'l','n','h' (low/nominal/high)
     const confLower = conf.toLowerCase();
     if (confLower === 'l' || confLower === 'low') continue;
-    // Skip persistent industrial/volcanic hotspots
-    if (isPersistentHotspot(lat, lon)) continue;
+    // Skip persistent industrial/volcanic hotspots (bypassed for very high FRP = real explosions)
+    if (isPersistentHotspot(lat, lon, frp)) continue;
 
     const date  = r.acq_date || new Date().toISOString().slice(0, 10);
     const time  = (r.acq_time || '0000').padStart(4, '0');
