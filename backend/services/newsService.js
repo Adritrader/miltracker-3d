@@ -63,12 +63,9 @@ export async function fetchGDELTNews() {
     }
   };
 
-  // Run in batches of 4 to avoid hammering GDELT
-  const allArticles = [];
-  for (let i = 0; i < queries.length; i += 4) {
-    const batch = await Promise.all(queries.slice(i, i + 4).map(fetchOne));
-    batch.forEach(arr => allArticles.push(...arr));
-  }
+  // Run all queries in parallel — each is independently timeout-gated (O7)
+  const settled = await Promise.allSettled(queries.map(fetchOne));
+  const allArticles = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
   if (allArticles.length === 0) {
     console.warn('[GDELT-NEWS] All queries failed — serving seed fallback');

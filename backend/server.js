@@ -38,7 +38,8 @@ const ALLOWED_ORIGINS = (origin, cb) => {
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] }
+  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
+  maxHttpBufferSize: 5e6, // 5 MB — prevents silent disconnects with large payloads (A5)
 });
 
 app.use(compression());
@@ -56,12 +57,17 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 // ─── WebSocket change detection — avoid re-emitting identical data ───────────
-const prevHash = { aircraft: '', ships: '', news: '', conflicts: '' };
+const prevHash = { aircraft: '', ships: '', news: '', conflicts: '', danger: '' };
 function hashArr(arr) {
   if (!arr || arr.length === 0) return '';
   return arr.map(i =>
     `${i.id || i.mmsi || ''}|${i.lat ?? ''}|${i.lon ?? ''}|${Math.round(i.heading || i.track || 0)}|${Math.round(i.altitudeFt || (i.altitude || 0) * 3.28)}`
   ).join(',');
+}
+function hashDanger(zones, alerts) {
+  const z = (zones || []).map(z => z.id || z.label || '').join(',');
+  const a = (alerts || []).map(a => a.id || '').join(',');
+  return `${z}|${a}`;
 }
 
 // ─── Conflict/news persistent accumulating stores ────────────────────────────
@@ -92,7 +98,7 @@ const GEMINI_COOLDOWN_MS = 60 * 60_000; // 60 minutes — conserve free-tier quo
 let lastGeminiCallAt = 0; // epoch ms of last successful Gemini request
 
 // Merge fresh events into a store; returns { changed, items[] }
-function mergeIntoStore(store, freshEvents, ttl) {
+function mergeIntoStore(store, freshEvents, ttl, maxSize = Infinity) {
   const now = Date.now();
   const nowIso = new Date().toISOString();
   let changed = false;
@@ -118,6 +124,14 @@ function mergeIntoStore(store, freshEvents, ttl) {
 
   const items = [...store.values()]
     .sort((a, b) => new Date(b.publishedAt || b.firstSeenAt || 0) - new Date(a.publishedAt || a.firstSeenAt || 0));
+  // Enforce max store size — evict oldest entries beyond limit (B3/O15)
+  if (isFinite(maxSize) && store.size > maxSize) {
+    for (const item of items.slice(maxSize)) {
+      store.delete(item.id);
+    }
+    changed = true;
+    return { changed, items: items.slice(0, maxSize) };
+  }
   return { changed, items };
 }
 
@@ -147,7 +161,7 @@ app.get('/api/status', (req, res) => {
     lastAircraftUpdate: cache.lastAircraftUpdate,
     lastShipUpdate: cache.lastShipUpdate,
     lastNewsUpdate: cache.lastNewsUpdate,
-    version: '1.0.0',
+    version: process.env.npm_package_version || '2.1.0',
   });
 });
 
@@ -181,7 +195,12 @@ async function pollAircraft() {
       io.emit('aircraft_update', { aircraft, timestamp: cache.lastAircraftUpdate });
       prevHash.aircraft = acHash;
     }
-    io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+    // Only emit danger_update when zones or alerts changed (P3)
+    const dHash = hashDanger(cache.dangerZones, cache.alerts);
+    if (dHash !== prevHash.danger) {
+      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+      prevHash.danger = dHash;
+    }
     const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
     const isReal = aircraft.length > 0 && knownSources.includes(aircraft[0]?.source);
     console.log(`[Aircraft] ${aircraft.length} aircraft emitted (${isReal ? `REAL – ${aircraft[0].source}` : 'CACHED – awaiting next cycle'})`);
@@ -213,7 +232,7 @@ async function pollShips() {
 async function pollConflicts() {
   try {
     const freshEvents = await fetchConflictEvents();
-    const { changed, items: conflicts } = mergeIntoStore(conflictStore, freshEvents, CONFLICT_TTL);
+    const { changed, items: conflicts } = mergeIntoStore(conflictStore, freshEvents, CONFLICT_TTL, 500);
     if (changed) {
       cache.conflicts = conflicts;
       cache.lastConflictUpdate = new Date().toISOString();
@@ -263,11 +282,15 @@ async function pollNews() {
     }).slice(0, 200);
 
     // Merge into persistent store — only add new items, preserve firstSeenAt
-    const { changed, items: news } = mergeIntoStore(newsStore, freshNews, NEWS_TTL);
+    const { changed, items: news } = mergeIntoStore(newsStore, freshNews, NEWS_TTL, 200);
     if (changed) {
       cache.news = news.slice(0, 100);
       cache.lastNewsUpdate = new Date().toISOString();
       saveCache('news', cache.news);
+      // Re-compute alerts only when news changed — avoids unnecessary CPU + network (B11/O17)
+      cache.alerts = alertsFromNews(cache.news);
+      saveCache('alerts', cache.alerts);
+      console.log(`[Alerts] ${cache.alerts.length} news-driven alerts generated (critical:${cache.alerts.filter(a=>a.severity==='critical').length})`);
     }
 
     // AI analysis — only when news changed AND 30-min cooldown has elapsed
@@ -296,17 +319,18 @@ async function pollNews() {
       if (lastGeminiCallAt > 0) console.log(`[AI] Cooldown active — next call in ~${waitMin}m`);
     }
 
-    // Generate alerts from real breaking news (replaces rule-based heuristics)
-    cache.alerts = alertsFromNews(cache.news);
-    console.log(`[Alerts] ${cache.alerts.length} news-driven alerts generated (critical:${cache.alerts.filter(a=>a.severity==='critical').length})`);
-
     if (changed) {
       io.emit('news_update', { news: cache.news, timestamp: cache.lastNewsUpdate });
       console.log(`[News] Store updated: ${cache.news.length} items total`);
     } else {
       console.log(`[News] No new items (${freshNews.length} fetched, ${newsStore.size} in store)`);
     }
-    io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+    // Only emit danger_update when alerts or zones actually changed (B11/P3)
+    const dangerHash = hashDanger(cache.dangerZones, cache.alerts);
+    if (dangerHash !== prevHash.danger) {
+      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+      prevHash.danger = dangerHash;
+    }
   } catch (err) {
     console.error('[News] Poll error:', err.message);
   }
@@ -392,7 +416,8 @@ httpServer.listen(PORT, () => {
 
   // Intervals — use recursive setTimeout for pollShips to prevent overlap
   // if a fetch takes longer than the interval (B4)
-  setInterval(pollAircraft,   30_000);
+  const scheduleAircraft = () => pollAircraft().finally(() => setTimeout(scheduleAircraft, 30_000));
+  setTimeout(scheduleAircraft, 30_000); // recursive — prevents overlap if fetch > 30 s (A7)
   const scheduleShips = () => pollShips().finally(() => setTimeout(scheduleShips, 60_000));
   setTimeout(scheduleShips, 60_000);
   setInterval(pollNews,    5 * 60_000);

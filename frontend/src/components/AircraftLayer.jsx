@@ -316,8 +316,13 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     } finally {
       acDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
-      // Persist trail history to sessionStorage after each update
-      saveTrails(trailPointsRef.current);
+      // Persist only tracked-entity trails — prevents sessionStorage QuotaExceededError (O4)
+      if (trackedList && trackedList.size > 0) {
+        const trackedTrails = new Map(
+          [...trailPointsRef.current.entries()].filter(([id]) => trackedList.has(id))
+        );
+        saveTrails(trackedTrails);
+      }
     }
   }, [viewer, aircraft, visible, trackedList, getDS]);
 

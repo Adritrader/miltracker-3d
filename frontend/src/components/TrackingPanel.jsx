@@ -9,7 +9,7 @@
  *  68–108px  TrackingPanel (collapsed)
  * 108px+     Globe / MapLayerSwitcher
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import * as Cesium from 'cesium';
 
 const PANEL_H_COLL  = 40;   // collapsed pill-bar height
@@ -43,13 +43,13 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
     });
   };
 
-  const entries = [...trackedList.entries()].map(([id, meta]) => {
+  const entries = useMemo(() => [...trackedList.entries()].map(([id, meta]) => {
     const type   = meta.type;
     const entity = type === 'aircraft'
       ? aircraft.find(a => a.id === id || a.icao24 === id)
       : ships.find(s => (s.mmsi || s.id) === id);
     return { id, type, entity };
-  });
+  }), [trackedList, aircraft, ships]);
 
   return (
     <div

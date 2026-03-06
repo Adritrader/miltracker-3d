@@ -36,11 +36,13 @@ export function useTimeline(socketRef) {
   const speedRef  = useRef(1);
   const indexRef  = useRef(0);
   const totalRef  = useRef(0);
+  const replayModeRef = useRef(false); // kept in sync to avoid stale closures (B10/O11)
 
   // Keep refs in sync
   useEffect(() => { speedRef.current = speed; }, [speed]);
   useEffect(() => { indexRef.current = currentIndex; }, [currentIndex]);
   useEffect(() => { totalRef.current = snapshots.length; }, [snapshots]);
+  useEffect(() => { replayModeRef.current = replayMode; }, [replayMode]);
 
   // ── helpers ──────────────────────────────────────────────────────────────
   const stopTimer = useCallback(() => {
@@ -73,10 +75,9 @@ export function useTimeline(socketRef) {
     const handler = ({ snapshots: snaps }) => {
       if (!snaps || snaps.length === 0) return;
       setSnapshots(snaps);
-      // When new data arrives in replay mode, keep relative position
-      // When in live mode, auto-advance index to latest
+      // Use ref to avoid reading stale replayMode from closure (B10/O11)
       setCurrentIndex(prev => {
-        if (replayMode) return Math.min(prev, snaps.length - 1);
+        if (replayModeRef.current) return Math.min(prev, snaps.length - 1);
         return snaps.length - 1;
       });
     };
@@ -148,22 +149,56 @@ export function useTimeline(socketRef) {
     return current.ships || [];
   }, [replayMode, current]);
 
-  // For trail rendering: all aircraft/ship positions up to currentIndex
+  // For trail rendering: accumulate aircraft/ship positions up to currentIndex.
+  // Incremental update when index advances; full rebuild on seek backwards (P1).
+  const historyTrackRef   = useRef({});
+  const prevTrackIndexRef = useRef(-1);
+  const prevSnapshotsRef  = useRef(null);
+
   const historyTrack = useMemo(() => {
-    if (!replayMode || snapshots.length === 0) return {};
-    const track = {}; // id → [{lat, lon, heading}]
-    const upTo = snapshots.slice(0, currentIndex + 1);
-    for (const snap of upTo) {
-      for (const ac of (snap.aircraft || [])) {
-        if (!track[ac.id]) track[ac.id] = [];
-        track[ac.id].push({ lat: ac.lat, lon: ac.lon, heading: ac.heading, ts: snap.ts });
+    if (!replayMode || snapshots.length === 0) {
+      historyTrackRef.current = {};
+      prevTrackIndexRef.current = -1;
+      prevSnapshotsRef.current = null;
+      return {};
+    }
+    // Full rebuild when seeking backwards or when the snapshots array changes
+    const needFullRebuild =
+      currentIndex < prevTrackIndexRef.current ||
+      snapshots !== prevSnapshotsRef.current;
+    if (needFullRebuild) {
+      const track = {};
+      for (const snap of snapshots.slice(0, currentIndex + 1)) {
+        for (const ac of (snap.aircraft || [])) {
+          if (!track[ac.id]) track[ac.id] = [];
+          track[ac.id].push({ lat: ac.lat, lon: ac.lon, heading: ac.heading, ts: snap.ts });
+        }
+        for (const sh of (snap.ships || [])) {
+          if (!track[sh.id]) track[sh.id] = [];
+          track[sh.id].push({ lat: sh.lat, lon: sh.lon, heading: sh.heading, ts: snap.ts });
+        }
       }
-      for (const sh of (snap.ships || [])) {
-        if (!track[sh.id]) track[sh.id] = [];
-        track[sh.id].push({ lat: sh.lat, lon: sh.lon, heading: sh.heading, ts: snap.ts });
+      historyTrackRef.current = track;
+    } else {
+      // Incremental: only process snapshots added since last computation
+      const startFrom = prevTrackIndexRef.current < 0 ? 0 : prevTrackIndexRef.current + 1;
+      const track = historyTrackRef.current;
+      for (let i = startFrom; i <= currentIndex; i++) {
+        const snap = snapshots[i];
+        if (!snap) continue;
+        for (const ac of (snap.aircraft || [])) {
+          if (!track[ac.id]) track[ac.id] = [];
+          track[ac.id].push({ lat: ac.lat, lon: ac.lon, heading: ac.heading, ts: snap.ts });
+        }
+        for (const sh of (snap.ships || [])) {
+          if (!track[sh.id]) track[sh.id] = [];
+          track[sh.id].push({ lat: sh.lat, lon: sh.lon, heading: sh.heading, ts: snap.ts });
+        }
       }
     }
-    return track;
+    prevTrackIndexRef.current = currentIndex;
+    prevSnapshotsRef.current = snapshots;
+    return { ...historyTrackRef.current }; // new object ref triggers downstream re-render
   }, [replayMode, snapshots, currentIndex]);
 
   return {

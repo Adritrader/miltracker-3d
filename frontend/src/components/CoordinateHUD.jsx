@@ -59,7 +59,11 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     handlerRef.current = handler;
 
+    let lastCoordUpdate = 0; // throttle to ~10 updates/s — prevents 60 re-renders/s (O1)
     handler.setInputAction((movement) => {
+      const now = Date.now();
+      if (now - lastCoordUpdate < 100) return;
+      lastCoordUpdate = now;
       if (!viewer || viewer.isDestroyed()) return;
       try {
         const ray = viewer.camera.getPickRay(movement.endPosition);
@@ -109,13 +113,8 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
     url.searchParams.set('fly', `${lat},${lon},${alt},${hdg},${ptch}`);
     window.history.replaceState({}, '', url.toString());
     navigator.clipboard.writeText(url.toString()).catch(() => {
-      // Fallback: create a temporary textarea
-      const ta = document.createElement('textarea');
-      ta.value = url.toString();
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+      // Clipboard API unavailable — show URL in console so user can copy manually (O13)
+      console.info('[Share] Clipboard unavailable. URL:', url.toString());
     });
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2000);

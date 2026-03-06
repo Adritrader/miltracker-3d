@@ -23,7 +23,9 @@ export function recordSnapshot(aircraft, ships) {
 
   snapshots.push({
     ts,
-    aircraft: aircraft.map(ac => ({
+    aircraft: aircraft
+      .filter(ac => ac.lat != null && ac.lon != null) // skip unknowns — prevents NaN in Cesium (O14)
+      .map(ac => ({
       id:        ac.id || ac.icao24,
       lat:       ac.lat,
       lon:       ac.lon,
@@ -36,7 +38,9 @@ export function recordSnapshot(aircraft, ships) {
       name:      ac.registration || ac.callsign || '',
       carrierOps: ac.carrierOps || null,
     })),
-    ships: ships.map(sh => ({
+    ships: ships
+      .filter(sh => sh.lat != null && sh.lon != null) // skip unknowns (O14)
+      .map(sh => ({
       id:      sh.id || sh.mmsi,
       lat:     sh.lat,
       lon:     sh.lon,
@@ -48,9 +52,9 @@ export function recordSnapshot(aircraft, ships) {
     })),
   });
 
-  // Trim to ring buffer size
-  if (snapshots.length > HISTORY_LIMIT) {
-    snapshots.splice(0, snapshots.length - HISTORY_LIMIT);
+  // Trim to ring buffer size — shift() is O(1) in V8 vs splice() O(n) (O8)
+  while (snapshots.length > HISTORY_LIMIT) {
+    snapshots.shift();
   }
 }
 

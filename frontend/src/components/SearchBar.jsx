@@ -16,9 +16,16 @@ const TYPE_COLOR = {
 
 const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false }) => {
   const [query, setQuery]   = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
   const [active, setActive]  = useState(0);
   const inputRef = useRef(null);
+
+  // Debounce query changes by 250ms to avoid O(n) filter on every keystroke (O2)
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
   // Focus when opened
   useEffect(() => {
@@ -30,10 +37,10 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
     }
   }, [open]);
 
-  // Build results on query change
+  // Build results on debounced query change
   useEffect(() => {
-    if (!query.trim()) { setResults([]); setActive(0); return; }
-    const q = query.toLowerCase();
+    if (!debouncedQuery.trim()) { setResults([]); setActive(0); return; }
+    const q = debouncedQuery.toLowerCase();
 
     const ac = aircraft
       .filter(a =>
@@ -98,7 +105,7 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
     const combined = [...ac, ...sh, ...cf, ...nw].slice(0, 9);
     setResults(combined);
     setActive(0);
-  }, [query, aircraft, ships, conflicts, news]);
+  }, [debouncedQuery, aircraft, ships, conflicts, news]);
 
   const select = (result) => {
     if (result.data.lat != null && viewer && !viewer.isDestroyed()) {

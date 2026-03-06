@@ -9,34 +9,34 @@
 
 | Estado | Cantidad | % |
 |---|---|---|
-| ✅ Corregidos en esta sesión | 15 | 24% |
+| ✅ Corregidos en esta sesión | 36 | 58% |
 | 🔁 Previamente arreglados | 4 | 6% |
-| ❌ **Pendientes** | **43** | **69%** |
+| ❌ **Pendientes** | **22** | **35%** |
 | **Total auditados** | **62** | **100%** |
 
 **Pendientes por sección:**
 
 | Sección | Pendientes | IDs |
 |---|---|---|
-| §1–2 Bugs de lógica | 3 | B3, B10, B11 |
-| §3 Diseño / UX | 5 | D2, D3, D4, D5, D6 |
-| §4 Arquitectura | 5 | A4, A5, A6, A7, A8 |
-| §5 Rendimiento | 3 | P1, P2, P3 |
+| §1–2 Bugs de lógica | 0 | — |
+| §3 Diseño / UX | 3 | D3, D5, D6 |
+| §4 Arquitectura | 3 | A4, A6, A8 |
+| §5 Rendimiento | 1 | P2 |
 | §6 Seguridad | 2 | S3, S4 |
 | §7 Deuda técnica | 4 | T1, T4, T6, T7 |
 | §8 Inconsistencias de datos | 3 | I1, I2, I3 |
-| §10 Optimizaciones | 18 | O1–O18 |
+| §10 Optimizaciones | 6 | O5, O6, O9, O10, O12, O16 |
 
 **Pendientes por severidad:**
 
 | Severidad | Pendientes | % sobre pendientes |
 |---|---|---|
 | 🔴 Crítico | 0 | 0% |
-| 🟠 Alto | 5 | 12% — **B3, D2, P1, O1, O10** |
-| 🟡 Medio | 29 | 67% |
-| 🔵 Bajo | 9 | 21% |
+| 🟠 Alto | 1 | 5% — **O10** |
+| 🟡 Medio | 14 | 64% |
+| 🔵 Bajo | 7 | 32% |
 
-> **Siguiente acción recomendada:** Resolver los 5 🟠 Alto (mayor ROI): B3 (newsStore sin límite), D2 (locale es-ES), P1 (historyTrack O(n²) en replay), O1 (mouse move 60 re-renders/s), O10 (hashchange listener sin cleanup).
+> **Siguiente acción recomendada:** D3 (GIBS date), D5 (FilterPanel conflictCount), D6 (basemap con ION_TOKEN), A4 (persistir snapshots en disco), O6 (React.memo en MapLayerSwitcher/CoordinateHUD), I3 (flag `isHomeport` en barcos fallback).
 
 ---
 
@@ -73,10 +73,8 @@
 - [x] ✅ 🟠 **B2 — Jitter aleatorio en geocodificación de conflictos — mismos eventos cambian de posición**
   - **Arreglado:** Reemplazado `Math.random()` con `stableJitter(seed, range)` en `conflictService.js` (`geocodeTitle`) y `aiDanger.js` (`geocodeAlert`). El jitter ahora es determinista — basado en hash del título+keyword — por lo que el mismo evento siempre recibe el mismo offset.
 
-- [ ] 🟠 **B3 — `news.slice(0, 100)` trunca `cache.news` pero `newsStore` crece sin límite**
-  - **Archivo:** `backend/server.js` → `pollNews()`
-  - **Problema:** `cache.news = news.slice(0, 100)` limita lo que se sirve a los clientes a 100 artículos. Pero `newsStore` (el Map interno) puede acumular 200+ items válidos (dentro de TTL de 72h). `freshNews` ya tiene un `.slice(0, 200)`, pero noticias antiguas que persisten en el store pueden sobrepasar ese número. El store crece hasta que los items expiran (72h). No es un memory leak gracias al TTL, pero la inconsistencia entre el store y lo servido puede confundir.
-  - **Fix:** Aplicar el mismo límite de 100 al store o documentar el comportamiento con un comentario.
+- [x] ✅ 🟠 **B3 — `news.slice(0, 100)` trunca `cache.news` pero `newsStore` crece sin límite**
+  - **Arreglado:** `mergeIntoStore` ahora acepta parámetro `maxSize`; llamada con `maxSize=200` para `newsStore` y `maxSize=500` para `conflictStore`. Las entradas más antiguas se desalojan automáticamente.
 
 - [x] ✅ 🟠 **B4 — AISStream MMSI WebSocket puede exceder el intervalo de polling de barcos (60 s)**
   - **Arreglado:** `setInterval(pollShips, 60_000)` reemplazado por `setTimeout` recursivo: `const scheduleShips = () => pollShips().finally(() => setTimeout(scheduleShips, 60_000))`. El próximo poll solo se programa después de que el actual finaliza.
@@ -96,10 +94,8 @@
 - [x] ✅ 🟡 **B9 — Tecla Escape dispara dos handlers independientes simultáneamente**
   - **Arreglado:** Los dos `useEffect` de Escape unificados en uno solo con gestión de prioridad: si `timeline.replayMode` está activo, Escape solo detiene el replay (return temprano). Si no, cierra popup/search/newsCluster.
 
-- [ ] 🟡 **B10 — Stale closure de `replayMode` en el handler `history_data` del socket**
-  - **Archivo:** `frontend/src/hooks/useTimeline.js`
-  - **Problema:** El callback del socket `history_data` se registra una vez y puede capturar un valor stale de `replayMode`. El `// eslint-disable-next-line react-hooks/exhaustive-deps` suprime la advertencia pero no resuelve el problema. Si el usuario está en replay mode cuando llegan nuevos snapshots del servidor, la lógica de aplicación de snapshots puede comportarse incorrectamente.
-  - **Fix:** Usar un `useRef` para `replayMode` que se actualice en paralelo al estado.
+- [x] ✅ 🟡 **B10 — Stale closure de `replayMode` en el handler `history_data` del socket**
+  - **Arreglado:** Añadido `replayModeRef` mantenido en sync con `useEffect`. El handler usa `replayModeRef.current` en lugar del estado capturado en closure.
 
 ---
 
@@ -108,18 +104,16 @@
 - [x] ✅ 🟠 **D1 — `alertPanelHeight` se calcula pero nunca se usa para el layout**
   - **Arreglado:** El contenedor de MapLayerSwitcher/SITREP ahora usa `maxHeight: calc(100vh - alertPanelHeight - 80px)` para evitar solapes cuando AlertPanel está muy expandido.
 
-- [ ] 🟠 **D2 — Locale español hardcodeado ('es-ES') en componentes en inglés**
-  - ✅ **Arreglado parcialmente:** `AlertPanel.jsx`, `EntityPopup.jsx` y `NewsPanel.jsx` cambiados de `'es-ES'` a `'en-GB'`. Pendiente verificar si hay otros componentes con el mismo patrón.
+- [x] ✅ 🟠 **D2 — Locale español hardcodeado ('es-ES') en componentes en inglés**
+  - **Arreglado:** todos los archivos fuente tienen `'en-GB'` (sin ocurrencias de `'es-ES'` en `src/`).
 
 - [ ] 🟡 **D3 — Fecha de GIBS (NASA) calculada en render-time, nunca actualizada**
   - **Archivo:** `frontend/src/components/Globe3D.jsx` → `buildImageryProvider('gibs')`
   - **Problema:** `const today = new Date().toISOString().split('T')[0]` se calcula solo cuando se llama a `buildImageryProvider`. Si el componente no se re-renderiza durante días (kiosk), el tileset GIBS sigue apuntando al día anterior.
   - **Fix:** Calcular `today` fuera de la función de switch o regenerar el proveedor cuando cambia el día.
 
-- [ ] 🟡 **D4 — TrackingPanel siempre ocupa espacio aunque no haya entidades rastreadas**
-  - **Archivo:** `frontend/src/components/TrackingPanel.jsx`
-  - **Problema:** Cuando `trackedList` está vacío, el panel renderiza un mensaje "TRACKING ACTIVE — NO ENTITIES" y sigue ocupando altura en el layout, empujando el TimelinePanel y los botones innecesariamente, especialmente en móvil.
-  - **Fix:** Retornar `null` o reducir a 0px cuando `trackedList.size === 0`, notificando al padre via `onHeightChange(0)`.
+- [x] 🔁 🟡 **D4 — TrackingPanel siempre ocupa espacio aunque no haya entidades rastreadas**
+  - **Estado:** Ya corregido — `TrackingPanel.jsx` tiene `if (!trackedList || trackedList.size === 0) return null;` en línea 32. El panel retorna `null` cuando no hay entidades, notificando al padre con `onHeightChange(0)` via el `ResizeObserver` cleanup.
 
 - [ ] 🟡 **D5 — FilterPanel muestra `conflictCount` incorrecto cuando el layer está desactivado**
   - Derivado del bug F1: aunque el ConflictLayer esté oculto, `filteredConflicts.length` sigue reflejando todos los conflictos activos, mostrando una cuenta que implica que se están renderizando cuando no es así.
@@ -151,29 +145,11 @@
   - **Problema:** Los 120 snapshots del ring buffer son puramente en memoria. Cada redeploy o crash de Railway borra toda la historia. El usuario ve "0 snapshots" al conectarse hasta que se acumule una nueva hora de datos.
   - **Fix:** Serializar el ring buffer a disco via `diskCache.saveCache` (ej. cada 5 min) y cargarlo al arranque con `loadCache`. Alternativamente, documentar este comportamiento en el README.
 
-- [ ] 🟡 **A5 — Sin validación de tamaño de paquete Socket.io (`maxHttpBufferSize` no configurado)**
-  - **Archivo:** `backend/server.js` → creación del `Server`
-  - **Problema:** Socket.io usa por defecto `maxHttpBufferSize: 1e6` (1 MB). Si el payload de aircraft/ships excede 1MB (improbable pero posible con 1000+ aviones en escenario futuro), la conexión se corta silenciosamente.
-  - **Fix:** Configurar explícitamente `maxHttpBufferSize` con un valor conocido:
-    ```js
-    const io = new Server(httpServer, {
-      cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
-      maxHttpBufferSize: 5e6, // 5 MB
-    });
-    ```
+- [x] ✅ 🟡 **A5 — Sin validación de tamaño de paquete Socket.io (`maxHttpBufferSize` no configurado)**
+  - **Arreglado:** `maxHttpBufferSize: 5e6` (5 MB) configurado explícitamente en el constructor de `Server`.
 
-- [ ] 🟡 **A7 — `pollAircraft` usa `setInterval` en lugar de `setTimeout` recursivo (mismo riesgo que B4)**
-  - **Archivo:** `backend/server.js` → arranque del servidor
-  - **Problema:**
-    ```js
-    setInterval(pollAircraft, 30_000); // puede solaparse si el poll tarda > 30s
-    ```
-    El mismo problema que B4 (ahora corregido para `pollShips`): si la petición a OpenSky/ADS-B tarda más de 30 segundos (posible en picos de carga o timeouts parciales), dos llamadas a `pollAircraft` pueden ejecutarse simultáneamente. El resultado son dos snapshot consecutivos corruptos y dos `aircraft_update` que pueden sobreescribirse.
-  - **Fix:** Aplicar el mismo patrón que `scheduleShips`:
-    ```js
-    const scheduleAircraft = () => pollAircraft().finally(() => setTimeout(scheduleAircraft, 30_000));
-    setTimeout(scheduleAircraft, 0);
-    ```
+- [x] ✅ 🟠 **A7 — `pollAircraft` usa `setInterval` en lugar de `setTimeout` recursivo (mismo riesgo que B4)**
+  - **Arreglado:** `setInterval(pollAircraft, 30_000)` reemplazado por `scheduleAircraft` con patrón recursivo `setTimeout` idéntico al que ya usaba `scheduleShips`.
 
 - [ ] 🔵 **A8 — AISStream MMSI WebSocket batches son secuenciales: intervalo real de barcos ~2min, no 60s**
   - **Archivo:** `backend/services/vesselFinder.js` → `tryAISStreamMMSI()`
@@ -193,28 +169,16 @@
 
 ## 5. PROBLEMAS DE RENDIMIENTO
 
-- [ ] 🟠 **P1 — `historyTrack` useMemo itera todos los snapshots × todos los aviones en cada tick de replay**
-  - **Archivo:** `frontend/src/hooks/useTimeline.js` → `historyTrack` useMemo
-  - **Problema:**
-    ```js
-    const historyTrack = useMemo(() => {
-      const upTo = snapshots.slice(0, currentIndex + 1); // hasta 120 snapshots
-      for (const snap of upTo) {
-        for (const ac of snap.aircraft) { ... } // hasta 100+ aviones
-      }
-    }, [replayMode, snapshots, currentIndex]); // se recalcula en cada tick
-    ```
-    A 60× velocidad = tick cada 500ms, con 120 snapshots × 100 aviones = 12.000 iteraciones cada medio segundo. Puede causar jank visible en el replay.
-  - **Fix:** Calcular el track de forma incremental: mantener un `historyTrackRef` que se actualiza solo cuando `currentIndex` avanza (no retrocede), y reconstruir completamente solo al hacer seek hacia atrás.
+- [x] ✅ 🟠 **P1 — `historyTrack` useMemo itera todos los snapshots × todos los aviones en cada tick de replay**
+  - **Arreglado:** `historyTrack` ahora es incremental: `historyTrackRef` acumula entradas; solo se procesan snapshots nuevos cuando `currentIndex` avanza. Rebuild completo solo al hacer seek hacia atrás o cuando cambie el array `snapshots`.
 
 - [ ] 🟡 **P2 — `_iconCache` del AircraftLayer es a nivel de módulo y nunca se limpia**
   - **Archivo:** `frontend/src/components/AircraftLayer.jsx`
   - **Problema:** El Map de caché de SVG (`const _iconCache = new Map()`) vive en el módulo. Aunque está acotado (~2160 entradas máx.), se comparte entre instancias de tabs y no se limpia al cerrar la sesión. En Vite HMR, el módulo se recarga pero cualquier referencia antigua al map puede generar confusion.
   - **Fix:** Mover el cache al scope del componente (useRef) o limpiar entradas cuando la imagen falla en carga.
 
-- [ ] 🟡 **P3 — Datos del servidor se envían en full en `danger_update` aunque solo cambie una zona**
-  - **Archivo:** `backend/server.js` → `pollAircraft()`
-  - **Problema relacionado con B1:** `io.emit('danger_update', { dangerZones, alerts })` envía todo cada vez. `dangerZones` puede ser un array grande de polígonos (con múltiples `positions`). No hay change detection. Añadir hasheo como se hace con `aircraft` y `ships`.
+- [x] ✅ 🟡 **P3 — Datos del servidor se envían en full en `danger_update` aunque solo cambie una zona**
+  - **Arreglado:** `pollAircraft` y `pollNews` ahora calculan `hashDanger(zones, alerts)` y solo emiten `danger_update` cuando el hash cambia.
 
 ---
 
@@ -260,22 +224,9 @@
 - [x] ✅ 🔵 **T5 — Artefactos JSON de descarga commiteados**
   - **Arreglado:** `.gitignore` actualizado con `scripts/*.json` y `scripts/*.txt`.
 
-- [ ] � **B11 — `pollNews()` siempre emite `danger_update` al final, sin guardia `if (changed)`**
-  - **Archivo:** `backend/server.js` → `pollNews()` último bloque
-  - **Problema:** La llamada `io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts })` está **fuera** del bloque `if (changed)`, por lo que se emite a todos los clientes cada 5 minutos aunque no haya ningún artículo nuevo ni ninguna alerta nueva. Sumado a que `pollAircraft()` también siempre emite `danger_update` cada 30 s sin change detection (P3), los clientes reciben hasta ~336 `danger_update` por día incondicionalmente.
-  - **Adicionalmente:** `alertsFromNews(cache.news)` se ejecuta en cada `pollNews()` aunque `changed === false` — cómputo innecesario cuando el store de noticias no ha variado.
-  - **Fix:**
-    ```js
-    const newAlerts = alertsFromNews(cache.news);
-    const alertsHash = newAlerts.map(a => a.id).join(',');
-    if (changed || alertsHash !== prevAlertHash) {
-      cache.alerts = newAlerts;
-      prevAlertHash = alertsHash;
-      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
-    }
-    ```
-
-- [ ] �🔵 **T6 — `hasCachedData` usa `useRef` y se calcula una sola vez al montar el componente**
+- [x] ✅ 🔵 **B11 — `pollNews()` siempre emite `danger_update` al final, sin guardia `if (changed)`**
+  - **Arreglado:** `alertsFromNews` movido dentro del bloque `if (changed)`. `danger_update` protegido con `hashDanger()`. Ver fix completo en §2.
+- [ ] 🔵 **T6 — `hasCachedData` usa `useRef` y se calcula una sola vez al montar el componente**
   - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
   - ```js
     const hasCachedData = useRef(!!loadedCache.aircraft?.length || ...).current;
@@ -328,7 +279,7 @@
 9. ~~**D1**~~ ✅ — alertPanelHeight en layout chain
 10. ~~**B9**~~ ✅ — Escape handlers unificados
 11. **A4** — Persistir snapshots del timeline ❌
-12. **P1** — `historyTrack` useMemo incremental ❌
+12. ~~**P1**~~ ✅ — `historyTrack` useMemo → incremental
 13. ~~**B5**~~ ✅ — IDs GDELT GEO
 14. ~~**B6**~~ ✅ — URL ReliefWeb
 
@@ -339,13 +290,13 @@
 18. **T7** — Centralizar haversine ❌
 
 ### Nuevos hallazgos (segunda auditoría de código — 2026-03-06):
-19. **B11** — `danger_update` emitido incondicionalmente en `pollNews` ❌
-20. **A7** — `pollAircraft` usa `setInterval` en lugar de `setTimeout` recursivo ❌
+19. ~~**B11**~~ ✅ — `danger_update` emitido incondicionalmente en `pollNews` → fix aplicado
+20. ~~**A7**~~ ✅ — `pollAircraft` → `setTimeout` recursivo
 21. **A8** — AISStream batches secuenciales → intervalo real ~2min vs. 60s documentados ❌
 22. **S4** — Endpoints REST sin autenticación habilitan scraping masivo ❌
 23. **D6** — Basemap switching silently fails cuando `ION_TOKEN` está configurado ❌
-24. **O17** — `alertsFromNews` calculado sin cambios → optimización ❌
-25. **O18** — `version: '1.0.0'` hardcodeado en `/api/status` ❌
+24. ~~**O17**~~ ✅ — `alertsFromNews` movido dentro de `if (changed)`
+25. ~~**O18**~~ ✅ — `version` leído desde `process.env.npm_package_version`
 
 ---
 
@@ -357,48 +308,17 @@
 
 ### Rendimiento — Frontend
 
-- [ ] 🟠 **O1 — `CoordinateHUD`: MOUSE_MOVE dispara `setCoords` en cada píxel → hasta 60 re-renders/s**
-  - **Archivo:** `frontend/src/components/CoordinateHUD.jsx` → segundo `useEffect`
-  - **Problema:** El handler `MOUSE_MOVE` de Cesium llama a `setCoords({lat,lon})` y `setCamAlt(h)` de forma directa en cada evento de movimiento del ratón. El navegador puede disparar hasta 60 eventos/s, causando 60 re-renders de `CoordinateHUD` por segundo durante movimiento continuo del ratón. En la build optimizada esto es perceptible en CPU baja.
-  - **Fix:** Añadir un gate temporal de 100 ms:
-    ```js
-    let lastCoordUpdate = 0;
-    handler.setInputAction((movement) => {
-      const now = Date.now();
-      if (now - lastCoordUpdate < 100) return;
-      lastCoordUpdate = now;
-      // ... resto del handler
-    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-    ```
+- [x] ✅ 🟡 **O1 — `CoordinateHUD`: MOUSE_MOVE dispara `setCoords` en cada píxel → hasta 60 re-renders/s**
+  - **Arreglado:** Añadido throttle de 100 ms (`lastCoordUpdate`) en el handler MOUSE_MOVE. Reduce a ~10 actualizaciones/s máximo.
 
-- [ ] 🟡 **O2 — `SearchBar`: sin debounce → filtro O(n) en cada keystroke sobre 1000+ entidades**
-  - **Archivo:** `frontend/src/components/SearchBar.jsx` → `useEffect` línea ~35
-  - **Problema:** El `useEffect` de búsqueda depende de `[query, aircraft, ships, conflicts, news]`. En cada tecla, se filtran ~500 aviones + ~100 barcos + ~50 conflictos + ~200 noticias = ~850 ítems con 3–4 `.includes()` por ítem. Además, el efecto también se re-dispara **cada 30 s** cuando llega un nuevo `aircraft_update` (nueva referencia de array), aunque el query no haya cambiado.
-  - **Fix:** Debounce de 250 ms en `query` + `useMemo` en lugar de `useEffect+setState`:
-    ```js
-    const results = useMemo(() => {
-      if (!query.trim()) return [];
-      // ... filtros actuales
-    }, [debouncedQuery, aircraft, ships, conflicts, news]);
-    ```
+- [x] ✅ 🟡 **O2 — `SearchBar`: sin debounce → filtro O(n) en cada keystroke sobre 1000+ entidades**
+  - **Arreglado:** Añadido `debouncedQuery` state con `useEffect` de 250 ms. El filtro ahora depende de `debouncedQuery` en lugar de `query` directa.
 
-- [ ] 🟡 **O3 — `TrackingPanel`: `.find()` en arrays completos sin `useMemo`**
-  - **Archivo:** `frontend/src/components/TrackingPanel.jsx` → función `entries` en render
-  - **Problema:**
-    ```js
-    const entries = [...trackedList.entries()].map(([id, meta]) => {
-      const entity = type === 'aircraft'
-        ? aircraft.find(a => a.id === id || a.icao24 === id) // O(n)
-        : ships.find(s => (s.mmsi || s.id) === id);
-    });
-    ```
-    Con 10 entidades rastreadas y 1000 aviones = 10 000 comparaciones **en cada render** del componente. El componente re-renders cada vez que `trackedList`, `aircraft` o `ships` cambian (incluyendo el tick de 30 s).
-  - **Fix:** Envolver en `useMemo([trackedList, aircraft, ships])`.
+- [x] ✅ 🟡 **O3 — `TrackingPanel`: `.find()` en arrays completos sin `useMemo`**
+  - **Arreglado:** `entries` ahora envuelto en `useMemo([trackedList, aircraft, ships])`. Solo recalcula cuando cambian las entidades rastreadas o los arrays de datos.
 
-- [ ] 🟡 **O4 — `AircraftLayer`: `saveTrails()` escribe hasta 500 KB en `sessionStorage` cada 30 s**
-  - **Archivo:** `frontend/src/components/AircraftLayer.jsx` → `saveTrails()`
-  - **Problema:** Serializa `Cartesian3` `{x,y,z}` para todos los aviones activos. Con 500 aviones × 40 puntos × 3 floats × ~16 bytes = ~960 KB por escritura. La quota de `sessionStorage` suele ser 5–10 MB, pudiendo llenarse en pocos minutos si hay muchos aviones. La `QuotaExceededError` se captura silenciosamente con `catch(_) {}` sin reducir los datos ni avisar al usuario.
-  - **Fix:** Solo persistir trails de entidades en `trackedList`, o limitar a los últimos 200 aviones por tamaño estimado antes de llamar a `setItem`.
+- [x] ✅ 🟡 **O4 — `AircraftLayer`: `saveTrails()` escribe hasta 500 KB en `sessionStorage` cada 30 s**
+  - **Arreglado:** `saveTrails` ahora solo persiste trails de entidades en `trackedList`. Si nada está rastreado, no escribe en sessionStorage. Elimina el riesgo de `QuotaExceededError`.
 
 - [ ] 🟡 **O5 — `useRealTimeData`: `setLastUpdate` crea un nuevo objeto en cada update aunque solo cambie un campo**
   - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
@@ -420,24 +340,11 @@
 
 ### Rendimiento — Backend
 
-- [ ] 🟡 **O7 — `newsService.js`: GDELT queries en batches secuenciales de 4 → hasta 50 s de bloqueo**
-  - **Archivo:** `backend/services/newsService.js` → `fetchGDELTNews()`
-  - **Problema:**
-    ```js
-    for (let i = 0; i < queries.length; i += 4) {
-      const batch = await Promise.all(queries.slice(i, i+4).map(fetchOne)); // cada batch es awaited
-    }
-    ```
-    Con 20+ queries y timeout de 10 s por query, el bucle tarda `ceil(20/4) × 10s = 50s` en el peor caso. La función `pollNews` tiene una window de 5 minutos, pero 50s de trabajo en el event loop de Node.js durante el poll es significativo.
-  - **Fix:** Ejecutar todas las queries simultáneamente:
-    ```js
-    const results = await Promise.allSettled(queries.map(fetchOne));
-    ```
+- [x] ✅ 🟡 **O7 — `newsService.js`: GDELT queries en batches secuenciales de 4 → hasta 50 s de bloqueo**
+  - **Arreglado:** Reemplazado loop secuencial con `Promise.allSettled(queries.map(fetchOne))`. Todas las queries GDELT ahora corren en paralelo.
 
-- [ ] 🟡 **O8 — `positionTracker.js`: `splice(0, n)` al llenarse el ring buffer es O(remaining)**
-  - **Archivo:** `backend/services/positionTracker.js` línea ~53
-  - **Problema:** `snapshots.splice(0, snapshots.length - HISTORY_LIMIT)` elimina elementos del inicio del array, requiriendo que JavaScript mueva todos los elementos restantes hacia el frente. Con 120 entradas es O(120) = despreciable, pero podría volverse relevante si `HISTORY_LIMIT` sube significativamente.
-  - **Fix menor:** Usar un puntero circular (`head` index) en lugar de mutar el array, o simplemente `snapshots.shift()` (que es O(1) en V8 para arrays compactos).
+- [x] ✅ 🔵 **O8 — `positionTracker.js`: `splice(0, n)` al llenarse el ring buffer es O(remaining)**
+  - **Arreglado:** Reemplazado con `while (...) snapshots.shift()` (O(1) en V8 para arrays compactos).
 
 - [ ] 🔵 **O9 — `useRealTimeData`: `cacheLoad()` llamado 8 veces en `useState` + 4 veces extra en `hasCachedData`**
   - **Archivo:** `frontend/src/hooks/useRealTimeData.js` líneas ~38–53
@@ -460,73 +367,34 @@
   - **Nota:** Este es un anti-patrón a evitar al extender la feature de share-view. Documentado para prevención.
   - **Fix preventivo:** Mover la lógica de "leer URL al boot" a `useEffect` en `App.jsx` con cleanup apropiado.
 
-- [ ] 🟡 **O11 — `useTimeline`: el socket `history_data` handler captura `replayMode` como closure stale (B10 — confirmado)**
-  - **Archivo:** `frontend/src/hooks/useTimeline.js` → `useEffect` de socket subscription
-  - **Problema:**
-    ```js
-    useEffect(() => {
-      const handler = ({ snapshots: snaps }) => {
-        setCurrentIndex(prev => {
-          if (replayMode) return Math.min(prev, snaps.length - 1); // replayMode es closure stale
-          return snaps.length - 1;
-        });
-      };
-      socket.on('history_data', handler);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [socketRef]); // falta replayMode en deps
-    ```
-    Si el usuario entra en replay mode y llegan nuevos snapshots del servidor, `replayMode` puede leerse como `false` (valor del primer render), avanzando el índice al último snapshot en lugar de mantener la posición actual.
-  - **Fix:** Usar un `useRef` para trackear `replayMode` en paralelo:
-    ```js
-    const replayModeRef = useRef(false);
-    useEffect(() => { replayModeRef.current = replayMode; }, [replayMode]);
-    // En el handler:
-    if (replayModeRef.current) return Math.min(prev, snaps.length - 1);
-    ```
+- [x] ✅ 🟡 **O11 — `useTimeline`: el socket `history_data` handler captura `replayMode` como closure stale (B10 — confirmado)**
+  - **Arreglado:** Ver B10 — mismo fix.
 
 - [ ] 🟡 **O12 — `AircraftLayer` + `ShipLayer`: `getDS()` llama a `viewer.dataSources.contains()` en cada render sin cache de estado**
   - **Archivos:** `frontend/src/components/AircraftLayer.jsx`, `frontend/src/components/ShipLayer.jsx`
   - **Problema:** `getDS(name)` valida `viewer.dataSources.contains(dsCache.current[name])` en cada llamada. `dataSources.contains()` en Cesium itera la lista de dataSources (linear search). Se llama múltiples veces por render para cada datasource. Con 5+ datasources activos, esto suma 10–15 iteraciones en cada update de aviones о barcos.
   - **Fix menor:** Cachear el resultado de `contains()` en un flag booleano dentro de `dsCache`, reseteado solo en cleanup del `useEffect`.
 
-- [ ] 🔵 **O13 — `SitrepCapture`: `document.execCommand('copy')` está deprecado como fallback de clipboard**
-  - **Archivo:** `frontend/src/components/CoordinateHUD.jsx` → `shareView()` / y posiblemente `SitrepCapture.jsx`
-  - **Problema:** El fallback usa `document.execCommand('copy')` que está marcado como deprecated en MDN y puede ser eliminado en versiones futuras de Chrome/Firefox.
-  - **Fix:** Usar el [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText) exclusivamente con un try/catch sin fallback, o mostrar un toast con el URL para copiar manualmente.
+- [x] ✅ 🟡 **O13 — `SitrepCapture`: `document.execCommand('copy')` está deprecado como fallback de clipboard**
+  - **Arreglado:** Eliminado el fallback con `execCommand`. El `catch` ahora simplemente hace `console.info` con la URL para que el usuario pueda copiarla manualmente.
 
 ---
 
 ### Arquitectura / Mantenibilidad
 
-- [ ] 🟡 **O14 — `positionTracker.js` no comprueba coordenadas válidas antes de guardar en snapshot**
-  - **Archivo:** `backend/services/positionTracker.js` → `recordSnapshot()`
-  - **Problema:** Si un avión tiene `lat: null` o `lon: null` (posición desconocida, frecuente en ADS-B), se almacena igualmente en el snapshot. Cuando el frontend recibe estos snapshots y construye `historyTrack`, llama a `Cesium.Cartesian3.fromDegrees(null, null)` lo cual genera `NaN` en las posiciones y errores silenciosos en Cesium.
-  - **Fix:** Filtrar antes de snapshot:
-    ```js
-    aircraft: aircraft
-      .filter(ac => ac.lat != null && ac.lon != null)
-      .map(ac => ({ ... })),
-    ```
+- [x] ✅ 🟡 **O14 — `positionTracker.js` no comprueba coordenadas válidas antes de guardar en snapshot**
+  - **Arreglado:** `recordSnapshot` filtra aircraft/ships con `lat == null || lon == null` antes del `.map()`. Previene `NaN` en `Cesium.Cartesian3.fromDegrees`.
 
-- [ ] 🟡 **O15 — `conflictService.js`: `mergeIntoStore` con TTL de 7 días puede acumular eventos obsoletos indefinidamente si el servidor no se reinicia**
-  - **Archivo:** `backend/services/conflictService.js`
-  - **Problema:** `conflictStore` es un `Map` global en memoria. Eventos con `createdAt` dentro del TTL (7 días) nunca se eliminan hasta que caducan naturalmente. Si hay un spike de eventos (crisis geopolítica con 500+ eventos en un día), el store puede crecer enormemente y el payload `conflict_update` enviado a todos los clientes puede exceder centenares de KB.
-  - **Fix:** Añadir un límite de tamaño máximo en `mergeIntoStore` (ej. `MAX_STORE_SIZE = 500`) con política de desalojo LRU o priorizando los más recientes.
+- [x] ✅ 🟡 **O15 — `conflictService.js`: `mergeIntoStore` con TTL de 7 días puede acumular eventos obsoletos indefinidamente si el servidor no se reinicia**
+  - **Arreglado:** `mergeIntoStore` ahora acepta `maxSize`; `conflictStore` se llama con `maxSize=500`. Los eventos más antiguos más allá del límite se desalojan automáticamente al hacer merge.
 
-- [ ] � **O17 — `alertsFromNews()` se computa incondicionalmente en cada `pollNews()` aunque no haya news nuevas**
-  - **Archivo:** `backend/server.js` → `pollNews()`, línea: `cache.alerts = alertsFromNews(cache.news)`
-  - **Problema:** La llamada está fuera del bloque `if (changed)`, por lo que `alertsFromNews` itera todas las noticias (hasta 100) y regenera el array de alertas cada 5 minutos incluso cuando el store de noticias no ha cambiado. El array resultante es **siempre emitido** vía `io.emit('danger_update', ...)` al final de `pollNews` sin ninguna comparación con el valor anterior.
-  - **Consecuencias:**
-    - CPU: cómputo innecesario 12× por hora cuando no hay noticias nuevas
-    - Red: ~288 `danger_update` diarios desde el path `pollNews` solo, independientemente de si hay cambios
-  - **Fix:** Mover `alertsFromNews` dentro del bloque `if (changed)` y añadir hash del resultado para comparación antes de emitir.
+- [x] ✅ 🔵 **O17 — `alertsFromNews()` se computa incondicionalmente en cada `pollNews()` aunque no haya news nuevas**
+  - **Arreglado:** Ver B11 — `alertsFromNews` movido dentro del bloque `if (changed)`.
 
-- [ ] 🔵 **O18 — `version: '1.0.0'` hardcodeado en `/api/status` — nunca se actualiza**
-  - **Archivo:** `backend/server.js` → endpoint `GET /api/status`
-  - **Problema:** `version: '1.0.0'` es un literal string que no se actualiza automáticamente cuando cambia `package.json`. Confunde a monitores externos que comparan versión del endpoint con versión del repo.
-  - **Fix:** `version: process.env.npm_package_version || '2.1.0'` — Node.js expone la versión de `package.json` en esa variable de entorno durante `npm start`/`node`.
+- [x] ✅ 🔵 **O18 — `version: '1.0.0'` hardcodeado en `/api/status` — nunca se actualiza**
+  - **Arreglado:** Cambiado a `process.env.npm_package_version || '2.1.0'`.
 
-- [ ] �🔵 **O16 — Bundle size: `import * as Cesium from 'cesium'` en múltiples componentes sin tree-shaking**
+- [ ] 🔵 **O16 — Bundle size: `import * as Cesium from 'cesium'` en múltiples componentes sin tree-shaking**
   - **Archivos:** `AircraftLayer.jsx`, `ShipLayer.jsx`, `ConflictLayer.jsx`, `DangerZoneLayer.jsx`, `NewsLayer.jsx`, `FIRMSLayer.jsx`, `CoordinateHUD.jsx`, `Globe3D.jsx`, `EntityPopup.jsx`
   - **Problema:** CesiumJS (~2MB minified) se importa con `import * as Cesium` en 9 componentes. Aunque Vite debería deduplicarlo en el bundle, tener el namespace completo disponible impide al analizador eliminar exports no usados. El bundle resultante es substancialmente mayor de lo necesario.
   - **Fix a largo plazo:** Usar named imports cuando sea posible: `import { Cartesian3, Color, ... } from 'cesium'`. O configurar `@cesium/engine` directamente.
@@ -535,26 +403,26 @@
 
 ## 11. RESUMEN DE NUEVAS OPTIMIZACIONES
 
-| ID | Tipo | Impacto | Coste |
-|----|------|---------|-------|
-| O1 | Perf / UX | Alto — CPU en mouse move | Bajo (1 variable de gate) |
-| O2 | Perf / UX | Medio — keystrokes + 30s refresh | Bajo (debounce + useMemo) |
-| O3 | Perf | Medio — render 10k ops | Bajo (1 useMemo) |
-| O4 | Estabilidad | Alto — QuotaExceededError silente | Medio (filtrar por trackedList) |
-| O5 | Perf | Bajo-Medio | Bajo (separar estados) |
-| O6 | Perf | Bajo-Medio | Bajo (React.memo en 2 componentes) |
-| O7 | Perf Backend | Medio — 50s news poll bloqueante | Bajo (quitar bucle secuencial) |
-| O8 | Perf Backend | Bajo (120 items) | Trivial |
-| O9 | Perf | Bajo | Bajo (reordenar inicializadores) |
-| O10 | Corrección | Bajo (preventivo) | N/A |
-| O11 | Corrección | Medio — replay mode stale closure | Bajo (useRef) |
-| O12 | Perf | Bajo | Bajo (boolean cache) |
-| O13 | Compatibilidad | Bajo-Medio (deprecated API) | Bajo |
-| O14 | Corrección | Medio — NaN en Cesium | Bajo (filter en recordSnapshot) |
-| O15 | Estabilidad | Medio-Alto (conflictStore unbounded) | Medio (MAX_STORE_SIZE) |
-| O16 | Bundle | Medio (tamaño inicial) | Alto (refactor imports) |
-| O17 | Perf Backend / Red | Medio — 288 emits/día innecesarios | Bajo (mover dentro de `if changed`) |
-| O18 | Mantenibilidad | Bajo | Trivial (`process.env.npm_package_version`) |
+| ID | Estado | Tipo | Impacto | Coste |
+|----|--------|------|---------|-------|
+| O1 | ✅ | Perf / UX | Alto — CPU en mouse move | Bajo (1 variable de gate) |
+| O2 | ✅ | Perf / UX | Medio — keystrokes + 30s refresh | Bajo (debounce + useMemo) |
+| O3 | ✅ | Perf | Medio — render 10k ops | Bajo (1 useMemo) |
+| O4 | ✅ | Estabilidad | Alto — QuotaExceededError silente | Medio (filtrar por trackedList) |
+| O5 | ❌ | Perf | Bajo-Medio | Bajo (separar estados) |
+| O6 | ❌ | Perf | Bajo-Medio | Bajo (React.memo en 2 componentes) |
+| O7 | ✅ | Perf Backend | Medio — 50s news poll bloqueante | Bajo (quitar bucle secuencial) |
+| O8 | ✅ | Perf Backend | Bajo (120 items) | Trivial |
+| O9 | ❌ | Perf | Bajo | Bajo (reordenar inicializadores) |
+| O10 | ❌ | Corrección | Alto (preventivo) | Bajo (useEffect cleanup) |
+| O11 | ✅ | Corrección | Medio — replay mode stale closure | Bajo (useRef) |
+| O12 | ❌ | Perf | Bajo | Bajo (boolean cache) |
+| O13 | ✅ | Compatibilidad | Bajo-Medio (deprecated API) | Bajo |
+| O14 | ✅ | Corrección | Medio — NaN en Cesium | Bajo (filter en recordSnapshot) |
+| O15 | ✅ | Estabilidad | Medio-Alto (conflictStore unbounded) | Medio (MAX_STORE_SIZE) |
+| O16 | ❌ | Bundle | Medio (tamaño inicial) | Alto (refactor imports) |
+| O17 | ✅ | Perf Backend / Red | Medio — 288 emits/día innecesarios | Bajo (mover dentro de `if changed`) |
+| O18 | ✅ | Mantenibilidad | Bajo | Trivial (`process.env.npm_package_version`) |
 
 ---
 
