@@ -1,7 +1,7 @@
 # MilTracker 3D — Auditoría Técnica Completa
 
 > Estado del análisis: **todos los archivos del proyecto leídos**
-> Fecha: 2026-03-06 | Versión auditada: commit `0cb7c07` → fixes aplicados 2026-03-06
+> Fecha: 2026-03-06 | Versión auditada: commit `0cb7c07` → fixes aplicados hasta `dbde392`
 
 ---
 
@@ -9,12 +9,12 @@
 
 | Estado | Cantidad | % |
 |---|---|---|
-| ✅ Corregidos en esta sesión | 56 | 90% |
-| 🔁 Previamente arreglados | 6 | 10% |
+| ✅ Corregidos en esta sesión | 59 | 91% |
+| 🔁 Previamente arreglados | 6 | 9% |
 | ❌ **Pendientes** | **0** | **0%** |
-| **Total auditados** | **62** | **100%** |
+| **Total auditados** | **65** | **100%** |
 
-> 🎉 **Todos los ítems del audit resueltos.**
+> 🎉 **Todos los ítems del audit resueltos.** (3 bugs post-audit adicionales detectados y corregidos en §12)
 
 **Pendientes por sección:**
 
@@ -360,3 +360,24 @@
 ---
 
 *Auditoría realizada mediante lectura directa de todos los archivos del proyecto. Los números de línea son aproximados y pueden variar tras ediciones recientes.*
+
+---
+
+## 12. BUGS POST-AUDIT DETECTADOS Y CORREGIDOS
+
+> Encontrados durante revisión posterior al cierre del audit original (commit `dbde392`).
+
+- [x] ✅ 🟡 **PA1 — A6 frontend incompleto: `request_data` nunca pasaba los timestamps `since`**
+  - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
+  - **Problema:** El fix A6 del servidor (acepta `{ since: {...} }` para omitir datos sin cambios) era inútil: el frontend siempre emitía `socket.emit('request_data')` sin payload. Las closures del `useEffect([])` no tenían acceso a los timestamps en estado porque se capturan en el montaje.
+  - **Arreglado:** Añadido `lastUpdateRef = useRef({ aircraft, ships, news, conflicts: null })` que se actualiza en cada handler. `on('connect')` ahora emite `socket.emit('request_data', { since: lastUpdateRef.current })` — en reconexiones reales el servidor salta stale slices.
+
+- [x] ✅ 🟡 **PA2 — `conflict_update` no capturaba el timestamp del servidor**
+  - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
+  - **Problema:** El handler `socket.on('conflict_update', ({ conflicts: cf }) => {...})` ignoraba completamente el campo `timestamp` del evento. Consecuencia directa: `lastUpdateRef.current.conflicts` siempre era `null` → A6 nunca podía evitar re-enviar conflictos en reconexiones.
+  - **Arreglado:** Destructuring actualizado a `{ conflicts: cf, timestamp }` y añadido `lastUpdateRef.current = { ...lastUpdateRef.current, conflicts: timestamp }`.
+
+- [x] ✅ 🔵 **PA3 — `key={i}` (índice) en listas reordenables**
+  - **Archivos:** `frontend/src/components/AlertPanel.jsx`, `frontend/src/components/SearchBar.jsx`
+  - **Problema:** Usar el índice del array como `key` de React en listas que pueden reordenarse (alertas críticas filtradas de mayor a menor severidad; resultados de búsqueda) provoca fallos de reconciliación del DOM: inputs no se limpian, animaciones se aplican a la entidad incorrecta.
+  - **Arreglado:** `AlertPanel` usa `key={a.id}`; `SearchBar` usa `key={r.id || r.label || i}`.
