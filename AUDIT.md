@@ -89,6 +89,15 @@
 - [ ] 🟡 **D5 — FilterPanel muestra `conflictCount` incorrecto cuando el layer está desactivado**
   - Derivado del bug F1: aunque el ConflictLayer esté oculto, `filteredConflicts.length` sigue reflejando todos los conflictos activos, mostrando una cuenta que implica que se están renderizando cuando no es así.
 
+- [ ] 🟡 **D6 — Basemap switching silently fails cuando `VITE_CESIUM_ION_TOKEN` está configurado**
+  - **Archivo:** `frontend/src/components/Globe3D.jsx` → `useEffect([basemap, globeReady])`
+  - **Problema:** El `useEffect` que actualiza las imagery layers tiene este guard:
+    ```js
+    if (!viewer || !globeReady || viewer.isDestroyed() || ION_TOKEN) return;
+    ```
+    Si el usuario configura `VITE_CESIUM_ION_TOKEN` en `.env`, `ION_TOKEN` es truthy y el efecto retorna inmediatamente. El `MapLayerSwitcher` muestra las opciones como si funcionaran (actualiza el estado `basemap` en localStorage), pero el globo nunca cambia de imagery layer.
+  - **Fix:** Separar la guard en dos: `ION_TOKEN` solo debería impedir usar `buildImageryProvider` con las URLs libres, pero no impedir el switch. Alternativamente, construir los proveedores de Ion correspondientes para cada basemap option.
+
 ---
 
 ## 4. PROBLEMAS DE ARQUITECTURA
@@ -116,6 +125,28 @@
       cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
       maxHttpBufferSize: 5e6, // 5 MB
     });
+    ```
+
+- [ ] 🟡 **A7 — `pollAircraft` usa `setInterval` en lugar de `setTimeout` recursivo (mismo riesgo que B4)**
+  - **Archivo:** `backend/server.js` → arranque del servidor
+  - **Problema:**
+    ```js
+    setInterval(pollAircraft, 30_000); // puede solaparse si el poll tarda > 30s
+    ```
+    El mismo problema que B4 (ahora corregido para `pollShips`): si la petición a OpenSky/ADS-B tarda más de 30 segundos (posible en picos de carga o timeouts parciales), dos llamadas a `pollAircraft` pueden ejecutarse simultáneamente. El resultado son dos snapshot consecutivos corruptos y dos `aircraft_update` que pueden sobreescribirse.
+  - **Fix:** Aplicar el mismo patrón que `scheduleShips`:
+    ```js
+    const scheduleAircraft = () => pollAircraft().finally(() => setTimeout(scheduleAircraft, 30_000));
+    setTimeout(scheduleAircraft, 0);
+    ```
+
+- [ ] 🔵 **A8 — AISStream MMSI WebSocket batches son secuenciales: intervalo real de barcos ~2min, no 60s**
+  - **Archivo:** `backend/services/vesselFinder.js` → `tryAISStreamMMSI()`
+  - **Problema:** Con ~120 MMSIs / 50 por batch = 3 batches. Cada batch espera `WS_COLLECT_MS = 18_000 ms` secuencialmente (`for (const batch of batches) { await new Promise(...) }`). Total: 3 × 18s = **54 segundos** solo de colección. Sumado al cooldown de `scheduleShips` (60s después de que el poll completa), el intervalo efectivo de datos de barcos es **~114 segundos**, no los 60s documentados.
+  - **Impacto:** Los logs y la documentación dicen "60 seconds" pero la cadencia real de actualización de barcos es ~2 minutos. No es un crash, pero es una expectativa incorrecta documentada.
+  - **Fix:** Paralelizar los batches (todos al mismo tiempo, colectando en el mismo `WS_COLLECT_MS`), o reducir `WS_COLLECT_MS` a 8s si la API responde rápido:
+    ```js
+    await Promise.all(batches.map(batch => new Promise(resolveWS => { /* ws logic */ })));
     ```
 
 - [ ] 🟡 **A6 — Backend envía todos los datos al reconectar sin considerar qué ya tiene el cliente**
@@ -164,6 +195,15 @@
   - **Archivo:** `backend/server.js`
   - **Nota:** Los datos del proyecto son OSINT públicos, por lo que esto es una decisión de diseño, no un bug. Sin embargo, el endpoint `/api/status` expone el número de clientes conectados, lo cual puede ser útil para un atacante que quiera planear un ataque de denegación de servicio. Considerar añadir autenticación basic o JWT en futuras versiones.
 
+- [ ] 🟡 **S4 — Endpoints REST exponen el full cache de datos sin autenticación ni rate limiting efectivo**
+  - **Archivo:** `backend/server.js` → endpoints `/api/aircraft`, `/api/ships`, `/api/news`, `/api/alerts`, `/api/conflicts`
+  - **Problema:** El rate limiter REST aplica 60 req/min por IP — suficiente para hacer `GET /api/aircraft`, `GET /api/ships`, `GET /api/news`, `GET /api/conflicts` y `GET /api/alerts` en una sola burst (5 requests = todos los datos del cache). Un script externo puede:
+    1. Evitar completamente el WebSocket y sus rate limits
+    2. Mirror del 100% de los datos con un simple cron job
+    3. Monitorizar el conteo de clientes vía `/api/status` para detectar picos de uso
+  - **Nota:** Los datos son OSINT públicos, pero esto habilita scraping automatizado masivo que puede consumir el quota de Railway y permitir a competidores replicar la plataforma con cero esfuerzo.
+  - **Fix (ligero):** Añadir una API key simple via header `x-api-key` para los endpoints REST (la WebSocket frontend no necesita cambios). O limitar el rate a 10 req/min.
+
 ---
 
 ## 7. CÓDIGO MUERTO / DEUDA TÉCNICA
@@ -185,7 +225,22 @@
 - [x] ✅ 🔵 **T5 — Artefactos JSON de descarga commiteados**
   - **Arreglado:** `.gitignore` actualizado con `scripts/*.json` y `scripts/*.txt`.
 
-- [ ] 🔵 **T6 — `hasCachedData` usa `useRef` y se calcula una sola vez al montar el componente**
+- [ ] � **B11 — `pollNews()` siempre emite `danger_update` al final, sin guardia `if (changed)`**
+  - **Archivo:** `backend/server.js` → `pollNews()` último bloque
+  - **Problema:** La llamada `io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts })` está **fuera** del bloque `if (changed)`, por lo que se emite a todos los clientes cada 5 minutos aunque no haya ningún artículo nuevo ni ninguna alerta nueva. Sumado a que `pollAircraft()` también siempre emite `danger_update` cada 30 s sin change detection (P3), los clientes reciben hasta ~336 `danger_update` por día incondicionalmente.
+  - **Adicionalmente:** `alertsFromNews(cache.news)` se ejecuta en cada `pollNews()` aunque `changed === false` — cómputo innecesario cuando el store de noticias no ha variado.
+  - **Fix:**
+    ```js
+    const newAlerts = alertsFromNews(cache.news);
+    const alertsHash = newAlerts.map(a => a.id).join(',');
+    if (changed || alertsHash !== prevAlertHash) {
+      cache.alerts = newAlerts;
+      prevAlertHash = alertsHash;
+      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+    }
+    ```
+
+- [ ] �🔵 **T6 — `hasCachedData` usa `useRef` y se calcula una sola vez al montar el componente**
   - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
   - ```js
     const hasCachedData = useRef(!!loadedCache.aircraft?.length || ...).current;
@@ -247,6 +302,15 @@
 16. ~~**T2**~~ ✅ — `alertPanelOpen` dead code eliminado
 17. **T1** — `reconnect` en useRealTimeData nunca usado ❌
 18. **T7** — Centralizar haversine ❌
+
+### Nuevos hallazgos (segunda auditoría de código — 2026-03-06):
+19. **B11** — `danger_update` emitido incondicionalmente en `pollNews` ❌
+20. **A7** — `pollAircraft` usa `setInterval` en lugar de `setTimeout` recursivo ❌
+21. **A8** — AISStream batches secuenciales → intervalo real ~2min vs. 60s documentados ❌
+22. **S4** — Endpoints REST sin autenticación habilitan scraping masivo ❌
+23. **D6** — Basemap switching silently fails cuando `ION_TOKEN` está configurado ❌
+24. **O17** — `alertsFromNews` calculado sin cambios → optimización ❌
+25. **O18** — `version: '1.0.0'` hardcodeado en `/api/status` ❌
 
 ---
 
@@ -414,7 +478,20 @@
   - **Problema:** `conflictStore` es un `Map` global en memoria. Eventos con `createdAt` dentro del TTL (7 días) nunca se eliminan hasta que caducan naturalmente. Si hay un spike de eventos (crisis geopolítica con 500+ eventos en un día), el store puede crecer enormemente y el payload `conflict_update` enviado a todos los clientes puede exceder centenares de KB.
   - **Fix:** Añadir un límite de tamaño máximo en `mergeIntoStore` (ej. `MAX_STORE_SIZE = 500`) con política de desalojo LRU o priorizando los más recientes.
 
-- [ ] 🔵 **O16 — Bundle size: `import * as Cesium from 'cesium'` en múltiples componentes sin tree-shaking**
+- [ ] � **O17 — `alertsFromNews()` se computa incondicionalmente en cada `pollNews()` aunque no haya news nuevas**
+  - **Archivo:** `backend/server.js` → `pollNews()`, línea: `cache.alerts = alertsFromNews(cache.news)`
+  - **Problema:** La llamada está fuera del bloque `if (changed)`, por lo que `alertsFromNews` itera todas las noticias (hasta 100) y regenera el array de alertas cada 5 minutos incluso cuando el store de noticias no ha cambiado. El array resultante es **siempre emitido** vía `io.emit('danger_update', ...)` al final de `pollNews` sin ninguna comparación con el valor anterior.
+  - **Consecuencias:**
+    - CPU: cómputo innecesario 12× por hora cuando no hay noticias nuevas
+    - Red: ~288 `danger_update` diarios desde el path `pollNews` solo, independientemente de si hay cambios
+  - **Fix:** Mover `alertsFromNews` dentro del bloque `if (changed)` y añadir hash del resultado para comparación antes de emitir.
+
+- [ ] 🔵 **O18 — `version: '1.0.0'` hardcodeado en `/api/status` — nunca se actualiza**
+  - **Archivo:** `backend/server.js` → endpoint `GET /api/status`
+  - **Problema:** `version: '1.0.0'` es un literal string que no se actualiza automáticamente cuando cambia `package.json`. Confunde a monitores externos que comparan versión del endpoint con versión del repo.
+  - **Fix:** `version: process.env.npm_package_version || '2.1.0'` — Node.js expone la versión de `package.json` en esa variable de entorno durante `npm start`/`node`.
+
+- [ ] �🔵 **O16 — Bundle size: `import * as Cesium from 'cesium'` en múltiples componentes sin tree-shaking**
   - **Archivos:** `AircraftLayer.jsx`, `ShipLayer.jsx`, `ConflictLayer.jsx`, `DangerZoneLayer.jsx`, `NewsLayer.jsx`, `FIRMSLayer.jsx`, `CoordinateHUD.jsx`, `Globe3D.jsx`, `EntityPopup.jsx`
   - **Problema:** CesiumJS (~2MB minified) se importa con `import * as Cesium` en 9 componentes. Aunque Vite debería deduplicarlo en el bundle, tener el namespace completo disponible impide al analizador eliminar exports no usados. El bundle resultante es substancialmente mayor de lo necesario.
   - **Fix a largo plazo:** Usar named imports cuando sea posible: `import { Cartesian3, Color, ... } from 'cesium'`. O configurar `@cesium/engine` directamente.
@@ -441,6 +518,8 @@
 | O14 | Corrección | Medio — NaN en Cesium | Bajo (filter en recordSnapshot) |
 | O15 | Estabilidad | Medio-Alto (conflictStore unbounded) | Medio (MAX_STORE_SIZE) |
 | O16 | Bundle | Medio (tamaño inicial) | Alto (refactor imports) |
+| O17 | Perf Backend / Red | Medio — 288 emits/día innecesarios | Bajo (mover dentro de `if changed`) |
+| O18 | Mantenibilidad | Bajo | Trivial (`process.env.npm_package_version`) |
 
 ---
 
