@@ -5,6 +5,41 @@
 
 ---
 
+## Estado de progreso (actualizado 2026-03-06)
+
+| Estado | Cantidad | % |
+|---|---|---|
+| ✅ Corregidos en esta sesión | 15 | 24% |
+| 🔁 Previamente arreglados | 4 | 6% |
+| ❌ **Pendientes** | **43** | **69%** |
+| **Total auditados** | **62** | **100%** |
+
+**Pendientes por sección:**
+
+| Sección | Pendientes | IDs |
+|---|---|---|
+| §1–2 Bugs de lógica | 3 | B3, B10, B11 |
+| §3 Diseño / UX | 5 | D2, D3, D4, D5, D6 |
+| §4 Arquitectura | 5 | A4, A5, A6, A7, A8 |
+| §5 Rendimiento | 3 | P1, P2, P3 |
+| §6 Seguridad | 2 | S3, S4 |
+| §7 Deuda técnica | 4 | T1, T4, T6, T7 |
+| §8 Inconsistencias de datos | 3 | I1, I2, I3 |
+| §10 Optimizaciones | 18 | O1–O18 |
+
+**Pendientes por severidad:**
+
+| Severidad | Pendientes | % sobre pendientes |
+|---|---|---|
+| 🔴 Crítico | 0 | 0% |
+| 🟠 Alto | 5 | 12% — **B3, D2, P1, O1, O10** |
+| 🟡 Medio | 29 | 67% |
+| 🔵 Bajo | 9 | 21% |
+
+> **Siguiente acción recomendada:** Resolver los 5 🟠 Alto (mayor ROI): B3 (newsStore sin límite), D2 (locale es-ES), P1 (historyTrack O(n²) en replay), O1 (mouse move 60 re-renders/s), O10 (hashchange listener sin cleanup).
+
+---
+
 ### Leyenda de estado
 - ✅ **Arreglado** — fix aplicado en esta sesión
 - 🔁 **Ya arreglado** — fix previo documentado en STATUS.md
