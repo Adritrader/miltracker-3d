@@ -46,6 +46,9 @@ export async function fetchGDELTNews() {
     'Houthi ballistic missile drone Red Sea warship',
     // Other
     'Iraq Syria explosion attack killed militia',
+    'Bahrain attack oil refinery explosion drone missile',
+    'Bahrain US Navy 5th Fleet base attack Manama',
+    'oil refinery fire attack explosion Middle East Gulf',
     'Sudan Somalia Ethiopia armed attack killed',
     'North Korea missile launch test ICBM',
   ];

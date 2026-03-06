@@ -34,6 +34,7 @@ const EVENT_PATTERNS = [
   { type: 'fire',      pat: /fire|burning|ablaze|wildfire|arson|ignit/i },
   { type: 'siege',     pat: /siege|besieged|encircled|blockade|surrounded|cut.?off/i },
   { type: 'cyber',     pat: /cyber.?attack|hack|ransomware|infrastructure.?attack|power.?grid/i },
+  { type: 'infrastructure', pat: /refinery|oil.?facilit|petroleum|pipeline.?attack|oil.?field|bapco|aramco|power.?plant|water.?plant|gas.?facilit/i },
   { type: 'cbrn',      pat: /chemical.?weapon|nuclear|radiolog|biological.?weapon|chlorine|sarin|novichok/i },
   { type: 'hostage',   pat: /hostage|kidnap|abduct|taken.?captive|prisoner/i },
   { type: 'unrest',    pat: /protest|riot|uprising|demonstration|civil.?unrest|coup/i },
@@ -83,6 +84,7 @@ const LOCATION_MAP = [
   ['saudi arabia',     23.89, 45.08], ['jordan',          31.96, 35.95],
   ['kuwait',           29.37, 47.98], ['uae',             23.42, 53.85],
   ['oman',             21.00, 57.00], ['bahrain',         26.07, 50.55],
+  ['manama',           26.22, 50.59], ['sitra',           26.09, 50.65],
   ['afghanistan',      34.52, 69.17], ['kabul',           34.52, 69.17],
   ['pakistan',         30.38, 69.35],
   // ── Ukraine / Russia ──
@@ -127,6 +129,9 @@ const MILITARY_KEYWORDS = [
   'insurgent','jihad','terrorist','ceasefire','killed','wounded','casualt','dead',
   'idf','irgc','hamas','hezbollah','houthi','al-shabaab','isis','isil','taliban',
   'nato','pentagon','airstrike','special forces','paratrooper','frontline',
+  'refinery','oil facility','petroleum','oil field','pipeline attack','infrastructure attack',
+  'bapco','aramco','5th fleet','naval base','us base',
+  
 ];
 function hasMilitaryContext(text = '') {
   const t = text.toLowerCase();
@@ -189,13 +194,22 @@ async function fetchGDELTGeoConflicts() {
     'Iron Dome David Sling Arrow intercept missile',
     'Hamas rocket barrage Iron Dome intercept',
     'Israel Lebanon border Hezbollah exchange fire',
-    // Hormuz / Red Sea missiles
+    // Hormuz / Red Sea / Gulf missiles
     'Iran IRGC Strait of Hormuz tanker seized attack',
     'Houthi anti-ship missile ballistic drone Red Sea',
     'Saudi Arabia Patriot intercept Houthi missile Riyadh',
     'UAE intercept Houthi drone missile Abu Dhabi Dubai',
+    'Bahrain Manama oil refinery fire explosion attack',
+    'Bahrain US 5th Fleet base attack drone missile',
+    'oil refinery fire explosion attack Gulf Middle East',
+    'BAPCO refinery Sitra Island Bahrain fire attack',
+    'Bahrain oil refinery fire explosion attack missile drone',
+    'Bahrain US 5th Fleet attack missile drone Manama',
     // Yemen / Houthis
     'Yemen Houthi attack explosion missile Red Sea',
+    'Houthi drone missile attack Bahrain Saudi Arabia Gulf',
+    'oil refinery attack fire explosion petroleum facility Gulf',
+    'BAPCO refinery Sitra Bahrain explosion fire attack',
     // Iraq militia
     'Iraq militia bomb explosion attack killed',
     // Syria
@@ -282,6 +296,9 @@ async function fetchGDELTDocConflicts() {
     // Iraq Syria
     'Iraq Syria militia airstrike bombing killing',
     'Saudi Arabia rebel drone attack oil Aramco',
+    'Bahrain oil refinery attack explosion Manama 5th Fleet',
+    'oil refinery attack fire explosion petroleum facility',
+    'Gulf States oil infrastructure attack drone missile',
     // Africa / Sahel
     'Sudan war Khartoum Darfur RSF attack killed',
     'Mali Burkina Faso Niger Sahel jihadist attack',
@@ -488,6 +505,8 @@ function getSeedConflicts() {
     // ── Gulf / UAE / Saudi ──
     ev('seed-ae-drones','drone',     'Iranian drones hit UAE; Amazon warehouse and oil storage facilities damaged',         24.45, 54.37, 'UAE',         'critical'),
     ev('seed-bh-drone', 'drone',     'Iranian drone strike near Bahrain US 5th Fleet headquarters',                        26.07, 50.55, 'Bahrain',     'critical'),
+    ev('seed-bh-ref1',  'explosion', 'Missile/drone attack on BAPCO Sitra oil refinery, Bahrain — fire reported',          26.09, 50.65, 'Bahrain',     'critical'),
+    ev('seed-bh-ref2',  'fire',      'BAPCO Sitra refinery ablaze following multiple drone strikes — Bahrain',             26.09, 50.65, 'Bahrain',     'critical'),
     ev('seed-sa-riyadh','drone',     'US embassy in Riyadh hit by Iranian drone — personnel evacuated',                    24.69, 46.72, 'Saudi Arabia','critical'),
     ev('seed-sa-mis',   'missile',   'Houthi cruise missile fired toward Saudi Aramco facility Dhahran',                   26.29, 50.21, 'Saudi Arabia','critical'),
     ev('seed-hormuz1',  'naval',     'IRGC fast boats seize cargo vessel in Strait of Hormuz',                             26.57, 56.28, 'Iran',        'critical'),

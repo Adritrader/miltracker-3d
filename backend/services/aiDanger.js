@@ -82,6 +82,7 @@ const CONFLICT_ZONES = [
   { id: 'gulf_aden',     name: 'Gulf of Aden',                         lat: 12.00, lon: 46.00, radius: 300, severity: 'high',     color: '#ff6600' },
   { id: 'iraq_syria',    name: 'Iraq-Syria Border Ops',                lat: 34.00, lon: 40.00, radius: 350, severity: 'high',     color: '#ff6600' },
   // Mar 2026: Iranian missile/drone attacks on coalition bases
+  { id: 'bahrain',       name: 'Bahrain / US 5th Fleet HQ',           lat: 26.07, lon: 50.55, radius: 80,  severity: 'critical', color: '#ff0000' },
   { id: 'kuwait',        name: 'Kuwait (US Base Under Attack)',         lat: 29.37, lon: 47.98, radius: 150, severity: 'critical', color: '#ff0000' },
   { id: 'cyprus',        name: 'Cyprus (RAF Akrotiri Attacked)',        lat: 34.72, lon: 33.05, radius: 120, severity: 'critical', color: '#ff0000' },
   { id: 'taiwan_strait', name: 'Taiwan Strait Tensions',               lat: 24.50, lon: 119.50,radius: 300, severity: 'high',     color: '#ff6600' },
@@ -128,6 +129,9 @@ const ALERT_LOCATIONS = [
   { kw: 'natanz',           lat: 33.720, lon: 51.727 },
   { kw: 'fordow',           lat: 34.884, lon: 49.986 },
   { kw: 'bushehr',          lat: 28.920, lon: 50.840 },
+  { kw: 'bahrain',          lat: 26.070, lon: 50.550 },
+  { kw: 'manama',           lat: 26.215, lon: 50.586 },
+  { kw: 'sitra',            lat: 26.090, lon: 50.650 },  // BAPCO refinery island
   { kw: 'damascus',         lat: 33.510, lon: 36.290 },
   { kw: 'aleppo',           lat: 36.200, lon: 37.160 },
   { kw: 'deir ez-zor',      lat: 35.340, lon: 40.140 },
