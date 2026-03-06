@@ -1,8 +1,9 @@
 # MILTRACKER 3D — Documento Técnico, Ejecutivo y de Negocio
 
-> Versión 2.0 · 5 de marzo de 2026  
+> Versión 2.1 · 6 de marzo de 2026  
 > Estado de producción: **LIVE** — Railway (backend) + Vercel (frontend)  
-> Repositorio: `github.com/Adritrader/miltracker-3d`
+> Repositorio: `github.com/Adritrader/miltracker-3d`  
+> Último commit: `bb6064f` — 15 bugs corregidos · auditoría completa en `AUDIT.md`
 
 ---
 
@@ -43,7 +44,9 @@ La plataforma opera con **coste operativo próximo a cero** (infraestructura gra
 │  ├── NASA FIRMS thermal anomalies (incendios / hotspots activos)           │
 │  ├── Position tracker: ring buffer 120 snapshots (~1h historial)           │
 │  ├── AI risk engine: reglas de proximidad + Gemini (opcional)              │
-│  ├── Disk cache: *.cache.json (arranque instantáneo tras reinicio)         │
+│  ├── Disk cache: *.cache.json async (non-blocking, arranque instantáneo)   │
+│  ├── Rate limiting: HTTP (express-rate-limit) + WS por socket (5s/10s)     │
+│  ├── Jitter geocodificación: determinista (hash Knuth, no Math.random)     │
 │  └── CORS: producción solo orígenes allowlist / dev abierto                │
 │                              │ Socket.io (delta only si hash cambia)       │
 └──────────────────────────────┼───────────────────────────────────────────┘
@@ -149,7 +152,7 @@ Store en memoria (Map por ID, TTL 72h, sin duplicados por hash título+fecha).
 | Globo 3D interactivo (CesiumJS) | ✅ Live | 6 basemaps: Dark, Sat, Relief, Street, Light, Night |
 | Aeronaves militares en tiempo real | ✅ Live | ADS-B, hasta 300 entidades, trails de vuelo |
 | Buques de guerra en tiempo real | ✅ Live | AIS, heading real, identificación MMSI |
-| Eventos de conflicto geolocalizados | ✅ Live | GDELT + seed dataset, 72h TTL |
+| Eventos de conflicto geolocalizados | ✅ Live | GDELT + seed dataset, 72h TTL, IDs deduplicados |
 | Noticias militares con geocodificación | ✅ Live | Clusters zoom-aware, 70+ ubicaciones de conflicto |
 | Zonas de peligro (DangerZones) | ✅ Live | Círculos color-coded por severidad |
 | Bases militares mundiales | ✅ Live | ~200 bases globales |
@@ -158,13 +161,15 @@ Store en memoria (Map por ID, TTL 72h, sin duplicados por hash título+fecha).
 | AI Intel (Gemini 1.5 Flash) | ✅ Live | Opcional vía GEMINI_API_KEY |
 | Replay histórico | ✅ Live | 120 snapshots × 30s = ~1h, velocidades 1×–120× |
 | Tracking multi-entidad | ✅ Live | Seguimiento simultáneo de aviones y barcos |
-| Filtros avanzados | ✅ Live | País, alianza, tipo de misión, FIRMS |
+| Filtros avanzados | ✅ Live | País, alianza, tipo de misión, FIRMS; toggle conflictos corregido |
 | SITREP Capture | ✅ Live | PNG + vídeo cinético MP4/WebM, social share |
 | Share de vista | ✅ Live | URL con parámetros de cámara, copia al portapapeles |
 | Notificaciones push | ✅ Live | Browser push para alertas CRITICAL |
 | NASA FIRMS (incendios/hotspots) | ✅ Live | Precisa clave gratuita NASA Earthdata |
 | Búsqueda de entidades | ✅ Live | Por callsign, nombre, tipo |
 | Modo space view | ✅ Live | Vista desde órbita |
+| Rate limiting WebSocket | ✅ Live | Cooldown por socket: 5s datos, 10s historial |
+| Cache persistente async | ✅ Live | Escritura no bloqueante, cache coherente en restart |
 
 ---
 
@@ -226,6 +231,11 @@ Si `GEMINI_API_KEY` configurada: envía resumen táctico a Gemini 1.5 Flash. Dev
 | Carga con cache caliente | < 1s |
 | Framerate globo (Chrome/Edge) | 55–60 fps |
 | Latencia socket backend→frontend | < 50ms (Railway EU) |
+| Cooldown rate-limit WebSocket (request_data) | 5s por socket |
+| Cooldown rate-limit WebSocket (request_history) | 10s por socket |
+| Bloqueado event loop en escritura de cache | 0ms (async writeFile) |
+
+> **Optimizaciones identificadas pendientes de implementar** (ver `AUDIT.md` §10): throttle de MOUSE_MOVE (O1), debounce en búsqueda (O2), `React.memo` en componentes estáticos (O6), batching paralelo de queries GDELT (O7), límite de tamaño en `conflictStore` (O15). Ver desglose completo en la auditoría.
 
 ---
 
@@ -251,8 +261,10 @@ Si `GEMINI_API_KEY` configurada: envía resumen táctico a Gemini 1.5 Flash. Dev
 2. B-2, F-22, Su-57 en misión no emiten ADS-B
 3. Eventos GDELT con 10–30 min de lag respecto a ocurrencia real
 4. Geocodificación por keywords, no por NLP ni geocodificador semántico
-5. 120 frames × 30s = ~60 min de historial (limitado por RAM)
+5. 120 frames × 30s = ~60 min de historial (limitado por RAM; no persiste entre reinicios)
 6. App pública sin autenticación (adecuado para datos públicos únicamente)
+7. Barcos con AIS caído muestran posición de homeport del catálogo (marcado como limitación conocida)
+8. `conflictStore` en memoria sin límite de tamaño máximo (ver `AUDIT.md` O15)
 
 ---
 
@@ -522,8 +534,48 @@ La integración de GIBS y EOX Sentinel-2 en el MapLayerSwitcher es viable en < 1
 | Un solo ScreenSpaceEventHandler | Handler por capa | Un único pick() por click, elimina conflictos entre capas |
 | React 18 + Vite en lugar de Next.js | Next.js | CesiumJS no optimizado para SSR; cliente puro más simple y rápido |
 | GDELT gratuito | Bellingcat, Janes.com | Cero coste operativo, 15 min de lag, cobertura global |
+| Rate limiting por closure de socket | Map global de IDs | Sin estado compartido, sin riesgo de fuga de memoria por sockets desconectados |
+| `writeFile` async para disk cache | `writeFileSync` en setImmediate | No bloquea el event loop durante la escritura de archivos de caché grandes |
+| `setTimeout` recursivo para pollShips | `setInterval` fijo | Evita solapamiento si AISStream WS tarda más de 60s (3 batches × 18s) |
+| Jitter geocodificación determinista (Knuth hash) | `Math.random()` | Mismo evento de conflicto siempre recibe el mismo offset; evita marcadores saltantes |
 
 ---
 
-*Documento actualizado el 5 de marzo de 2026.*  
-*Para estado técnico detallado, bugs conocidos y backlog ver `ROADMAP.md` y `STATUS.md`.*
+## HISTORIAL DE CAMBIOS
+
+### v2.1 — 6 de marzo de 2026 (commit `bb6064f`)
+
+**Correcciones de bugs (15 issues del `AUDIT.md`):**
+
+| ID | Descripción | Archivo(s) |
+|---|---|---|
+| F1 | `filteredConflicts` no respetaba el toggle `showConflicts` | `App.jsx` |
+| B2 | Jitter `Math.random()` causaba marcadores de conflicto saltantes | `conflictService.js`, `aiDanger.js` |
+| B4 | `setInterval(pollShips)` podía solaparse con fetch anterior | `server.js` |
+| B5 | IDs de GDELT GEO colisionaban para eventos en mismas coordenadas | `conflictService.js` |
+| B6 | ReliefWeb abría URL del endpoint API en vez del artículo | `conflictService.js` |
+| B8 | `cacheSave('alerts')` no se llamaba cuando la lista era vacía | `useRealTimeData.js` |
+| B9 | Dos handlers de tecla Escape independientes; prioridad incorrecta | `App.jsx` |
+| A1 | Sin rate limiting en eventos WebSocket `request_data`/`request_history` | `server.js` |
+| A3 | `writeFileSync` dentro de `setImmediate` bloqueaba el event loop | `diskCache.js` |
+| D1 | `alertPanelHeight` calculado pero no conectado al layout | `App.jsx` |
+| D2 | Locale `'es-ES'` hardcodeado en interfaz en inglés | `AlertPanel.jsx`, `EntityPopup.jsx`, `NewsPanel.jsx` |
+| S1 | URLs de alertas renderizadas sin validar esquema `https?` | `AlertPanel.jsx` |
+| S2 | URLs de noticias/conflictos renderizadas sin validar esquema `https?` | `EntityPopup.jsx` |
+| T2 | Estado `alertPanelOpen` declarado pero nunca leído | `App.jsx` |
+| T5 | Artefactos de migración no excluidos del repositorio | `.gitignore` |
+
+**Nueva documentación:**
+- `AUDIT.md` creado: auditoría completa del proyecto (35 issues en 9 categorías + 16 optimizaciones en §10)
+
+### v2.0 — 5 de marzo de 2026
+- Lanzamiento inicial en producción (Railway + Vercel)
+- Layout dinámico NewsPanel → TrackingPanel → TimelinePanel
+- Timeline minimizado a barra de controles siempre visible
+- ConflictLayer con deduplicación por hash
+- Fuentes RSS adicionales incorporadas
+
+---
+
+*Documento actualizado el 6 de marzo de 2026.*  
+*Para estado técnico detallado, bugs conocidos y backlog ver `ROADMAP.md`, `STATUS.md` y `AUDIT.md`.*
