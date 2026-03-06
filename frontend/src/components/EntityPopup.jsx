@@ -337,7 +337,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                 const ts = entity.firstSeenAt || entity.publishedAt;
                 return ts ? (
                   <>
-                    <Row label="DETECTED" value={new Date(ts).toLocaleString('es-ES', {
+                    <Row label="DETECTED" value={new Date(ts).toLocaleString('en-GB', {
                       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
                     })} />
                     <Row label="AGE" value={timeAgo(ts)} />
@@ -440,12 +440,12 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
             </button>
           )}
 
-          {isNews && entity.url && (
+          {isNews && entity.url && /^https?:\/\//i.test(entity.url) && (
             <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
               &#x21D7; OPEN
             </a>
           )}
-          {isConflict && entity.url && (
+          {isConflict && entity.url && /^https?:\/\//i.test(entity.url) && (
             <a href={entity.url} target="_blank" rel="noopener noreferrer" className="hud-btn flex-1 text-center">
               &#x21D7; SOURCE
             </a>

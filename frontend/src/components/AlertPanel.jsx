@@ -37,8 +37,8 @@ const AlertItem = ({ alert, onFlyTo }) => {
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {alert.timestamp && (() => {
               const d = new Date(alert.timestamp);
-              const dateStr = d.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'2-digit' });
-              const timeStr = d.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+              const dateStr = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
+              const timeStr = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
               return (
                 <span className="text-hud-amber text-[10px] font-mono font-bold tracking-wider">
                   {dateStr}&nbsp;{timeStr}
@@ -65,7 +65,7 @@ const AlertItem = ({ alert, onFlyTo }) => {
                 ⊕ FLY TO
               </button>
             )}
-            {alert.url && (
+            {alert.url && /^https?:\/\//i.test(alert.url) && (
               <a
                 href={alert.url}
                 target="_blank"
@@ -73,7 +73,7 @@ const AlertItem = ({ alert, onFlyTo }) => {
                 className="text-hud-green text-[10px] hover:text-white transition-colors"
                 onClick={e => e.stopPropagation()}
               >
-                ↗ READ
+                &#x2197; READ
               </a>
             )}
           </div>
@@ -129,8 +129,8 @@ const SitrepView = ({ alerts, aiInsight }) => {
       <div className="border border-hud-border/50 rounded p-2 bg-black/30">
         <div className="hud-label mb-0.5">SITUATION REPORT</div>
         <div className="text-hud-text text-[10px]">
-          {s.asOf.toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' })}&nbsp;
-          {s.asOf.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' })} LOCAL
+          {s.asOf.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}&nbsp;
+          {s.asOf.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })} LOCAL
         </div>
       </div>
 

@@ -7,7 +7,7 @@
  * They are loaded synchronously at startup (tiny files, safe to block once).
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFile, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -60,12 +60,8 @@ export function loadCache(key, fallback = []) {
 export function saveCache(key, data) {
   const file = cachePath(key);
   const payload = JSON.stringify({ savedAt: new Date().toISOString(), data }, null, 0);
-  // setImmediate so we never block the event loop
-  setImmediate(() => {
-    try {
-      writeFileSync(file, payload, 'utf8');
-    } catch (e) {
-      console.warn(`[Cache] Could not write ${key} cache:`, e.message);
-    }
+  // writeFile is fully async — never blocks the event loop
+  writeFile(file, payload, 'utf8', (e) => {
+    if (e) console.warn(`[Cache] Could not write ${key} cache:`, e.message);
   });
 }

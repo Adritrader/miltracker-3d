@@ -320,6 +320,10 @@ const SERVER_INFO = {
 io.on('connection', (socket) => {
   console.log(`[Socket] Client connected: ${socket.id}`);
 
+  // Per-socket rate limiting for client-initiated events
+  let lastRequestData    = 0;
+  let lastRequestHistory = 0;
+
   // Inform client of server capabilities
   socket.emit('server_info', SERVER_INFO);
 
@@ -333,6 +337,9 @@ io.on('connection', (socket) => {
   if (cachedAiInsight) socket.emit('ai_insight', cachedAiInsight);
 
   socket.on('request_data', () => {
+    const now = Date.now();
+    if (now - lastRequestData < 5000) return; // 5 s cooldown — prevents flood
+    lastRequestData = now;
     socket.emit('aircraft_update', { aircraft: cache.aircraft, timestamp: cache.lastAircraftUpdate });
     socket.emit('ship_update',     { ships: cache.ships,       timestamp: cache.lastShipUpdate });
     socket.emit('news_update',     { news: cache.news,         timestamp: cache.lastNewsUpdate });
@@ -341,6 +348,9 @@ io.on('connection', (socket) => {
 
   // Timeline history: client requests full snapshot buffer
   socket.on('request_history', () => {
+    const now = Date.now();
+    if (now - lastRequestHistory < 10000) return; // 10 s cooldown
+    lastRequestHistory = now;
     const snapshots = getHistory();
     const range     = getTimeRange();
     socket.emit('history_data', { snapshots, range });
@@ -380,9 +390,11 @@ httpServer.listen(PORT, () => {
   // cycle doesn't burn quota — first real call will happen after first changed poll
   lastGeminiCallAt = Date.now() - GEMINI_COOLDOWN_MS + 5 * 60_000; // allow after 5 min
 
-  // Intervals
+  // Intervals — use recursive setTimeout for pollShips to prevent overlap
+  // if a fetch takes longer than the interval (B4)
   setInterval(pollAircraft,   30_000);
-  setInterval(pollShips,      60_000);
+  const scheduleShips = () => pollShips().finally(() => setTimeout(scheduleShips, 60_000));
+  setTimeout(scheduleShips, 60_000);
   setInterval(pollNews,    5 * 60_000);
   setInterval(pollConflicts, 10 * 60_000);
 });

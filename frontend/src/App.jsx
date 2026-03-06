@@ -64,15 +64,26 @@ function App() {
   const [trackedList, setTrackedList] = useState(new Map());
   const [satellitePortal, setSatellitePortal] = useState(null); // { lat, lon, title }
   const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
-  const [alertPanelOpen, setAlertPanelOpen] = useState(false);
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
+  const {
+    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef,
+  } = useRealTimeData();
+
+  // Timeline replay
+  const timeline = useTimeline(socketRef);
+
+  // Single Escape handler — priority: replay stop > modal/entity close (B9)
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
+        if (timeline.replayMode) {
+          timeline.controls.stop();
+          return; // replay stop takes priority
+        }
         setSelectedEntity(null);
         setSearchOpen(false);
         setNewsCluster(null);
@@ -81,23 +92,6 @@ function App() {
         e.preventDefault();
         setSearchOpen(s => !s);
       }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  const {
-    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef,
-  } = useRealTimeData();
-
-  // Timeline replay
-  const timeline = useTimeline(socketRef);
-
-  // When ESC pressed in replay mode, stop and go live
-  useEffect(() => {
-    if (!timeline.replayMode) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') timeline.controls.stop();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -125,8 +119,11 @@ function App() {
   );
 
   const filteredConflicts = useMemo(
-    () => conflicts.filter(c => c.source !== 'NASA FIRMS'),
-    [conflicts]
+    () => filters.showConflicts
+          ? conflicts.filter(c => c.source !== 'NASA FIRMS')
+          : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conflicts, filters.showConflicts]
   );
 
   const firmsHotspots = useMemo(
@@ -314,7 +311,6 @@ function App() {
         viewer={viewer}
         onFlyTo={handleFlyToAlert}
         isMobile={isMobile}
-        onOpenChange={setAlertPanelOpen}
         onHeightChange={setAlertPanelHeight}
       />
 
@@ -347,7 +343,9 @@ function App() {
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}
       <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"
-           style={{ bottom: 28 + newsPanelHeight + 8, right: 16, transition: 'bottom 0.3s ease' }}>
+           style={{ bottom: 28 + newsPanelHeight + 8, right: 16, transition: 'bottom 0.3s ease',
+                    // D1: cap height so AlertPanel can't overlap on small screens
+                    maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture
           viewer={viewer}

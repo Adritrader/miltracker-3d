@@ -176,6 +176,14 @@ const ALERT_LOCATIONS = [
   { kw: 'kashmir',          lat: 34.080, lon: 74.800 },
 ];
 
+// Deterministic jitter — same title+keyword always maps to the same offset so
+// alerts don't jump position between poll cycles.
+function stableJitter(seed, range) {
+  let h = 0x12345678;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 0x9e3779b9) | 0;
+  return ((h >>> 0) / 0xFFFFFFFF - 0.5) * range;
+}
+
 /**
  * Try to assign lat/lon to an alert by keyword-matching its title + message.
  * Returns { lat, lon } or null if no match.
@@ -184,10 +192,11 @@ function geocodeAlert(title = '', message = '') {
   const text = `${title} ${message}`.toLowerCase();
   for (const loc of ALERT_LOCATIONS) {
     if (text.includes(loc.kw)) {
-      // tiny jitter so stacked events don't overlap perfectly
+      // Stable jitter based on title+keyword so same alert never changes position
+      const seed = title.slice(0, 40) + loc.kw;
       return {
-        lat: loc.lat + (Math.random() - 0.5) * 0.15,
-        lon: loc.lon + (Math.random() - 0.5) * 0.15,
+        lat: loc.lat + stableJitter(seed + 'lat', 0.15),
+        lon: loc.lon + stableJitter(seed + 'lon', 0.15),
         geocodedFrom: loc.kw,
       };
     }

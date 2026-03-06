@@ -150,11 +150,20 @@ async function batchedFetch(queries, fetchOneFn, batchSize = 4, delayMs = 500) {
   return results;
 }
 
+// Deterministic jitter — same event always gets the same coordinate offset between polls.
+// Uses a simple hash of the title+keyword so events in the same city spread apart but stay stable.
+function stableJitter(seed, range) {
+  let h = 0x12345678;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 0x9e3779b9) | 0;
+  return ((h >>> 0) / 0xFFFFFFFF - 0.5) * range;
+}
+
 function geocodeTitle(title = '', sourcecountry = '') {
   const text = `${title} ${sourcecountry}`.toLowerCase();
   for (const [kw, lat, lon] of LOCATION_MAP) {
     if (text.includes(kw)) {
-      return { lat: lat + (Math.random() - 0.5) * 0.4, lon: lon + (Math.random() - 0.5) * 0.4 };
+      const seed = title.slice(0, 40) + kw;
+      return { lat: lat + stableJitter(seed + 'lat', 0.4), lon: lon + stableJitter(seed + 'lon', 0.4) };
     }
   }
   return null;
@@ -224,7 +233,7 @@ async function fetchGDELTGeoConflicts() {
         const props = f.properties || f;
         const title = props.name || props.title || props.label || q;
         items.push({
-          id:          `gdelt-geo-${(+lon).toFixed(3)}-${(+lat).toFixed(3)}`,
+          id:          `gdelt-geo-${(+lon).toFixed(3)}-${(+lat).toFixed(3)}-${title.slice(0,15).replace(/[^\w]/g,'')}`.slice(0, 80),
           type:        classifyEvent(title),
           title,
           url:         props.url || '',
@@ -373,7 +382,7 @@ async function fetchReliefWebConflicts() {
         id:   `rw-${item.id}`,
         type: classifyEvent(title),
         title,
-        url:  item.href || '',
+        url:  f.url || item.href || '',
         lat:  geo.lat, lon: geo.lon,
         country,
         source:      `ReliefWeb/${f.source?.[0]?.name || 'OCHA'}`,

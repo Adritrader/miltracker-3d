@@ -10,5 +10,9 @@ npm-debug.log*
 # Backend disk cache (runtime data, not source)
 backend/data/
 
+# One-time migration scripts artifacts
+scripts/*.json
+scripts/*.txt
+
 # Vite
 frontend/.vite/

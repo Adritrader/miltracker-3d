@@ -123,7 +123,7 @@ export function useRealTimeData() {
       setDangerZones(zones);
       setAlerts(alrts);
       if (zones.length > 0) cacheSave('dangerZones', zones);
-      if (alrts.length > 0) cacheSave('alerts', alrts);
+      cacheSave('alerts', alrts); // always save, even empty array = all-clear
     });
 
     socket.on('ai_insight', (insight) => {
