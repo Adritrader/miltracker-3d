@@ -397,9 +397,9 @@ function App() {
       {/* Bottom: Coordinate / status bar */}
       <CoordinateHUD
         viewer={viewer}
-        aircraft={filteredAircraft}
-        ships={filteredShips}
-        conflicts={conflicts}
+        aircraftCount={filteredAircraft.length}
+        shipCount={filteredShips.length}
+        conflictCount={conflicts.length}
         connected={connected}
         isMobile={isMobile}
       />

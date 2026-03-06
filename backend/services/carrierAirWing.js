@@ -12,16 +12,7 @@
  * Sources: public USN/RN/MN squadron directories, Wikipedia CVW pages, NavalToday
  */
 
-// ── Haversine distance (km) ────────────────────────────────────────────────────
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const d2r = Math.PI / 180;
-  const dLat = (lat2 - lat1) * d2r;
-  const dLon = (lon2 - lon1) * d2r;
-  const a = Math.sin(dLat / 2) ** 2
-          + Math.cos(lat1 * d2r) * Math.cos(lat2 * d2r) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { distKm as haversineKm } from './aiDanger.js';
 
 // ── Carrier Air Wing databases ────────────────────────────────────────────────
 // Each entry: callsign prefix (uppercase, 3-8 chars) → { carrier, cvw, squadron, mmsi }

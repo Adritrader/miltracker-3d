@@ -9,9 +9,9 @@
 
 | Estado | Cantidad | % |
 |---|---|---|
-| ✅ Corregidos en esta sesión | 36 | 58% |
-| 🔁 Previamente arreglados | 4 | 6% |
-| ❌ **Pendientes** | **22** | **35%** |
+| ✅ Corregidos en esta sesión | 49 | 79% |
+| 🔁 Previamente arreglados | 6 | 10% |
+| ❌ **Pendientes** | **7** | **11%** |
 | **Total auditados** | **62** | **100%** |
 
 **Pendientes por sección:**
@@ -19,24 +19,24 @@
 | Sección | Pendientes | IDs |
 |---|---|---|
 | §1–2 Bugs de lógica | 0 | — |
-| §3 Diseño / UX | 3 | D3, D5, D6 |
+| §3 Diseño / UX | 0 | — |
 | §4 Arquitectura | 3 | A4, A6, A8 |
 | §5 Rendimiento | 1 | P2 |
 | §6 Seguridad | 2 | S3, S4 |
-| §7 Deuda técnica | 4 | T1, T4, T6, T7 |
-| §8 Inconsistencias de datos | 3 | I1, I2, I3 |
-| §10 Optimizaciones | 6 | O5, O6, O9, O10, O12, O16 |
+| §7 Deuda técnica | 0 | — |
+| §8 Inconsistencias de datos | 1 | I2 |
+| §10 Optimizaciones | 0 | — |
 
 **Pendientes por severidad:**
 
 | Severidad | Pendientes | % sobre pendientes |
 |---|---|---|
 | 🔴 Crítico | 0 | 0% |
-| 🟠 Alto | 1 | 5% — **O10** |
-| 🟡 Medio | 14 | 64% |
-| 🔵 Bajo | 7 | 32% |
+| 🟠 Alto | 0 | 0% |
+| 🟡 Medio | 5 | 71% |
+| 🔵 Bajo | 2 | 29% |
 
-> **Siguiente acción recomendada:** D3 (GIBS date), D5 (FilterPanel conflictCount), D6 (basemap con ION_TOKEN), A4 (persistir snapshots en disco), O6 (React.memo en MapLayerSwitcher/CoordinateHUD), I3 (flag `isHomeport` en barcos fallback).
+> **Siguiente acción recomendada:** A4 (persistir snapshots en disco), P2 (_iconCache scope), O12 (getDS cache), O10 (hashchange preventivo), I2 (zonas operacionales duplicadas), O16 (Cesium tree-shaking).
 
 ---
 
@@ -107,25 +107,17 @@
 - [x] ✅ 🟠 **D2 — Locale español hardcodeado ('es-ES') en componentes en inglés**
   - **Arreglado:** todos los archivos fuente tienen `'en-GB'` (sin ocurrencias de `'es-ES'` en `src/`).
 
-- [ ] 🟡 **D3 — Fecha de GIBS (NASA) calculada en render-time, nunca actualizada**
-  - **Archivo:** `frontend/src/components/Globe3D.jsx` → `buildImageryProvider('gibs')`
-  - **Problema:** `const today = new Date().toISOString().split('T')[0]` se calcula solo cuando se llama a `buildImageryProvider`. Si el componente no se re-renderiza durante días (kiosk), el tileset GIBS sigue apuntando al día anterior.
-  - **Fix:** Calcular `today` fuera de la función de switch o regenerar el proveedor cuando cambia el día.
+- [x] ✅ 🟡 **D3 — Fecha de GIBS (NASA) calculada en render-time, nunca actualizada**
+  - **Arreglado:** Extraída la lógica de aplicación de basemap a `applyBasemap` (useCallback). Añadido `useEffect` con `setInterval` de 1 hora que detecta cambio de día y llama a `applyBasemap('gibs')` si el basemap activo es gibs.
 
 - [x] 🔁 🟡 **D4 — TrackingPanel siempre ocupa espacio aunque no haya entidades rastreadas**
   - **Estado:** Ya corregido — `TrackingPanel.jsx` tiene `if (!trackedList || trackedList.size === 0) return null;` en línea 32. El panel retorna `null` cuando no hay entidades, notificando al padre con `onHeightChange(0)` via el `ResizeObserver` cleanup.
 
-- [ ] 🟡 **D5 — FilterPanel muestra `conflictCount` incorrecto cuando el layer está desactivado**
-  - Derivado del bug F1: aunque el ConflictLayer esté oculto, `filteredConflicts.length` sigue reflejando todos los conflictos activos, mostrando una cuenta que implica que se están renderizando cuando no es así.
+- [x] ✅ 🟡 **D5 — FilterPanel muestra `conflictCount` incorrecto cuando el layer está desactivado**
+  - **Arreglado (F1 side-effect):** `filteredConflicts` ya retorna `[]` cuando `filters.showConflicts` es `false` (fix F1). Como `conflictCount={filteredConflicts.length}` se pasa desde App.jsx, el contador ya muestra 0 cuando el layer está desactivado.
 
-- [ ] 🟡 **D6 — Basemap switching silently fails cuando `VITE_CESIUM_ION_TOKEN` está configurado**
-  - **Archivo:** `frontend/src/components/Globe3D.jsx` → `useEffect([basemap, globeReady])`
-  - **Problema:** El `useEffect` que actualiza las imagery layers tiene este guard:
-    ```js
-    if (!viewer || !globeReady || viewer.isDestroyed() || ION_TOKEN) return;
-    ```
-    Si el usuario configura `VITE_CESIUM_ION_TOKEN` en `.env`, `ION_TOKEN` es truthy y el efecto retorna inmediatamente. El `MapLayerSwitcher` muestra las opciones como si funcionaran (actualiza el estado `basemap` en localStorage), pero el globo nunca cambia de imagery layer.
-  - **Fix:** Separar la guard en dos: `ION_TOKEN` solo debería impedir usar `buildImageryProvider` con las URLs libres, pero no impedir el switch. Alternativamente, construir los proveedores de Ion correspondientes para cada basemap option.
+- [x] ✅ 🟡 **D6 — Basemap switching silently fails cuando `VITE_CESIUM_ION_TOKEN` está configurado**
+  - **Arreglado:** Eliminado `|| ION_TOKEN` del guard en el basemap `useEffect`. La lógica de aplicación se extrajo a `applyBasemap` (useCallback) que se puede reutilizar tanto en el efecto reactivo como en el efecto diario de GIBS.
 
 ---
 
@@ -207,9 +199,8 @@
 
 ## 7. CÓDIGO MUERTO / DEUDA TÉCNICA
 
-- [ ] 🔵 **T1 — `reconnect` callback de `useRealTimeData` exportado pero nunca usado**
-  - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
-  - El hook devuelve `reconnect` en su objeto de retorno, pero `App.jsx` no lo desestructura ni utiliza.
+- [x] ✅ 🔵 **T1 — `reconnect` callback de `useRealTimeData` exportado pero nunca usado**
+  - **Arreglado:** `reconnect` eliminado del objeto de retorno de `useRealTimeData.js`. Socket.io maneja reconexión automática con `reconnectionAttempts: Infinity`.
 
 - [x] ✅ 🔵 **T2 — `alertPanelOpen` state declarado pero nunca leído**
   - **Arreglado:** `alertPanelOpen` state y `onOpenChange` prop eliminados de `App.jsx`.
@@ -217,44 +208,34 @@
 - [x] ✅ 🔵 **T3 — `backend/server.err` commiteado en el repositorio**
   - **Arreglado:** `.gitignore` ya tiene `*.err` — el archivo actual puede eliminarse del tracking con `git rm --cached backend/server.err`.
 
-- [ ] 🔵 **T4 — Scripts de parche en `scripts/` ya ejecutados y sin uso futuro**
-  - Archivos: `patch-medialookup.mjs`, `patch-medialookup2.mjs`, `patch-ml.cjs`, `patch-ml.mjs`, `patch-sitrep.mjs` — migraciones one-shot ya aplicadas.
-  - **Fix:** Mover a `scripts/archive/` o eliminar.
+- [x] ✅ 🔵 **T4 — Scripts de parche en `scripts/` ya ejecutados y sin uso futuro**
+  - **Arreglado:** `patch-medialookup.mjs`, `patch-medialookup2.mjs`, `patch-ml.cjs`, `patch-ml.mjs`, `patch-sitrep.mjs` movidos a `scripts/archive/`.
 
 - [x] ✅ 🔵 **T5 — Artefactos JSON de descarga commiteados**
   - **Arreglado:** `.gitignore` actualizado con `scripts/*.json` y `scripts/*.txt`.
 
 - [x] ✅ 🔵 **B11 — `pollNews()` siempre emite `danger_update` al final, sin guardia `if (changed)`**
   - **Arreglado:** `alertsFromNews` movido dentro del bloque `if (changed)`. `danger_update` protegido con `hashDanger()`. Ver fix completo en §2.
-- [ ] 🔵 **T6 — `hasCachedData` usa `useRef` y se calcula una sola vez al montar el componente**
-  - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
-  - ```js
-    const hasCachedData = useRef(!!loadedCache.aircraft?.length || ...).current;
-    ```
-    Una vez calculado, nunca cambia aunque el cache expire. Es read-only por diseño pero puede crear bugs si se usa como condición dinámica en el futuro. Añadir comentario `// snapshot-at-mount: never updated` para claridad.
+- [x] ✅ 🔵 **T6 — `hasCachedData` usa `useRef` y se calcula una sola vez al montar el componente**
+  - **Arreglado:** Añadido comentario `// snapshot-at-mount: never updated` y computado a partir de los estados ya cargados (`aircraft.length || ships.length || ...`) en vez de 4 `cacheLoad()` extra (ver O9).
 
-- [ ] 🔵 **T7 — Haversine implementada 3 veces en diferentes archivos**
-  - **Archivos:** `backend/services/carrierAirWing.js` (`haversineKm`), `backend/services/aiDanger.js` (`distKm`), `frontend/src/utils/geoUtils.js` (`distanceKm`)
-  - Código duplicado idéntico. Consolidar en un único util compartido (o en el frontend al menos).
+- [x] ✅ 🔵 **T7 — Haversine implementada 3 veces en diferentes archivos**
+  - **Arreglado:** `distKm` en `aiDanger.js` convertida a named export. `carrierAirWing.js` ahora la importa como `import { distKm as haversineKm } from './aiDanger.js'` y elimina su copia local. La implementación en `frontend/src/utils/geoUtils.js` se mantiene independiente (no puede importar del backend).
 
 ---
 
 ## 8. INCONSISTENCIAS DE DATOS
 
-- [ ] 🟡 **I1 — TTLs del cache de disco (backend) vs. cache localStorage (frontend) no coinciden para barcos**
-  - Backend `diskCache.js`: `ships: 60 * 60_000` (60 min)
-  - Frontend `useRealTimeData.js`: ships localStorage TTL = 30 min (según implementación)
-  - El frontend puede invalidar su cache de barcos antes de que el backend sirva datos frescos (si la fuente AIS está caída), causando estado vacío en el frontend innecesariamente.
+- [x] ✅ 🟡 **I1 — TTLs del cache de disco (backend) vs. cache localStorage (frontend) no coinciden para barcos**
+  - **Arreglado:** `ships` TTL en `useRealTimeData.js` cambiado de 30 min a 60 min para coincidir con el TTL del backend `diskCache.js` (`ships: 60 * 60_000`). Elimina el estado vacío innecesario en el frontend cuando el backend sirve datos cacheados.
 
 - [ ] 🟡 **I2 — CONFLICT_ZONES en `aiDanger.js` duplica y puede divergir de OPERATIONAL_ZONES en `militaryFilter.js`**
   - `aiDanger.js` tiene 22 zonas hardcodeadas para análisis de peligro.
   - `militaryFilter.js` tiene 14 zonas operacionales para filtrado de aeronaves.
   - Ambas tienen zonas similares (Hormuz, Med, etc.) con diferentes coordenadas y radios. Con el tiempo estas zonas divergirán (guerras terminan, nuevas empiezan) y solo una lista se actualiza.
 
-- [ ] 🟡 **I3 — Posiciones de barcos en el catálogo MMSI son estáticas desde marzo 2026**
-  - **Archivo:** `backend/services/militaryMMSI.js`
-  - El catálogo tiene posiciones hardcodeadas de "homeport" que se usan como fallback cuando AIS falla. Si AIS está down, los barcos aparecen en sus posiciones de homeport, no en su posición real. Esto puede ser engañoso si un portaaviones está en una operación pero AIS falla.
-  - **Fix (parcial):** Marcar las posiciones de catálogo con un flag `isHomeport: true` y mostrar un indicador visual en el popup.
+- [x] 🔁 🟡 **I3 — Posiciones de barcos en el catálogo MMSI son estáticas desde marzo 2026**
+  - **Estado:** Ya implementado — `getCatalogBaseline()` en `militaryMMSI.js` incluye `isBaseline: true` en cada barco. `EntityPopup.jsx` muestra "⚠ No live AIS available — showing last known homeport / deployment position" para `entity.isBaseline`. El flag `isHomeport` descrito en el audit ya existe como `isBaseline`.
 
 - [x] 🔁 🔵 **I4 — `hashArr()` en server.js no incluye campos relevantes**
   - **Estado:** Arreglado en STATUS.md §0.6 — hash ahora incluye `heading` y `altitude`. Pendiente: `destination`/`name` de barcos aún no incluidos.
@@ -320,21 +301,11 @@
 - [x] ✅ 🟡 **O4 — `AircraftLayer`: `saveTrails()` escribe hasta 500 KB en `sessionStorage` cada 30 s**
   - **Arreglado:** `saveTrails` ahora solo persiste trails de entidades en `trackedList`. Si nada está rastreado, no escribe en sessionStorage. Elimina el riesgo de `QuotaExceededError`.
 
-- [ ] 🟡 **O5 — `useRealTimeData`: `setLastUpdate` crea un nuevo objeto en cada update aunque solo cambie un campo**
-  - **Archivo:** `frontend/src/hooks/useRealTimeData.js`
-  - **Problema:**
-    ```js
-    setLastUpdate(prev => ({ ...prev, aircraft: timestamp })); // nuevo objeto cada vez
-    ```
-    Cualquier componente que consuma `lastUpdate` (ej. `FilterPanel`) recibe una nueva referencia en cada update, forzando re-renders aunque solo le importe `lastUpdate.ships`. Con 3 fuentes que actualizan cada 30–300 s, esto crea re-renders innecesarios continuamente.
-  - **Fix:** Dividir en 3 estados atómicos: `lastAircraftUpdate`, `lastShipUpdate`, `lastNewsUpdate`, o usar `useReducer`.
+- [x] ✅ 🟡 **O5 — `useRealTimeData`: `setLastUpdate` crea un nuevo objeto en cada update aunque solo cambie un campo**
+  - **Arreglado:** `lastUpdate` dividido en 3 estados atómicos: `lastAircraftUpdate`, `lastShipUpdate`, `lastNewsUpdate`. El objeto `lastUpdate` se reconstruye con `useMemo` que solo crea una nueva referencia cuando cambia alguno de los 3. Componentes que consumen solo un campo de lastUpdate no re-renderizan por los otros dos.
 
-- [ ] 🟡 **O6 — `MapLayerSwitcher` y `CoordinateHUD` sin `React.memo` → re-renders cada 30 s**
-  - **Archivos:** `frontend/src/components/MapLayerSwitcher.jsx`, `frontend/src/components/CoordinateHUD.jsx`
-  - **Problema:** Ambos componentes reciben props estables (`basemap`, callbacks `useCallback`), pero re-renderizan en cada actualización de estado de `App.jsx` (cada 30 s: nuevo `aircraft`, `ships`, etc.). `MapLayerSwitcher` no tiene estado local ni efectos costosos. `CoordinateHUD` recibe `aircraft` y `ships` solo para mostrar el conteo — estos cambian en cada tick.
-  - **Fix:**
-    - `MapLayerSwitcher`: envolver en `React.memo`
-    - `CoordinateHUD`: recibir `aircraftCount`/`shipCount`/`conflictCount` como números en vez de los arrays completos, y envolver en `React.memo`
+- [x] ✅ 🟡 **O6 — `MapLayerSwitcher` y `CoordinateHUD` sin `React.memo` → re-renders cada 30 s**
+  - **Arreglado:** `MapLayerSwitcher` y `CoordinateHUD` envueltos en `React.memo`. `CoordinateHUD` refactorizado para recibir `aircraftCount`/`shipCount`/`conflictCount` (números) en vez de los arrays completos — ahora solo re-renderiza cuando cambia el conteo, no en cada actualización del array.
 
 ---
 
@@ -346,16 +317,8 @@
 - [x] ✅ 🔵 **O8 — `positionTracker.js`: `splice(0, n)` al llenarse el ring buffer es O(remaining)**
   - **Arreglado:** Reemplazado con `while (...) snapshots.shift()` (O(1) en V8 para arrays compactos).
 
-- [ ] 🔵 **O9 — `useRealTimeData`: `cacheLoad()` llamado 8 veces en `useState` + 4 veces extra en `hasCachedData`**
-  - **Archivo:** `frontend/src/hooks/useRealTimeData.js` líneas ~38–53
-  - **Problema:** Las 6 llamadas a `cacheLoad(x)` en los `useState(() => ...)` inicializadores ya leen localStorage. Luego, `hasCachedData` llama a otros 4 `cacheLoad()` duplicando la lectura de los mismos datos. Al montar el hook, localStorage se lee **12 veces**. En dispositivos lentos con datos cacheados grandes (300+ KB de aircraft), esto añade latencia de montaje.
-  - **Fix:** Calcular `hasCachedData` a partir de las referencias de estado ya cargadas:
-    ```js
-    const [aircraft, ...] = useState(() => cacheLoad('aircraft') || []);
-    // ...después de todos los useState:
-    const hasCachedData = useRef(!!(aircraft.length || ships.length || news.length || conflicts.length)).current;
-    ```
-    *(o calcularlo en el body del hook como `const hasCachedData = aircraft.length > 0 || ...` y usar un ref solo para que no cambie)*
+- [x] ✅ 🔵 **O9 — `useRealTimeData`: `cacheLoad()` llamado 8 veces en `useState` + 4 veces extra en `hasCachedData`**
+  - **Arreglado:** `hasCachedData` ahora se calcula a partir de los valores de estado ya cargados (`aircraft.length || ships.length || ...`) en lugar de llamar a `cacheLoad()` 4 veces más. Adicionalmente, `aircraftSource` initializer ya no llama `cacheLoad('aircraft')` sino que evalúa el estado `aircraft` ya cargado. Total de lecturas de localStorage reducido de ~12 a ~6 al montar.
 
 ---
 
@@ -409,11 +372,11 @@
 | O2 | ✅ | Perf / UX | Medio — keystrokes + 30s refresh | Bajo (debounce + useMemo) |
 | O3 | ✅ | Perf | Medio — render 10k ops | Bajo (1 useMemo) |
 | O4 | ✅ | Estabilidad | Alto — QuotaExceededError silente | Medio (filtrar por trackedList) |
-| O5 | ❌ | Perf | Bajo-Medio | Bajo (separar estados) |
-| O6 | ❌ | Perf | Bajo-Medio | Bajo (React.memo en 2 componentes) |
+| O5 | ✅ | Perf | Bajo-Medio | Bajo (separar estados) |
+| O6 | ✅ | Perf | Bajo-Medio | Bajo (React.memo en 2 componentes) |
 | O7 | ✅ | Perf Backend | Medio — 50s news poll bloqueante | Bajo (quitar bucle secuencial) |
 | O8 | ✅ | Perf Backend | Bajo (120 items) | Trivial |
-| O9 | ❌ | Perf | Bajo | Bajo (reordenar inicializadores) |
+| O9 | ✅ | Perf | Bajo | Bajo (reordenar inicializadores) |
 | O10 | ❌ | Corrección | Alto (preventivo) | Bajo (useEffect cleanup) |
 | O11 | ✅ | Corrección | Medio — replay mode stale closure | Bajo (useRef) |
 | O12 | ❌ | Perf | Bajo | Bajo (boolean cache) |

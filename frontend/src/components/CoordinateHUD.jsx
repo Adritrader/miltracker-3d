@@ -3,7 +3,7 @@
  * Shows: mouse lat/lon on globe · camera altitude · UTC clock · entity counts
  */
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import * as Cesium from 'cesium';
 
 function fmtAlt(m) {
@@ -30,7 +30,7 @@ const Seg = ({ label, value, valueClass = 'text-hud-green', children }) => (
   </div>
 );
 
-const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], connected = false, isMobile = false }) => {
+const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false }) => {
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
@@ -157,13 +157,13 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
       <Divider />
       <div className="flex items-center gap-3 px-3 h-full">
         <span className="font-mono text-xs text-hud-text">
-          ▲ <span className="text-hud-blue font-bold">{aircraft.length}</span>
+          ▲ <span className="text-hud-blue font-bold">{aircraftCount}</span>
         </span>
         <span className="font-mono text-xs text-hud-text">
-          ▬ <span className="text-hud-blue font-bold">{ships.length}</span>
+          ▬ <span className="text-hud-blue font-bold">{shipCount}</span>
         </span>
         <span className="font-mono text-xs text-hud-text">
-          ◆ <span className="text-orange-400 font-bold">{conflicts.length}</span>
+          ◆ <span className="text-orange-400 font-bold">{conflictCount}</span>
         </span>
       </div>
 
@@ -214,4 +214,4 @@ const CoordinateHUD = ({ viewer, aircraft = [], ships = [], conflicts = [], conn
   );
 };
 
-export default CoordinateHUD;
+export default memo(CoordinateHUD);

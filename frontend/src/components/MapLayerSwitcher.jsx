@@ -2,7 +2,7 @@
  * MapLayerSwitcher – compact map basemap selector
  * 6 free basemaps, no API key required
  */
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 
 export const BASEMAPS = {
   dark: {
@@ -87,4 +87,4 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
   );
 };
 
-export default MapLayerSwitcher;
+export default memo(MapLayerSwitcher);

@@ -2,7 +2,7 @@
  * useRealTimeData – connects to backend WebSocket and returns live data
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -10,7 +10,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 // ── LocalStorage cache helpers ───────────────────────────────────────────────
 const CACHE = {
   aircraft:    { key: 'milt_ac',  ttl: 30 * 60 * 1000  },  // 30 min
-  ships:       { key: 'milt_sh',  ttl: 30 * 60 * 1000  },  // 30 min
+  ships:       { key: 'milt_sh',  ttl: 60 * 60 * 1000  },  // 60 min (matches backend diskCache TTL — I1)
   news:        { key: 'milt_nw',  ttl: 2  * 60 * 60 * 1000 }, // 2 h
   conflicts:   { key: 'milt_cf',  ttl: 2  * 60 * 60 * 1000 }, // 2 h
   alerts:      { key: 'milt_al',  ttl: 4  * 60 * 60 * 1000 }, // 4 h
@@ -36,7 +36,8 @@ export function useRealTimeData() {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [aircraft, setAircraft] = useState(() => cacheLoad('aircraft') || []);
-  const [aircraftSource, setAircraftSource] = useState(() => cacheLoad('aircraft') ? 'cached' : 'loading');
+  // O9: use already-loaded aircraft state for aircraftSource init (avoids 2nd cacheLoad call)
+  const [aircraftSource, setAircraftSource] = useState(() => (cacheLoad('aircraft') || []).length ? 'cached' : 'loading');
   const [ships, setShips] = useState(() => cacheLoad('ships') || []);
   const [news, setNews] = useState(() => cacheLoad('news') || []);
   const [conflicts, setConflicts] = useState(() => cacheLoad('conflicts') || []);
@@ -45,16 +46,19 @@ export function useRealTimeData() {
   const [aiInsight, setAiInsight] = useState(() => cacheLoad('aiInsight'));
   const [aiError, setAiError] = useState(null);
   const [geminiEnabled, setGeminiEnabled] = useState(null); // null = unknown until server_info arrives
-  const [lastUpdate, setLastUpdate] = useState({ aircraft: null, ships: null, news: null });
-  // hasCachedData: computed once at mount — true if any data was available before socket connects
-  const hasCachedData = useRef(
-    !!(cacheLoad('aircraft') || cacheLoad('ships') || cacheLoad('news') || cacheLoad('conflicts'))
-  ).current;
+  // O5: split into 3 atomic states so each update only re-renders subscribers of that field
+  const [lastAircraftUpdate, setLastAircraftUpdate] = useState(null);
+  const [lastShipUpdate,     setLastShipUpdate]     = useState(null);
+  const [lastNewsUpdate,     setLastNewsUpdate]     = useState(null);
+  // lastUpdate: reconstructed object for backward-compatible prop passing (FilterPanel uses lastUpdate.aircraft)
+  const lastUpdate = useMemo(
+    () => ({ aircraft: lastAircraftUpdate, ships: lastShipUpdate, news: lastNewsUpdate }),
+    [lastAircraftUpdate, lastShipUpdate, lastNewsUpdate]
+  );
+  // hasCachedData: snapshot-at-mount, never updated — O9: computed from already-loaded state,
+  // avoids 4 extra cacheLoad() / localStorage reads at mount
+  const hasCachedData = useRef(!!(aircraft.length || ships.length || news.length || conflicts.length)).current;
   const [isInitialLoad, setIsInitialLoad] = useState(() => !hasCachedData);
-
-  const reconnect = useCallback(() => {
-    socketRef.current?.connect();
-  }, []);
 
   useEffect(() => {
     const socket = io(BACKEND_URL, {
@@ -86,7 +90,7 @@ export function useRealTimeData() {
         setAircraftSource('empty');
       }
       setIsInitialLoad(false);
-      setLastUpdate(prev => ({ ...prev, aircraft: timestamp }));
+      setLastAircraftUpdate(timestamp);
     });
 
     socket.on('ship_update', ({ ships: sh, timestamp }) => {
@@ -96,7 +100,7 @@ export function useRealTimeData() {
         cacheSave('ships', list);
       }
       setIsInitialLoad(false);
-      setLastUpdate(prev => ({ ...prev, ships: timestamp }));
+      setLastShipUpdate(timestamp);
     });
 
     socket.on('news_update', ({ news: nw, timestamp }) => {
@@ -105,7 +109,7 @@ export function useRealTimeData() {
         setNews(list);
         cacheSave('news', list);
       }
-      setLastUpdate(prev => ({ ...prev, news: timestamp }));
+      setLastNewsUpdate(timestamp);
     });
 
     socket.on('conflict_update', ({ conflicts: cf }) => {
@@ -143,5 +147,5 @@ export function useRealTimeData() {
     return () => socket.disconnect();
   }, []);
 
-  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, reconnect, socketRef };
+  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef };
 }

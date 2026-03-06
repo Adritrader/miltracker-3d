@@ -263,13 +263,15 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
   }, [onViewerReady, onEntityClick]);
 
   // ── Basemap switching ──────────────────────────────────────────────────────
-  useEffect(() => {
+  // D6: ION_TOKEN guard removed — switching must work even when Ion token is set
+  // (buildImageryProvider uses free tile URLs, not Ion; Ion is only used for the initial layer)
+  const applyBasemap = useCallback((bm) => {
     const viewer = viewerRef.current;
-    if (!viewer || !globeReady || viewer.isDestroyed() || ION_TOKEN) return;
+    if (!viewer || !globeReady || viewer.isDestroyed()) return;
     viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(basemap)));
+    viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(bm)));
     // For dark/night basemaps add a high-contrast country borders + labels overlay
-    if (basemap === 'dark' || basemap === 'night') {
+    if (bm === 'dark' || bm === 'night') {
       const bordersProvider = new Cesium.UrlTemplateImageryProvider({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         minimumLevel: 0,
@@ -278,7 +280,24 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       });
       viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65 }));
     }
-  }, [basemap, globeReady]);
+  }, [globeReady]);
+
+  useEffect(() => { applyBasemap(basemap); }, [basemap, globeReady, applyBasemap]);
+
+  // D3: GIBS uses a date-stamped URL. If the page stays open past midnight the
+  // imagery becomes stale. Check every hour and rebuild if the date changed.
+  useEffect(() => {
+    if (basemap !== 'gibs') return;
+    let lastDate = new Date().toISOString().split('T')[0];
+    const id = setInterval(() => {
+      const today = new Date().toISOString().split('T')[0];
+      if (today !== lastDate) {
+        lastDate = today;
+        applyBasemap('gibs');
+      }
+    }, 60 * 60 * 1000); // check every hour
+    return () => clearInterval(id);
+  }, [basemap, applyBasemap]);
 
   // ── Space View (realistic lighting + atmosphere) reactive to prop ────────
   useEffect(() => {
