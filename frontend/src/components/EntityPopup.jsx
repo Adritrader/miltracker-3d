@@ -160,8 +160,20 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   // ── Fly to ────────────────────────────────────────────────────────────────
   const flyTo = () => {
     if (!viewer || !entity.lat || !entity.lon) return;
+    // U3: use entity-type-specific altitude instead of a fixed 1.5Mm for all types
+    const FLY_ALT = {
+      aircraft: 500_000,
+      ship:     800_000,
+      firms:    200_000,
+      base:     300_000,
+      conflict: 400_000,
+      news:     600_000,
+      geo_event:600_000,
+      alert:    500_000,
+    };
+    const alt = FLY_ALT[entity.type] ?? FLY_ALT[entity.type_entity] ?? 600_000;
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(entity.lon, entity.lat, 1_500_000),
+      destination: Cesium.Cartesian3.fromDegrees(entity.lon, entity.lat, alt),
       duration: 2,
     });
   };

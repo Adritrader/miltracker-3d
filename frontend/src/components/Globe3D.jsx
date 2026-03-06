@@ -137,7 +137,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     // SSE 2 = Cesium default; keeps enough tile detail to show country borders.
     // Do NOT raise above 2 or borders/labels vanish at the default camera height.
     viewer.scene.globe.maximumScreenSpaceError = 2;
-    viewer.scene.globe.tileCacheSize = 150;
+    viewer.scene.globe.tileCacheSize = window.screen.width >= 1024 ? 300 : 150; // P1: 300 on desktop, 150 on mobile
     viewer.scene.globe.preloadAncestors = true;   // prevents tile holes during pan
     viewer.scene.globe.preloadSiblings = false;
 
@@ -240,7 +240,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
           viewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromRadians(
               carto.longitude, carto.latitude,
-              Math.max(viewer.camera.positionCartographic.height * 0.35, 200_000)
+              Math.max(viewer.camera.positionCartographic.height * 0.35, 50_000) // U17: floor at 50km to avoid sub-terrain camera
             ),
             duration: 1.2,
           });

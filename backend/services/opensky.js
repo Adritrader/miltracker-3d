@@ -161,6 +161,16 @@ const MIL_TYPE_CODES = new Set([
   'B52','B-52','B2','B-2','KC135','KC-135','A10','A-10',
   'SU27','SU30','SU34','SU35','MIG29','MIG31','TU22','TU95','TU160',
   'CH47','UH60','AH64','EH101',
+  // D1: European/Russian types previously missing
+  'RAFA',                      // Dassault Rafale (all variants)
+  'EUFI','EF19','TPHR',        // Eurofighter Typhoon
+  'SU57',                      // Sukhoi Su-57 Felon
+  'JAS3','JAS39','GRPE',       // Saab JAS-39 Gripen
+  'TU16',                      // Tupolev Tu-160 alt code
+  'T22M',                      // Tupolev Tu-22M3 Backfire
+  'IL78',                      // Ilyushin Il-78 Midas tanker
+  'A400','A40M',               // Airbus A400M Atlas
+  'V22','V-22','CMV22',        // Bell-Boeing V-22 Osprey
 ]);
 
 /**

@@ -36,9 +36,9 @@
 
 ## § P — Rendimiento y Optimización
 
-- [ ] **P1** 🟡 `Globe3D.jsx` — `tileCacheSize: 150` es conservadoramente bajo para conexiones de banda ancha. En desktop moderno, 300-500 tiles en caché elimina casi todos los flashes de carga de terreno al hacer pan. Aumentar a `300` en desktop, mantener `150` en mobile.
+- [x] **P1** 🟡 `Globe3D.jsx` — `tileCacheSize: 150` es conservadoramente bajo para conexiones de banda ancha. En desktop moderno, 300-500 tiles en caché elimina casi todos los flashes de carga de terreno al hacer pan. Aumentar a `300` en desktop, mantener `150` en mobile.
 
-- [ ] **P2** 🟡 `NewsPanel.jsx` — duración del ticker calculada como `Math.max(items * 6, 40)s`. Con 30 artículos = 180 segundos (3 minutos por ciclo completo). Los usuarios no leen el ticker con títulos que tardan 3 min en pasar. Reducir a `items * 3` o máximo 90s. También: el ticker CSS `animation` hace repaint continuo en GPU, incluso cuando el panel está collapsed — pausar animación cuando `!expanded`.
+- [x] **P2** 🟡 `NewsPanel.jsx` — duración del ticker calculada como `Math.max(items * 6, 40)s`. Con 30 artículos = 180 segundos (3 minutos por ciclo completo). Los usuarios no leen el ticker con títulos que tardan 3 min en pasar. Reducir a `items * 3` o máximo 90s. También: el ticker CSS `animation` hace repaint continuo en GPU, incluso cuando el panel está collapsed — pausar animación cuando `!expanded`.
 
 - [ ] **P3** 🟡 `positionTracker.js` — `saveHistory()` serializa el array completo de snapshots (hasta 120 entradas × ~300+ entidades × 8 campos ≈ 2-3MB) de forma **síncrona** con `JSON.stringify` en el event loop de Node. En servidores con muchas entidades conectadas, esto puede causar un freeze de ~50ms cada 5 minutos. Usar `setImmediate()` o serializar en chunks.
 
@@ -60,7 +60,7 @@
 
 - [ ] **U2** 🟡 `FilterPanel.jsx` — no hay botón prominente de "Restablecer filtros". El botón de reset actual no es visible. Añadir un botón "RESET ALL" con confirmación visual (flash rojo → verde) accesible desde el header del panel.
 
-- [ ] **U3** 🟡 `EntityPopup.jsx` — `flyTo` siempre usa altitud de 1,500,000m sin importar el tipo de entidad. Para aeronaves debería ser ~500,000m, para barcos ~800,000m, para FIRMS (hotspot) ~200,000m, para bases militares ~300,000m. Usar mapa de altitudes por tipo.
+- [x] **U3** 🟡 `EntityPopup.jsx` — `flyTo` siempre usa altitud de 1,500,000m sin importar el tipo de entidad. Para aeronaves debería ser ~500,000m, para barcos ~800,000m, para FIRMS (hotspot) ~200,000m, para bases militares ~300,000m. Usar mapa de altitudes por tipo.
 
 - [ ] **U4** 🟡 `Globe3D.jsx` — no hay rosa de los vientos ni botón "norte arriba". Cesium tiene `viewer.scene.camera.setView` para resetear orientación. Añadir un botón de brújula (top-right del globo) que muestre el heading actual y al hacer click realinee al norte.
 
@@ -88,15 +88,15 @@
 
 - [ ] **U16** 🟡 `TrackingPanel.jsx` — los cards de entidades muestran altitud/velocidad/heading pero no el "tiempo desde último fix" (age de la posición). Para aeronaves, si el fix tiene >2min de antigüedad puede ser que el avión abandonó la cobertura ADS-B. Mostrar `timeAgo(lastSeen)` con color rojo si >5min.
 
-- [ ] **U17** 🟢 `Globe3D.jsx` — al hacer doble-click para zoom, la cámara baja al 35% de la altitud actual sin límite inferior. Si la cámara ya está cerca del suelo (<50,000m), hacer doble-click puede atravesar el terreno o generar una vista inutilizable. Establecer `Math.max(height * 0.35, 50_000)` como mínimo.
+- [x] **U17** 🟢 `Globe3D.jsx` — al hacer doble-click para zoom, la cámara baja al 35% de la altitud actual sin límite inferior. Si la cámara ya está cerca del suelo (<50,000m), hacer doble-click puede atravesar el terreno o generar una vista inutilizable. Establecer `Math.max(height * 0.35, 50_000)` como mínimo.
 
 ---
 
 ## § F — Nuevas Funcionalidades
 
-- [ ] **F1** 🔴 `FilterPanel.jsx` + `useRealTimeData.js` — **Persistencia de filtros**: guardar el estado de `filters` en `localStorage` al cambiar. Restaurar en el montaje inicial. Igual que ya se hace con `basemap`. Estimado: 15 líneas.
+- [x] **F1** 🔴 `FilterPanel.jsx` + `useRealTimeData.js` — **Persistencia de filtros**: guardar el estado de `filters` en `localStorage` al cambiar. Restaurar en el montaje inicial. Igual que ya se hace con `basemap`. Estimado: 15 líneas.
 
-- [ ] **F2** 🔴 `TrackingPanel.jsx` + `App.jsx` — **Persistencia del tracking list**: serializar el `Map<id, {id, type}>` a `localStorage` y restaurarlo al montar. Las entidades trackeadas deben sobrevivir a un page refresh.
+- [x] **F2** 🔴 `TrackingPanel.jsx` + `App.jsx` — **Persistencia del tracking list**: serializar el `Map<id, {id, type}>` a `localStorage` y restaurarlo al montar. Las entidades trackeadas deben sobrevivir a un page refresh.
 
 - [ ] **F3** 🟡 `TrackingPanel.jsx` — **Modo "Follow camera"**: al hacer click en el icono de cámara de una entidad trackeada, la cámara sigue continuamente a esa entidad, actualizando `viewer.camera.lookAt()` en cada frame. Un segundo click desactiva el modo.
 
@@ -146,7 +146,7 @@
 
 ## § D — Calidad de Datos
 
-- [ ] **D1** 🔴 `opensky.js` — `MIL_TYPE_CODES` incompleto para fuerzas europeas y rusas. Añadir:
+- [x] **D1** 🔴 `opensky.js` — `MIL_TYPE_CODES` incompleto para fuerzas europeas y rusas. Añadir:
   - `F2` → Dassault Rafale (Francia)
   - `TPHR` / `EF` → Eurofighter Typhoon (RAF, Luftwaffe, SAF, ItAF, SpAF)
   - `SU34` → Sukhoi Su-34 Fullback
@@ -243,7 +243,7 @@
 
 - [x] **S4** 🟢 `server.js` — el rate limiter es por IP (`req.ip`). En deployment de Railway detrás de un proxy, `req.ip` puede ser la IP del proxy, haciendo el rate limit ineficaz. Añadir `app.set('trust proxy', 1)` para que Express respete `X-Forwarded-For` y el rate limiter use la IP real del cliente.
 
-- [ ] **S5** 🟢 `newsService.js` — algunos títulos de artículos RSS pasan sin sanitizar al frontend. Si una fuente RSS sirve HTML en el título (`<script>alert(1)</script>`), React lo escapa correctamente al renderizar como texto, pero si en algún punto se usa `dangerouslySetInnerHTML`, sería XSS. Auditar que ningún componente use `dangerouslySetInnerHTML` con datos de news.
+- [x] **S5** 🟢 `newsService.js` — algunos títulos de artículos RSS pasan sin sanitizar al frontend. Si una fuente RSS sirve HTML en el título (`<script>alert(1)</script>`), React lo escapa correctamente al renderizar como texto, pero si en algún punto se usa `dangerouslySetInnerHTML`, sería XSS. Auditar que ningún componente use `dangerouslySetInnerHTML` con datos de news.
 
 ---
 

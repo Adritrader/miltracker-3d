@@ -51,7 +51,14 @@ function App() {
   const [viewer, setViewer] = useState(null);
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [newsCluster, setNewsCluster] = useState(null); // array of news items for cluster modal
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  // F1: restore filters from localStorage; merge with DEFAULT_FILTERS so new keys always have a value
+  const [filters, setFilters] = useState(() => {
+    try {
+      const raw = localStorage.getItem('milt_filters');
+      if (raw) return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
+    } catch { /* ignore corrupt data */ }
+    return DEFAULT_FILTERS;
+  });
   const [spaceView, setSpaceView]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [basemap, setBasemap] = useState(() => {
@@ -61,12 +68,29 @@ function App() {
   });
 
   // Tracking state — Map<id, { id, type }> supports multiple simultaneous entities
-  const [trackedList, setTrackedList] = useState(new Map());
+  // F2: restore from localStorage so tracked entities survive a page refresh
+  const [trackedList, setTrackedList] = useState(() => {
+    try {
+      const raw = localStorage.getItem('milt_tracked');
+      if (raw) return new Map(JSON.parse(raw));
+    } catch { /* ignore */ }
+    return new Map();
+  });
   const [satellitePortal, setSatellitePortal] = useState(null); // { lat, lon, title }
   const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
+
+  // F1: persist filters whenever they change
+  useEffect(() => {
+    try { localStorage.setItem('milt_filters', JSON.stringify(filters)); } catch { /* ignore */ }
+  }, [filters]);
+
+  // F2: persist trackedList whenever it changes
+  useEffect(() => {
+    try { localStorage.setItem('milt_tracked', JSON.stringify([...trackedList])); } catch { /* ignore */ }
+  }, [trackedList]);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   const {

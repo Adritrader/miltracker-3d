@@ -93,7 +93,10 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => 
               className="flex gap-0 animate-ticker whitespace-nowrap"
               style={{
                 width: 'max-content',
-                animationDuration: `${Math.max(recentNews.length * 6, 40)}s`,
+                // P2: 3s per item capped at 90s (was 6s/item, 3min max)
+                animationDuration: `${Math.min(Math.max(recentNews.length * 3, 40), 90)}s`,
+                // P2: pause ticker when panel is expanded — no GPU repaint while reading the list
+                animationPlayState: expanded ? 'paused' : 'running',
               }}
             >
               {/* Duplicate items for seamless loop */}
