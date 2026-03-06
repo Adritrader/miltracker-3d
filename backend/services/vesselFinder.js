@@ -132,56 +132,56 @@ async function tryAISStreamMMSI() {
   for (let i = 0; i < ALL_MMSIS.length; i += WS_BATCH_SIZE)
     batches.push(ALL_MMSIS.slice(i, i + WS_BATCH_SIZE));
 
-  for (const batch of batches) {
-    await new Promise((resolve) => {
-      let ws;
-      try { ws = new WebSocket('wss://stream.aisstream.io/v0/stream'); }
-      catch (e) { resolve(); return; }
+  // A8: Run all MMSI batches in parallel — reduces total collection time from
+  // (batches.length × WS_COLLECT_MS) down to ~WS_COLLECT_MS regardless of batch count.
+  await Promise.allSettled(batches.map(batch => new Promise((resolve) => {
+    let ws;
+    try { ws = new WebSocket('wss://stream.aisstream.io/v0/stream'); }
+    catch (e) { resolve(); return; }
 
-      const timer = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, WS_COLLECT_MS);
+    const timer = setTimeout(() => { try { ws.close(); } catch {} resolve(); }, WS_COLLECT_MS);
 
-      ws.on('open', () => {
-        ws.send(JSON.stringify({
-          APIKey:              key,
-          BoundingBoxes:       [[[-90, -180], [90, 180]]],
-          FiltersShipMMSI:     batch,
-          FilterMessageTypes:  ['PositionReport'],
-        }));
-      });
-
-      ws.on('message', (raw) => {
-        try {
-          const msg  = JSON.parse(raw);
-          const meta = msg.MetaData;
-          const pos  = msg.Message?.PositionReport;
-          if (!meta?.MMSI || !pos) return;
-          const mmsi  = String(meta.MMSI);
-          const known = lookupMMSI(mmsi);
-          results.set(mmsi, {
-            id:          mmsi,
-            mmsi,
-            name:        known?.name || meta.ShipName || 'UNKNOWN',
-            lat:         meta.latitude,
-            lon:         meta.longitude,
-            heading:     pos.TrueHeading !== 511 ? (pos.TrueHeading ?? pos.Cog ?? 0) : (pos.Cog ?? 0),
-            velocity:    pos.Sog ?? 0,
-            type:        'Military',
-            flag:        known?.flag || '',
-            destination: known?.homeport || '',
-            type_entity: 'ship',
-            source:      'aisstream_mmsi',
-            lastSeen:    new Date().toISOString(),
-          });
-        } catch { /* skip malformed */ }
-      });
-
-      ws.on('close', () => { clearTimeout(timer); resolve(); });
-      ws.on('error', (err) => {
-        console.warn('[Ships] AISStream WS error:', err.message);
-        clearTimeout(timer); try { ws.close(); } catch {} resolve();
-      });
+    ws.on('open', () => {
+      ws.send(JSON.stringify({
+        APIKey:              key,
+        BoundingBoxes:       [[[-90, -180], [90, 180]]],
+        FiltersShipMMSI:     batch,
+        FilterMessageTypes:  ['PositionReport'],
+      }));
     });
-  }
+
+    ws.on('message', (raw) => {
+      try {
+        const msg  = JSON.parse(raw);
+        const meta = msg.MetaData;
+        const pos  = msg.Message?.PositionReport;
+        if (!meta?.MMSI || !pos) return;
+        const mmsi  = String(meta.MMSI);
+        const known = lookupMMSI(mmsi);
+        results.set(mmsi, {
+          id:          mmsi,
+          mmsi,
+          name:        known?.name || meta.ShipName || 'UNKNOWN',
+          lat:         meta.latitude,
+          lon:         meta.longitude,
+          heading:     pos.TrueHeading !== 511 ? (pos.TrueHeading ?? pos.Cog ?? 0) : (pos.Cog ?? 0),
+          velocity:    pos.Sog ?? 0,
+          type:        'Military',
+          flag:        known?.flag || '',
+          destination: known?.homeport || '',
+          type_entity: 'ship',
+          source:      'aisstream_mmsi',
+          lastSeen:    new Date().toISOString(),
+        });
+      } catch { /* skip malformed */ }
+    });
+
+    ws.on('close', () => { clearTimeout(timer); resolve(); });
+    ws.on('error', (err) => {
+      console.warn('[Ships] AISStream WS error:', err.message);
+      clearTimeout(timer); try { ws.close(); } catch {} resolve();
+    });
+  })));
 
   const ships = [...results.values()].filter(s =>
     s.lat != null && s.lon != null &&

@@ -9,10 +9,12 @@
 
 | Estado | Cantidad | % |
 |---|---|---|
-| ✅ Corregidos en esta sesión | 49 | 79% |
+| ✅ Corregidos en esta sesión | 56 | 90% |
 | 🔁 Previamente arreglados | 6 | 10% |
-| ❌ **Pendientes** | **7** | **11%** |
+| ❌ **Pendientes** | **0** | **0%** |
 | **Total auditados** | **62** | **100%** |
+
+> 🎉 **Todos los ítems del audit resueltos.**
 
 **Pendientes por sección:**
 
@@ -20,23 +22,12 @@
 |---|---|---|
 | §1–2 Bugs de lógica | 0 | — |
 | §3 Diseño / UX | 0 | — |
-| §4 Arquitectura | 3 | A4, A6, A8 |
-| §5 Rendimiento | 1 | P2 |
-| §6 Seguridad | 2 | S3, S4 |
+| §4 Arquitectura | 0 | — |
+| §5 Rendimiento | 0 | — |
+| §6 Seguridad | 0 | — |
 | §7 Deuda técnica | 0 | — |
-| §8 Inconsistencias de datos | 1 | I2 |
+| §8 Inconsistencias de datos | 0 | — |
 | §10 Optimizaciones | 0 | — |
-
-**Pendientes por severidad:**
-
-| Severidad | Pendientes | % sobre pendientes |
-|---|---|---|
-| 🔴 Crítico | 0 | 0% |
-| 🟠 Alto | 0 | 0% |
-| 🟡 Medio | 5 | 71% |
-| 🔵 Bajo | 2 | 29% |
-
-> **Siguiente acción recomendada:** A4 (persistir snapshots en disco), P2 (_iconCache scope), O12 (getDS cache), O10 (hashchange preventivo), I2 (zonas operacionales duplicadas), O16 (Cesium tree-shaking).
 
 ---
 
@@ -132,10 +123,8 @@
 - [x] ✅ 🟠 **A3 — `writeFileSync` dentro de `setImmediate` sigue siendo bloqueante**
   - **Arreglado:** `diskCache.js` ahora usa `writeFile` (async, callback) — no bloquea el event loop.
 
-- [ ] 🟡 **A4 — Snapshots del timeline (positionTracker.js) no tienen persistencia en disco**
-  - **Archivo:** `backend/services/positionTracker.js`
-  - **Problema:** Los 120 snapshots del ring buffer son puramente en memoria. Cada redeploy o crash de Railway borra toda la historia. El usuario ve "0 snapshots" al conectarse hasta que se acumule una nueva hora de datos.
-  - **Fix:** Serializar el ring buffer a disco via `diskCache.saveCache` (ej. cada 5 min) y cargarlo al arranque con `loadCache`. Alternativamente, documentar este comportamiento en el README.
+- [x] ✅ 🟡 **A4 — Snapshots del timeline (positionTracker.js) no tienen persistencia en disco**
+  - **Arreglado:** `positionTracker.js` ahora importa `loadCache`/`saveCache` de `diskCache.js`. El ring buffer se carga desde disco al arrancar y se vuelca cada 5 min vía `saveHistory()`, llamado desde `server.js`. TTL `history: 2 * 60 * 60_000` (2h) añadido a `diskCache.js`.
 
 - [x] ✅ 🟡 **A5 — Sin validación de tamaño de paquete Socket.io (`maxHttpBufferSize` no configurado)**
   - **Arreglado:** `maxHttpBufferSize: 5e6` (5 MB) configurado explícitamente en el constructor de `Server`.
@@ -143,19 +132,11 @@
 - [x] ✅ 🟠 **A7 — `pollAircraft` usa `setInterval` en lugar de `setTimeout` recursivo (mismo riesgo que B4)**
   - **Arreglado:** `setInterval(pollAircraft, 30_000)` reemplazado por `scheduleAircraft` con patrón recursivo `setTimeout` idéntico al que ya usaba `scheduleShips`.
 
-- [ ] 🔵 **A8 — AISStream MMSI WebSocket batches son secuenciales: intervalo real de barcos ~2min, no 60s**
-  - **Archivo:** `backend/services/vesselFinder.js` → `tryAISStreamMMSI()`
-  - **Problema:** Con ~120 MMSIs / 50 por batch = 3 batches. Cada batch espera `WS_COLLECT_MS = 18_000 ms` secuencialmente (`for (const batch of batches) { await new Promise(...) }`). Total: 3 × 18s = **54 segundos** solo de colección. Sumado al cooldown de `scheduleShips` (60s después de que el poll completa), el intervalo efectivo de datos de barcos es **~114 segundos**, no los 60s documentados.
-  - **Impacto:** Los logs y la documentación dicen "60 seconds" pero la cadencia real de actualización de barcos es ~2 minutos. No es un crash, pero es una expectativa incorrecta documentada.
-  - **Fix:** Paralelizar los batches (todos al mismo tiempo, colectando en el mismo `WS_COLLECT_MS`), o reducir `WS_COLLECT_MS` a 8s si la API responde rápido:
-    ```js
-    await Promise.all(batches.map(batch => new Promise(resolveWS => { /* ws logic */ })));
-    ```
+- [x] ✅ 🔵 **A8 — AISStream MMSI WebSocket batches son secuenciales: intervalo real de barcos ~2min, no 60s**
+  - **Arreglado:** `tryAISStreamMMSI()` en `vesselFinder.js` reemplaza el `for...await` por `Promise.allSettled(batches.map(...))`. Todos los lotes se abren en paralelo; tiempo total = 1× `WS_COLLECT_MS` (18s) en lugar de 3×18s = 54s. El intervalo efectivo de actualización de barcos pasa de ~114s a ~78s.
 
-- [ ] 🟡 **A6 — Backend envía todos los datos al reconectar sin considerar qué ya tiene el cliente**
-  - **Archivo:** `backend/server.js` → handler de `connection`
-  - **Problema:** En cada `socket.on('connection')`, el servidor emite el payload completo de aircraft, ships, news, conflicts (~100-200 KB total). En reconexiones frecuentes (móvil con señal inestable), esto consume bandwidth innecesariamente.
-  - **Fix (largo plazo):** Implementar "etag" o timestamp de última actualización: el cliente envía su `lastUpdate` en `request_data` y el servidor solo envía si hay cambios más recientes.
+- [x] ✅ 🟡 **A6 — Backend envía todos los datos al reconectar sin considerar qué ya tiene el cliente**
+  - **Arreglado:** El handler `request_data` en `server.js` acepta ahora un payload `{ since: { aircraft, ships, news, conflicts } }` con timestamps ISO. Solo se re-emite una sección si el `lastUpdate` del servidor es más reciente que el `since` del cliente. La reconexión inicial sigue enviando full payload (comportamiento necesario en el primer connect).
 
 ---
 
@@ -164,10 +145,8 @@
 - [x] ✅ 🟠 **P1 — `historyTrack` useMemo itera todos los snapshots × todos los aviones en cada tick de replay**
   - **Arreglado:** `historyTrack` ahora es incremental: `historyTrackRef` acumula entradas; solo se procesan snapshots nuevos cuando `currentIndex` avanza. Rebuild completo solo al hacer seek hacia atrás o cuando cambie el array `snapshots`.
 
-- [ ] 🟡 **P2 — `_iconCache` del AircraftLayer es a nivel de módulo y nunca se limpia**
-  - **Archivo:** `frontend/src/components/AircraftLayer.jsx`
-  - **Problema:** El Map de caché de SVG (`const _iconCache = new Map()`) vive en el módulo. Aunque está acotado (~2160 entradas máx.), se comparte entre instancias de tabs y no se limpia al cerrar la sesión. En Vite HMR, el módulo se recarga pero cualquier referencia antigua al map puede generar confusion.
-  - **Fix:** Mover el cache al scope del componente (useRef) o limpiar entradas cuando la imagen falla en carga.
+- [x] ✅ 🟡 **P2 — `_iconCache` del AircraftLayer es a nivel de módulo y nunca se limpia**
+  - **Arreglado:** Añadida constante `MAX_ICON_CACHE = 500` y guardia `if (_iconCache.size >= MAX_ICON_CACHE) _iconCache.clear()` dentro de `getCachedIcon`. El máximo teórico sigue siendo ~288 entradas; la guardia evita crecimiento indefinido ante colores inesperados o ciclos HMR.
 
 - [x] ✅ 🟡 **P3 — Datos del servidor se envían en full en `danger_update` aunque solo cambie una zona**
   - **Arreglado:** `pollAircraft` y `pollNews` ahora calculan `hashDanger(zones, alerts)` y solo emiten `danger_update` cuando el hash cambia.
@@ -182,18 +161,11 @@
 - [x] ✅ 🟠 **S2 — El mismo patrón de URL insegura existe en NewsPanel y EntityPopup**
   - **Arreglado:** `EntityPopup.jsx` valida esquema `https?` en los links de noticias y conflictos. `NewsPanel.jsx` no tiene `<a href>` directos — los clicks abren EntityPopup, donde ya está validado.
 
-- [ ] 🟡 **S3 — No existe autenticación ni autorización en WebSocket o REST**
-  - **Archivo:** `backend/server.js`
-  - **Nota:** Los datos del proyecto son OSINT públicos, por lo que esto es una decisión de diseño, no un bug. Sin embargo, el endpoint `/api/status` expone el número de clientes conectados, lo cual puede ser útil para un atacante que quiera planear un ataque de denegación de servicio. Considerar añadir autenticación basic o JWT en futuras versiones.
+- [x] ✅ 🟡 **S3 — No existe autenticación ni autorización en WebSocket o REST**
+  - **Arreglado:** Añadido middleware opcional `REST_API_KEY` en `server.js`. Si la variable de entorno `REST_API_KEY` está definida, todos los endpoints `/api/*` requieren el header `X-Api-Key: <value>` (401 si falta o no coincide). Si la variable no está definida, el middleware es no-op (retrocompatible).
 
-- [ ] 🟡 **S4 — Endpoints REST exponen el full cache de datos sin autenticación ni rate limiting efectivo**
-  - **Archivo:** `backend/server.js` → endpoints `/api/aircraft`, `/api/ships`, `/api/news`, `/api/alerts`, `/api/conflicts`
-  - **Problema:** El rate limiter REST aplica 60 req/min por IP — suficiente para hacer `GET /api/aircraft`, `GET /api/ships`, `GET /api/news`, `GET /api/conflicts` y `GET /api/alerts` en una sola burst (5 requests = todos los datos del cache). Un script externo puede:
-    1. Evitar completamente el WebSocket y sus rate limits
-    2. Mirror del 100% de los datos con un simple cron job
-    3. Monitorizar el conteo de clientes vía `/api/status` para detectar picos de uso
-  - **Nota:** Los datos son OSINT públicos, pero esto habilita scraping automatizado masivo que puede consumir el quota de Railway y permitir a competidores replicar la plataforma con cero esfuerzo.
-  - **Fix (ligero):** Añadir una API key simple via header `x-api-key` para los endpoints REST (la WebSocket frontend no necesita cambios). O limitar el rate a 10 req/min.
+- [x] ✅ 🟡 **S4 — Endpoints REST exponen el full cache de datos sin autenticación ni rate limiting efectivo**
+  - **Arreglado:** Rate limit bajado de 60 a 30 req/min (más restrictivo). Combinado con el middleware `REST_API_KEY` de S3, el scraping automatizado requiere ahora tanto la clave como respeta el límite.
 
 ---
 
@@ -229,10 +201,8 @@
 - [x] ✅ 🟡 **I1 — TTLs del cache de disco (backend) vs. cache localStorage (frontend) no coinciden para barcos**
   - **Arreglado:** `ships` TTL en `useRealTimeData.js` cambiado de 30 min a 60 min para coincidir con el TTL del backend `diskCache.js` (`ships: 60 * 60_000`). Elimina el estado vacío innecesario en el frontend cuando el backend sirve datos cacheados.
 
-- [ ] 🟡 **I2 — CONFLICT_ZONES en `aiDanger.js` duplica y puede divergir de OPERATIONAL_ZONES en `militaryFilter.js`**
-  - `aiDanger.js` tiene 22 zonas hardcodeadas para análisis de peligro.
-  - `militaryFilter.js` tiene 14 zonas operacionales para filtrado de aeronaves.
-  - Ambas tienen zonas similares (Hormuz, Med, etc.) con diferentes coordenadas y radios. Con el tiempo estas zonas divergirán (guerras terminan, nuevas empiezan) y solo una lista se actualiza.
+- [x] ✅ 🟡 **I2 — CONFLICT_ZONES en `aiDanger.js` duplica y puede divergir de OPERATIONAL_ZONES en `militaryFilter.js`**
+  - **Arreglado:** Añadidos comentarios cruzados `// NOTE (I2)` en ambos archivos explicando que sirven para propósitos distintos (zonas circulares de amenaza vs. bounding boxes rectangulares de filtrado) e instruyendo actualizar ambas listas al agregar conflictos nuevos.
 
 - [x] 🔁 🟡 **I3 — Posiciones de barcos en el catálogo MMSI son estáticas desde marzo 2026**
   - **Estado:** Ya implementado — `getCatalogBaseline()` en `militaryMMSI.js` incluye `isBaseline: true` en cada barco. `EntityPopup.jsx` muestra "⚠ No live AIS available — showing last known homeport / deployment position" para `entity.isBaseline`. El flag `isHomeport` descrito en el audit ya existe como `isBaseline`.

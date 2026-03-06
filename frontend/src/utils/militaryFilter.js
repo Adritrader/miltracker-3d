@@ -332,6 +332,10 @@ export function getAlliance(country) {
 // Any aircraft or ship outside these bounding boxes is likely on a routine
 // home-nation sortie and should be hidden to avoid cluttering the map.
 // The filter is bypassed when the user selects a specific country/alliance.
+// NOTE (I2): These are rectangular bounding boxes used ONLY to decide which aircraft
+// are shown on the map when no country/alliance filter is active.
+// For circular threat zones used in danger detection, see
+// backend/services/aiDanger.js CONFLICT_ZONES.
 const OPERATIONAL_ZONES = [
   // Middle East: Israel/Gaza/Lebanon/Syria/Iraq/Iran/Yemen/Gulf
   { name: 'middle-east',    minLat:  8, maxLat: 43, minLon: 24, maxLon: 66 },

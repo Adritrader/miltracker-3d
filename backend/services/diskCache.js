@@ -28,6 +28,7 @@ const CACHE_TTLS = {
   news:        60 * 60_000,         // 1 hour
   conflicts:   2 * 60 * 60_000,    // 2 hours
   ai_insight:  6 * 60 * 60_000,    // 6 hours — Gemini quota is limited
+  history:     2 * 60 * 60_000,    // 2 hours — position tracker ring buffer (A4)
 };
 
 /**

@@ -69,6 +69,11 @@ export async function probeGeminiModel(key) {
 }
 
 // ─── Static conflict / restricted zones ────────────────────────────────────────
+// NOTE (I2): These are circular threat zones (lat/lon/radius) used for danger zone
+// visualisation and alert generation on the backend.
+// Different purpose from OPERATIONAL_ZONES in frontend/src/utils/militaryFilter.js,
+// which are rectangular bounding boxes used only to filter aircraft display on the map.
+// When adding/removing a major conflict area, update BOTH lists.
 const CONFLICT_ZONES = [
   { id: 'ukraine',       name: 'Ukraine Conflict Zone',          lat: 48.38, lon: 31.17, radius: 600, severity: 'critical', color: '#ff0000' },
   { id: 'gaza',          name: 'Gaza Strip Operations',          lat: 31.35, lon: 34.35, radius: 80,  severity: 'critical', color: '#ff0000' },

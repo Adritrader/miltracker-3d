@@ -59,12 +59,16 @@ function saveTrails(trailPointsMap) {
   } catch (_) { /* storage full — ignore */ }
 }
 
-// Cache SVG icons by (heading rounded to 10°, color, type) to avoid re-encoding on every render
+// Cache SVG icons by (heading rounded to 10°, color, type) to avoid re-encoding on every render.
+// Theoretical max: 36 headings × ~4 colors × 2 types = ~288 entries.
+// Safety cap prevents unbounded growth if colors vary unexpectedly (e.g. HMR cycles). (P2)
+const MAX_ICON_CACHE = 500;
 const _iconCache = new Map();
 function getCachedIcon(heading, color, helicopter = false) {
   const h = Math.round((heading || 0) / 10) * 10 % 360;
   const key = `${h}_${color}_${helicopter ? 'h' : 'a'}`;
   if (!_iconCache.has(key)) {
+    if (_iconCache.size >= MAX_ICON_CACHE) _iconCache.clear(); // safety valve
     _iconCache.set(key, helicopter ? HELICOPTER_SVG(h, color) : AIRCRAFT_SVG(h, color));
   }
   return _iconCache.get(key);

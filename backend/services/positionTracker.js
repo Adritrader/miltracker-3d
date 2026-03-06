@@ -6,12 +6,19 @@
  *
  * Each snapshot is intentionally lightweight: only id, lat, lon, heading,
  * velocity and altitude are kept so the payload sent to the frontend is small.
+ *
+ * Snapshots are also persisted to disk every 5 min (via saveHistory) so a
+ * Railway redeploy doesn't lose timeline history. (A4)
  */
+
+import { loadCache, saveCache } from './diskCache.js';
 
 const HISTORY_LIMIT = 120; // snapshots — 30 s each → ~1 hour
 
 /** @type {Array<{ts: string, aircraft: object[], ships: object[]}>} */
-const snapshots = [];
+const snapshots = loadCache('history', []);
+// Trim stale entries that might exceed the hard limit (e.g. after a config change)
+while (snapshots.length > HISTORY_LIMIT) snapshots.shift();
 
 /**
  * Record a new position snapshot.
@@ -76,4 +83,12 @@ export function getTimeRange() {
     end:   snapshots[snapshots.length - 1].ts,
     count: snapshots.length,
   };
+}
+
+/**
+ * Flush the current snapshot buffer to disk. (A4)
+ * Call from server.js on a 5-minute interval so restarts retain timeline history.
+ */
+export function saveHistory() {
+  saveCache('history', snapshots);
 }

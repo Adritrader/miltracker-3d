@@ -11,7 +11,7 @@ import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds } from './services/newsServ
 import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews, probeGeminiModel } from './services/aiDanger.js';
 import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
-import { recordSnapshot, getHistory, getTimeRange } from './services/positionTracker.js';
+import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './services/positionTracker.js';
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 
 dotenv.config();
@@ -46,15 +46,27 @@ app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
-// Rate limit REST endpoints — 60 req/min per IP
+// Rate limit REST endpoints — 30 req/min per IP (S4)
 const apiLimiter = rateLimit({
   windowMs: 60_000,
-  max: 60,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
 });
 app.use('/api/', apiLimiter);
+
+// Optional REST API key check — set REST_API_KEY env var to enforce. (S3)
+// If not set the check is a no-op so existing deployments keep working.
+app.use('/api/', (req, res, next) => {
+  const secret = process.env.REST_API_KEY;
+  if (!secret) return next();
+  const provided = req.headers['x-api-key'];
+  if (!provided || provided !== secret) {
+    return res.status(401).json({ error: 'Unauthorized — missing or invalid X-Api-Key header.' });
+  }
+  next();
+});
 
 // ─── WebSocket change detection — avoid re-emitting identical data ───────────
 const prevHash = { aircraft: '', ships: '', news: '', conflicts: '', danger: '' };
@@ -360,14 +372,22 @@ io.on('connection', (socket) => {
   // Serve persisted AI insight immediately — no need to wait for next Gemini poll
   if (cachedAiInsight) socket.emit('ai_insight', cachedAiInsight);
 
-  socket.on('request_data', () => {
+  socket.on('request_data', (payload = {}) => {
     const now = Date.now();
     if (now - lastRequestData < 5000) return; // 5 s cooldown — prevents flood
     lastRequestData = now;
-    socket.emit('aircraft_update', { aircraft: cache.aircraft, timestamp: cache.lastAircraftUpdate });
-    socket.emit('ship_update',     { ships: cache.ships,       timestamp: cache.lastShipUpdate });
-    socket.emit('news_update',     { news: cache.news,         timestamp: cache.lastNewsUpdate });
-    socket.emit('conflict_update', { conflicts: cache.conflicts, timestamp: cache.lastConflictUpdate });
+    // A6: client can pass { since: { aircraft: ISOstring, ships: ISOstring, ... } }
+    // so only stale slices are re-sent, reducing reconnect bandwidth.
+    const since = (typeof payload === 'object' && payload !== null) ? (payload.since || {}) : {};
+    const newer = (cacheTs, sinceTs) => !sinceTs || !cacheTs || new Date(cacheTs) > new Date(sinceTs);
+    if (newer(cache.lastAircraftUpdate, since.aircraft))
+      socket.emit('aircraft_update', { aircraft: cache.aircraft, timestamp: cache.lastAircraftUpdate });
+    if (newer(cache.lastShipUpdate, since.ships))
+      socket.emit('ship_update',     { ships: cache.ships,       timestamp: cache.lastShipUpdate });
+    if (newer(cache.lastNewsUpdate, since.news))
+      socket.emit('news_update',     { news: cache.news,         timestamp: cache.lastNewsUpdate });
+    if (newer(cache.lastConflictUpdate, since.conflicts))
+      socket.emit('conflict_update', { conflicts: cache.conflicts, timestamp: cache.lastConflictUpdate });
   });
 
   // Timeline history: client requests full snapshot buffer
@@ -422,4 +442,6 @@ httpServer.listen(PORT, () => {
   setTimeout(scheduleShips, 60_000);
   setInterval(pollNews,    5 * 60_000);
   setInterval(pollConflicts, 10 * 60_000);
+  // Persist snapshot ring buffer to disk every 5 min so Railway redeploys retain history (A4)
+  setInterval(saveHistory, 5 * 60_000);
 });
