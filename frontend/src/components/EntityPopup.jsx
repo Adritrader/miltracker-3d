@@ -100,8 +100,9 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   const isConflict = entity.eventCategory === 'conflict' || entity.type === 'conflict';
   const isFirms    = entity.type === 'firms';
   const isBase     = entity.type === 'base';
+  // B1: check entity.type === 'alert' explicitly; fall back to field presence for legacy data
   const isAlert    = !isAircraft && !isShip && !isConflict && !isFirms && !isBase &&
-                     !!(entity.title && entity.message && entity.severity);
+                     (entity.type === 'alert' || !!(entity.title && entity.message && entity.severity));
   const isNews     = !isAircraft && !isShip && !isConflict && !isFirms && !isBase && !isAlert &&
                      (entity.type === 'news' || entity.type === 'geo_event' || !!entity.source);
 

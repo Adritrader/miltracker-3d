@@ -137,6 +137,8 @@ export function useRealTimeData() {
       setAlerts(alrts);
       if (zones.length > 0) cacheSave('dangerZones', zones);
       cacheSave('alerts', alrts); // always save, even empty array = all-clear
+      // B11: track last received danger timestamp so reconnect logic knows data is fresh
+      lastUpdateRef.current = { ...lastUpdateRef.current, dangerZones: new Date().toISOString() };
     });
 
     socket.on('ai_insight', (insight) => {

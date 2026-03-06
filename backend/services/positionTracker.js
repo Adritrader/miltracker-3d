@@ -17,7 +17,14 @@ const HISTORY_LIMIT = 120; // snapshots — 30 s each → ~1 hour
 
 /** @type {Array<{ts: string, aircraft: object[], ships: object[]}>} */
 const snapshots = loadCache('history', []);
-// Trim stale entries that might exceed the hard limit (e.g. after a config change)
+// B5: discard entries older than 90 minutes — prevents stale snapshots from a
+// server restart hours after the last run mixing with fresh live data.
+const _SNAPSHOT_TTL_MS = 90 * 60 * 1000;
+const _now = Date.now();
+while (snapshots.length > 0 && _now - new Date(snapshots[0].ts).getTime() > _SNAPSHOT_TTL_MS) {
+  snapshots.shift();
+}
+// Trim to hard limit (size guard, e.g. after config change)
 while (snapshots.length > HISTORY_LIMIT) snapshots.shift();
 
 /**

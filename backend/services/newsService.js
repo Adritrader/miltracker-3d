@@ -181,17 +181,18 @@ function isMilitaryRelevant(title, description) {
 }
 
 function extractRSSImage(item) {
+  // B6: only accept https:// URLs — http:// causes mixed-content warnings in the browser
   // thumbnail field (rss2json)
-  if (item.thumbnail && item.thumbnail.startsWith('http')) return item.thumbnail;
+  if (item.thumbnail && item.thumbnail.startsWith('https://')) return item.thumbnail;
   // enclosure
-  if (item.enclosure?.link?.startsWith('http') &&
+  if (item.enclosure?.link?.startsWith('https://') &&
       (item.enclosure.type?.startsWith('image') || /\.(jpg|jpeg|png|webp)/i.test(item.enclosure.link))) {
     return item.enclosure.link;
   }
   // og:image scraped from content/description HTML
   const html = item.content || item.description || '';
   const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (m && m[1].startsWith('http')) return m[1];
+  if (m && m[1].startsWith('https://')) return m[1];
   return null;
 }
 

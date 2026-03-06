@@ -158,10 +158,14 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       cameraInitialized.current = true;
 
       // Support share-link: ?fly=lat,lon,alt[,headingDeg,pitchDeg]
+      // B3/S1: clamp all values to valid ranges — prevents NaN/out-of-range from malicious URLs
       const flyParam = new URLSearchParams(window.location.search).get('fly');
       if (flyParam) {
         const parts = flyParam.split(',').map(Number);
-        const [lat = 45, lon = 10, alt = 8_000_000, hdg = 0, ptch = -90] = parts;
+        const [rawLat = 45, rawLon = 10, rawAlt = 8_000_000, hdg = 0, ptch = -90] = parts;
+        const lat = Math.min(Math.max(rawLat, -90),    90);
+        const lon = Math.min(Math.max(rawLon, -180),  180);
+        const alt = Math.min(Math.max(rawAlt,  1000), 2e7);
         if (!isNaN(lat) && !isNaN(lon)) {
           viewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt),

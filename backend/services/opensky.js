@@ -208,9 +208,4 @@ async function fetchRegion(label, lat, lon, distNm) {
   return [];
 }
 
-/**
- * @deprecated kept for backwards compatibility; replaced by fetchRegion
- */
-async function fetchGulfRegion() {
-  return fetchRegion('gulf', GULF_CENTER.lat, GULF_CENTER.lon, GULF_CENTER.dist);
-}
+// B2: fetchGulfRegion() removed — was @deprecated dead code, replaced by fetchRegion()

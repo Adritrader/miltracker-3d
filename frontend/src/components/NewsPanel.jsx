@@ -26,7 +26,9 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => 
   const [expanded, setExpanded] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [visibleCount, setVisibleCount] = useState(0);
-  const prevLenRef = useRef(0);
+  // B4: track first item's identity (not just array length) so trickle resets when new
+  // content arrives even when the count stays the same (e.g. always 30 items max).
+  const firstItemIdRef = useRef(null);
   const panelRef = useRef(null);
 
   // Report rendered panel height so parent can push Timeline/buttons up dynamically
@@ -58,14 +60,14 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => 
     }
   }, [visibleCount, recentNews.length]);
 
-  // Reset counter when news list is replaced entirely
+  // B4: reset trickle animation when the top article changes (new batch arrived)
   useEffect(() => {
-    if (news.length !== prevLenRef.current) {
-      prevLenRef.current = news.length;
-      // If fresh load, reveal all at once; otherwise trickle
-      if (visibleCount === 0) setVisibleCount(0);
+    const firstId = recentNews[0]?.id ?? null;
+    if (firstId !== firstItemIdRef.current) {
+      firstItemIdRef.current = firstId;
+      setVisibleCount(0);
     }
-  }, [news.length]);
+  }, [recentNews]);
 
   const handleSelect = (item, idx) => {
     setSelectedIdx(idx);

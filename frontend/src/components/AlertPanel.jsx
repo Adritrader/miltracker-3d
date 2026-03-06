@@ -37,8 +37,8 @@ const AlertItem = ({ alert, onFlyTo }) => {
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {alert.timestamp && (() => {
               const d = new Date(alert.timestamp);
-              const dateStr = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
-              const timeStr = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+              const dateStr = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit', timeZone: 'UTC' });
+              const timeStr = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone: 'UTC' });
               return (
                 <span className="text-hud-amber text-[10px] font-mono font-bold tracking-wider">
                   {dateStr}&nbsp;{timeStr}
@@ -129,8 +129,8 @@ const SitrepView = ({ alerts, aiInsight }) => {
       <div className="border border-hud-border/50 rounded p-2 bg-black/30">
         <div className="hud-label mb-0.5">SITUATION REPORT</div>
         <div className="text-hud-text text-[10px]">
-          {s.asOf.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}&nbsp;
-          {s.asOf.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })} LOCAL
+          {s.asOf.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', timeZone: 'UTC' })}&nbsp;
+          {s.asOf.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone: 'UTC' })} UTC
         </div>
       </div>
 

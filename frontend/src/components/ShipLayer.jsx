@@ -45,6 +45,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
   const trailPointsRef = useRef(loadStoredTrails());
   const prevIdsRef     = useRef(new Set());
   const dsCache        = useRef({}); // name → CustomDataSource (O(1) lookup)
+  const saveTimerRef   = useRef(null); // B9: debounce sessionStorage writes (10s)
 
   // LOD constants — ships are always visible regardless of zoom level
   const MAX_RANGE   = 2e7;                    // 20 000 km (full-globe visibility)
@@ -276,7 +277,9 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     } finally {
       shipDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
-      saveTrails(trailPointsRef.current);
+      // B9: debounce sessionStorage writes — 200KB+ JSON per write, no need on every 30s tick
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => saveTrails(trailPointsRef.current), 10_000);
     }
   }, [viewer, ships, visible, trackedList, getDS]);
 
