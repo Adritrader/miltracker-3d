@@ -29,6 +29,18 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
     return () => { ro.disconnect(); onHeightChange(0); };
   }, [onHeightChange]);
 
+  // Must be called BEFORE any early return so hook call count is consistent every render
+  const entries = useMemo(() => {
+    if (!trackedList || trackedList.size === 0) return [];
+    return [...trackedList.entries()].map(([id, meta]) => {
+      const type   = meta.type;
+      const entity = type === 'aircraft'
+        ? aircraft.find(a => a.id === id || a.icao24 === id)
+        : ships.find(s => (s.mmsi || s.id) === id);
+      return { id, type, entity };
+    });
+  }, [trackedList, aircraft, ships]);
+
   if (!trackedList || trackedList.size === 0) return null;
 
   const flyTo = (entity, type) => {
@@ -42,14 +54,6 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
       duration: 1.5,
     });
   };
-
-  const entries = useMemo(() => [...trackedList.entries()].map(([id, meta]) => {
-    const type   = meta.type;
-    const entity = type === 'aircraft'
-      ? aircraft.find(a => a.id === id || a.icao24 === id)
-      : ships.find(s => (s.mmsi || s.id) === id);
-    return { id, type, entity };
-  }), [trackedList, aircraft, ships]);
 
   return (
     <div
