@@ -284,6 +284,16 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       });
       viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65 }));
     }
+    // For satellite basemap add the ESRI reference overlay (city/country labels, borders)
+    if (bm === 'satellite') {
+      const labelsProvider = new Cesium.UrlTemplateImageryProvider({
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        minimumLevel: 0,
+        maximumLevel: 8,
+        credit: new Cesium.Credit('\u00a9 Esri'),
+      });
+      viewer.imageryLayers.add(new Cesium.ImageryLayer(labelsProvider, { alpha: 0.8 }));
+    }
   }, [globeReady]);
 
   useEffect(() => { applyBasemap(basemap); }, [basemap, globeReady, applyBasemap]);
