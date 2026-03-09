@@ -464,7 +464,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
             &#x1F4F8; SCREENSHOT (PNG)
           </button>
           <button onClick={recordVideo} className="w-full hud-btn text-xs py-2.5 text-center">
-            &#x1F3AC; CINEMATIC VIDEO (6s)
+            &#x1F3AC; CINEMATIC VIDEO ({RECORD_SEC}s)
           </button>
           <div className="text-hud-text text-[10px] font-mono opacity-60 text-center">
             UI is hidden during capture

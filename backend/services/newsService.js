@@ -71,8 +71,8 @@ export async function fetchGDELTNews() {
   const allArticles = settled.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
   if (allArticles.length === 0) {
-    console.warn('[GDELT-NEWS] All queries failed — serving seed fallback');
-    return getSeedNews();
+    console.warn('[GDELT-NEWS] All queries failed — returning empty');
+    return [];
   }
   console.log(`[GDELT-NEWS] Got ${allArticles.length} raw articles from GDELT`);
 
@@ -210,9 +210,9 @@ export async function fetchRSSFeeds() {
   const results = [];
   await Promise.allSettled(RSS_SOURCES.map(async (src) => {
     try {
-      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}&count=15`;
+      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}`;
       const res = await fetch(apiUrl, { signal: AbortSignal.timeout(12000) });
-      if (!res.ok) return;
+      if (!res.ok) { console.warn(`[RSS] ${res.status} for ${src.label}`); return; }
       const data = await res.json();
       if (data.status !== 'ok' || !Array.isArray(data.items)) return;
 
@@ -233,7 +233,7 @@ export async function fetchRSSFeeds() {
           type: 'news',
         });
       }
-    } catch (_) { /* skip source */ }
+    } catch (e) { console.warn(`[RSS] Error fetching ${src.label}:`, e.message); }
   }));
   return results;
 }
@@ -328,30 +328,4 @@ export function geocodeNewsItem(newsItem) {
     }
   }
   return newsItem;
-}
-
-// ─── Seed news (fallback when GDELT rate-limits) ─────────────────────────────
-// Each article gets a staggered publishedAt spread over the last ~3 hours so
-// they don't all show the same timestamp in the UI.
-function ago(minutes) {
-  return new Date(Date.now() - minutes * 60_000).toISOString();
-}
-function getSeedNews() {
-  return [
-    { id:'seed-1',  source:'LiveUAMap',         title:'Artillery shelling reported near Zaporizhzhia front line',                                  url:'https://liveuamap.com',         lat:47.84, lon:35.14, publishedAt:ago(8),   type:'news' },
-    { id:'seed-2',  source:'Times of Israel',   title:'IDF confirms airstrikes on Iranian-linked weapons depots in Syria',                        url:'https://timesofisrael.com',     lat:33.51, lon:36.29, publishedAt:ago(17),  type:'news' },
-    { id:'seed-3',  source:'Iran International',title:'IRGC confirms ballistic missile test over Persian Gulf – warns Israel and US',             url:'https://iranintl.com',          lat:26.57, lon:56.28, publishedAt:ago(31),  type:'news' },
-    { id:'seed-4',  source:'Jerusalem Post',    title:'Iron Dome battery intercepts barrage of rockets from southern Lebanon',                    url:'https://jpost.com',             lat:33.20, lon:35.40, publishedAt:ago(45),  type:'news' },
-    { id:'seed-5',  source:'Al Jazeera',        title:'Houthi forces fire anti-ship missile at Red Sea cargo vessel near Bab-el-Mandeb',         url:'https://aljazeera.com',         lat:12.50, lon:43.50, publishedAt:ago(58),  type:'news' },
-    { id:'seed-6',  source:'Middle East Eye',   title:'Iran-backed militias strike US military base in eastern Syria with drones',                url:'https://middleeasteye.net',     lat:34.60, lon:40.10, publishedAt:ago(72),  type:'news' },
-    { id:'seed-7',  source:'i24 News',          title:'Israel forces strike Hezbollah missile storage site in Bekaa Valley',                     url:'https://i24news.tv',            lat:33.85, lon:35.90, publishedAt:ago(89),  type:'news' },
-    { id:'seed-8',  source:'USNI News',         title:'USS Gerald R. Ford carrier strike group enters Eastern Mediterranean amid tensions',      url:'https://news.usni.org',         lat:35.00, lon:27.00, publishedAt:ago(103), type:'news' },
-    { id:'seed-9',  source:'BBC World',         title:'Iran nuclear facility at Natanz under heightened military guard after satellite imagery', url:'https://bbc.com',               lat:33.72, lon:51.73, publishedAt:ago(118), type:'news' },
-    { id:'seed-10', source:'The War Zone',      title:'B-52 bombers deployed to Diego Garcia in show of force amid Iran escalation',              url:'https://thedrive.com',          lat:-7.32, lon:72.42, publishedAt:ago(134), type:'news' },
-    { id:'seed-11', source:'Reuters',           title:'IAEA reports Iran accelerating uranium enrichment to 84% at Fordow facility',             url:'https://reuters.com',           lat:34.88, lon:50.00, publishedAt:ago(147), type:'news' },
-    { id:'seed-12', source:'Defense News',      title:'F-35I Adir squadrons on full alert after Iran missile test — Israeli Air Force',          url:'https://defensenews.com',       lat:31.90, lon:34.80, publishedAt:ago(163), type:'news' },
-    { id:'seed-13', source:'Al-Monitor',        title:'Iran IRGC Navy seizes oil tanker in Strait of Hormuz — crew held',                       url:'https://al-monitor.com',        lat:26.57, lon:56.25, publishedAt:ago(178), type:'news' },
-    { id:'seed-14', source:'Kyiv Independent',  title:'Ukrainian drones strike Russian oil depot in Belgorod region — large fire reported',      url:'https://kyivindependent.com',   lat:50.60, lon:36.62, publishedAt:ago(194), type:'news' },
-    { id:'seed-15', source:'Breaking Defense',  title:'CENTCOM confirms strike on Houthi command center after Red Sea missile attack',           url:'https://breakingdefense.com',   lat:15.35, lon:44.20, publishedAt:ago(210), type:'news' },
-  ];
 }

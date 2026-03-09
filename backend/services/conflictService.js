@@ -466,87 +466,6 @@ async function fetchACLEDConflicts() {
   }
 }
 
-// ─── Seed conflicts — known active hotspots always shown on map ───────────────
-function getSeedConflicts() {
-  const ts = new Date().toISOString();
-  const ev = (id, type, title, lat, lon, country, severity) => ({
-    id, type, title, lat, lon, country, severity,
-    source: 'IntelFeed', publishedAt: ts, url: '', tone: -10,
-  });
-  return [
-    // ══════════════════════════════════════════════════════════════════
-    //  ACTIVE WAR: US + Israel vs Iran — started ~Feb 28, 2026
-    //  Khamenei (Supreme Leader) killed March 1, 2026
-    //  All events below reflect live conditions as of March 3, 2026
-    // ══════════════════════════════════════════════════════════════════
-    // ── Iran — strikes on nuclear/military sites ──
-    ev('seed-ir-nuke',  'airstrike', 'IAEA confirms Natanz enrichment facility struck — massive damage',                    33.72, 51.73, 'Iran',        'critical'),
-    ev('seed-ir-fordow','airstrike', 'US B-2 bunker-buster strike on Fordow underground nuclear site',                     34.88, 50.00, 'Iran',        'critical'),
-    ev('seed-ir-tehran','airstrike', 'IDF precision strike on IRGC command complex, central Tehran',                       35.69, 51.39, 'Iran',        'critical'),
-    ev('seed-ir-khamenei','missile', 'Supreme Leader Khamenei compound targeted — leadership killed (March 1)',             35.68, 51.41, 'Iran',        'critical'),
-    ev('seed-ir-isfahan','airstrike','Israeli F-35Is strike Iranian Air Force base near Isfahan',                           32.66, 51.68, 'Iran',        'critical'),
-    ev('seed-ir-mis1',  'missile',   'Iran fires ballistic missile barrage toward Israeli cities',                          33.50, 51.00, 'Iran',        'critical'),
-    ev('seed-ir-mis2',  'missile',   'Iranian Fattah-2 hypersonic missiles intercepted over Negev desert',                 30.85, 34.79, 'Israel',      'critical'),
-    ev('seed-ir-drone', 'drone',     'Iranian Shahed-136 drone swarm tracked inbound toward Cyprus',                       35.50, 35.50, 'Iran',        'critical'),
-    ev('seed-ir-hormuz','naval',     'Iran threatens to close Strait of Hormuz — mines laid near Bandar Abbas',            27.18, 56.27, 'Iran',        'critical'),
-    // ── Israel — incoming/outgoing ──
-    ev('seed-il-beitsh','missile',   'Iranian ballistic missile hits Beit Shemesh — 9 killed, 27 injured',                 31.74, 34.99, 'Israel',      'critical'),
-    ev('seed-il-bgairp','missile',   'Ben Gurion Airport closed — missile alert, evacuations via Egypt advised',            31.99, 34.89, 'Israel',      'critical'),
-    ev('seed-il-irondome','airstrike','Iron Dome / Arrow-3 intercepts 80+ Iranian ballistic missiles over Israel',          32.08, 34.78, 'Israel',      'critical'),
-    ev('seed-il-us-strike','airstrike','US B-52 carrier strikes on Iranian missile production sites near Tabriz',           38.08, 46.30, 'Iran',        'critical'),
-    // ── Lebanon — IDF invasion ──
-    ev('seed-lb-idf1',  'troops',    'IDF ground forces advance into south Lebanon — Litani River crossed',                 33.10, 35.45, 'Lebanon',     'critical'),
-    ev('seed-lb-idf2',  'airstrike', 'Israeli airstrike on Beirut southern suburbs — 52 Lebanese killed',                  33.89, 35.50, 'Lebanon',     'critical'),
-    ev('seed-lb-idf3',  'airstrike', 'IDF strikes Hezbollah arms depot in Bekaa Valley',                                   33.85, 36.20, 'Lebanon',     'critical'),
-    // ── Kuwait — US base attacked ──
-    ev('seed-kw-iran1', 'missile',   'Iran fires ballistic missiles at Ali Al Salem US Air Base, Kuwait — 6 soldiers KIA', 29.45, 47.52, 'Kuwait',      'critical'),
-    ev('seed-kw-iran2', 'drone',     'Shahed drone wave intercepted over Kuwait; 2 drones evade defenses',                 29.37, 47.98, 'Kuwait',      'critical'),
-    ev('seed-kw-ff',    'airstrike', '6 US F-15 jets downed by Kuwaiti friendly-fire; incident under investigation',       29.45, 47.52, 'Kuwait',      'critical'),
-    // ── Cyprus — British base attacked ──
-    ev('seed-cy-iran1', 'drone',     'Iran Shahed drones strike RAF Akrotiri British base in Cyprus',                      34.58, 32.97, 'Cyprus',      'critical'),
-    ev('seed-cy-nato',  'troops',    'France deploying anti-drone systems to Cyprus following Akrotiri attack',             34.72, 33.05, 'Cyprus',      'high'),
-    // ── Gulf / UAE / Saudi ──
-    ev('seed-ae-drones','drone',     'Iranian drones hit UAE; Amazon warehouse and oil storage facilities damaged',         24.45, 54.37, 'UAE',         'critical'),
-    ev('seed-bh-drone', 'drone',     'Iranian drone strike near Bahrain US 5th Fleet headquarters',                        26.07, 50.55, 'Bahrain',     'critical'),
-    ev('seed-bh-ref1',  'explosion', 'Missile/drone attack on BAPCO Sitra oil refinery, Bahrain — fire reported',          26.09, 50.65, 'Bahrain',     'critical'),
-    ev('seed-bh-ref2',  'fire',      'BAPCO Sitra refinery ablaze following multiple drone strikes — Bahrain',             26.09, 50.65, 'Bahrain',     'critical'),
-    ev('seed-sa-riyadh','drone',     'US embassy in Riyadh hit by Iranian drone — personnel evacuated',                    24.69, 46.72, 'Saudi Arabia','critical'),
-    ev('seed-sa-mis',   'missile',   'Houthi cruise missile fired toward Saudi Aramco facility Dhahran',                   26.29, 50.21, 'Saudi Arabia','critical'),
-    ev('seed-hormuz1',  'naval',     'IRGC fast boats seize cargo vessel in Strait of Hormuz',                             26.57, 56.28, 'Iran',        'critical'),
-    ev('seed-hormuz2',  'missile',   'Iranian coastal battery fires C-802 anti-ship missile at US destroyer',              26.40, 56.50, 'Iran',        'critical'),
-    // ── Yemen / Houthis ──
-    ev('seed-ye-1',     'missile',   'Houthi anti-ship missile targets US carrier group in Red Sea',                       14.50, 42.50, 'Yemen',       'critical'),
-    ev('seed-ye-2',     'drone',     'Houthi UAV attack targeting Saudi Arabia infrastructure',                            17.00, 44.20, 'Yemen',       'high'),
-    ev('seed-ye-3',     'airstrike', 'US/UK coalition airstrike on Houthi missile storage near Sanaa',                     15.37, 44.19, 'Yemen',       'high'),
-    ev('seed-ye-5',     'naval',     'Houthi drone boat intercepted in Gulf of Aden',                                      12.20, 45.10, 'Yemen',       'high'),
-    // ── Syria / Iraq ──
-    ev('seed-sy-1',     'airstrike', 'Israeli airstrike targets IRGC weapons transfer route near Damascus',                33.20, 36.30, 'Syria',       'critical'),
-    ev('seed-iq-1',     'missile',   'Rocket attack on US military base in eastern Syria (Iran-linked)',                    34.60, 40.10, 'Syria',       'high'),
-    ev('seed-iq-3',     'drone',     'Drone strike on PMF convoy near Baghdad',                                            33.34, 44.40, 'Iraq',        'medium'),
-    // ── Ukraine / Russia ──
-    ev('seed-ua-1',     'missile',   'Russian ballistic missile strikes Kharkiv infrastructure',                           49.99, 36.23, 'Ukraine',     'critical'),
-    ev('seed-ua-2',     'drone',     'Ukrainian FPV drone attack destroys Russian armored column',                         48.20, 37.50, 'Ukraine',     'high'),
-    ev('seed-ua-3',     'artillery', 'Intense artillery shelling along Zaporizhzhia front line',                           47.80, 35.20, 'Ukraine',     'high'),
-    ev('seed-ua-4',     'missile',   'Ukrainian cruise missile targets Crimea military depot',                             45.50, 33.80, 'Ukraine',     'critical'),
-    ev('seed-ua-5',     'drone',     'Russian Shahed drone swarm intercepted over Kyiv',                                   50.45, 30.52, 'Ukraine',     'high'),
-    // ── Taiwan Strait ──
-    ev('seed-tw-1',     'naval',     'PLA Navy carrier group conducts exercise near Taiwan Strait',                        24.50, 119.50,'China',       'high'),
-    ev('seed-tw-2',     'airstrike', 'PLAAF fighters cross Taiwan Strait median line',                                     24.20, 120.00,'China',       'high'),
-    // ── Korean Peninsula ──
-    ev('seed-kp-1',     'missile',   'North Korea ICBM launch test detected over Sea of Japan',                           40.34, 127.51,'North Korea', 'critical'),
-    // ── Africa / Sahel ──
-    ev('seed-sd-1',     'airstrike', 'RSF drone strike on SAF position in Khartoum North',                                15.65,  32.55,'Sudan',       'critical'),
-    ev('seed-sd-3',     'troops',    'RSF column advancing through West Darfur toward El Fasher',                          13.63,  25.35,'Sudan',       'critical'),
-    ev('seed-ml-1',     'troops',    'JNIM jihadist ambush on FAMa convoy in Mopti region, Mali',                          14.50,  -4.20,'Mali',        'high'),
-    ev('seed-so-1',     'drone',     'US airstrike on Al-Shabaab command node near Mogadishu',                              2.04,  45.34,'Somalia',     'high'),
-    ev('seed-mm-1',     'airstrike', 'Myanmar junta airstrike on PDF-held village in Sagaing Division',                   22.58,  95.45,'Myanmar',     'critical'),
-    // ── Kashmir ──
-    ev('seed-ks-1',     'artillery', 'Cross-border artillery exchange along Line of Control, Kashmir',                    34.08,  74.80,'Pakistan',    'high'),
-    // ── Libya ──
-    ev('seed-ly-1',     'airstrike', 'Drone airstrike targets rival faction position near Tripoli',                       32.89,  13.19,'Libya',       'high'),
-  ];
-}
-
 // ─── Main export ─────────────────────────────────────────────────────────────
 export async function fetchConflictEvents() {
   const [geo, doc, rw, acled, firms] = await Promise.allSettled([
@@ -562,10 +481,9 @@ export async function fetchConflictEvents() {
   const rwItems    = rw.status    === 'fulfilled' ? rw.value    : [];
   const acledItems = acled.status === 'fulfilled' ? acled.value : [];
   const firmsItems = firms.status === 'fulfilled' ? firms.value : [];
-  const seeds      = getSeedConflicts(); // always-present baseline covering all hotspots
 
-  // Priority order: ACLED & FIRMS (most precise/real-time) > GDELT-GEO > GDELT-DOC > ReliefWeb > seeds
-  const all = [...acledItems, ...firmsItems, ...geoItems, ...docItems, ...rwItems, ...seeds];
+  // Priority order: ACLED & FIRMS (most precise/real-time) > GDELT-GEO > GDELT-DOC > ReliefWeb
+  const all = [...acledItems, ...firmsItems, ...geoItems, ...docItems, ...rwItems];
 
   // Deduplicate: ACLED & FIRMS use a tighter 0.1° grid; all others use 0.5°
   const seen = new Set();
@@ -577,6 +495,6 @@ export async function fetchConflictEvents() {
     return true;
   });
 
-  console.log(`[Conflicts] ${deduped.length} events — ACLED:${acledItems.length} FIRMS:${firmsItems.length} geo:${geoItems.length} doc:${docItems.length} rw:${rwItems.length} seeds:${seeds.length}`);
+  console.log(`[Conflicts] ${deduped.length} events — ACLED:${acledItems.length} FIRMS:${firmsItems.length} geo:${geoItems.length} doc:${docItems.length} rw:${rwItems.length}`);
   return deduped.slice(0, 600);
 }
