@@ -19,15 +19,20 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
   const [expanded, setExpanded] = useState(false);
   const panelRef = useRef(null);
 
-  // Report rendered height to parent so Timeline can move above us
+  // Report rendered height to parent so Timeline/MapLayerSwitcher can move above us.
+  // Depends on `trackedList` so the effect re-runs when the panel appears/disappears
+  // (a new Map is created on every track/untrack, giving us a stable reference change).
   useEffect(() => {
-    if (!panelRef.current || !onHeightChange) return;
+    if (!onHeightChange) return;
+    if (!trackedList || trackedList.size === 0) { onHeightChange(0); return; }
+    if (!panelRef.current) return;
     const ro = new ResizeObserver(entries => {
-      for (const e of entries) onHeightChange(e.contentRect.height);
+      for (const e of entries) onHeightChange(Math.round(e.contentRect.height));
     });
     ro.observe(panelRef.current);
-    return () => { ro.disconnect(); onHeightChange(0); };
-  }, [onHeightChange]);
+    onHeightChange(Math.round(panelRef.current.getBoundingClientRect().height));
+    return () => { ro.disconnect(); };
+  }, [onHeightChange, trackedList]);
 
   // Must be called BEFORE any early return so hook call count is consistent every render
   const entries = useMemo(() => {
