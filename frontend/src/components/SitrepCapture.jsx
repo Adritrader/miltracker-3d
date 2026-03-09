@@ -1,5 +1,5 @@
 ﻿/**
- * SitrepCapture â€“ Screenshot and 6-second cinematic video capture
+ * SitrepCapture — Screenshot and 10-second cinematic video capture
  * - Screenshot: uses scene.postRender event to grab canvas right after Cesium renders
  * - Video: cinematic zoom-in â†’ MP4 (iOS) or WebM (desktop) via MediaRecorder
  * - Done modal: Download + social share grid (Twitter, WhatsApp, Telegram, Reddit, native)
@@ -11,16 +11,18 @@ import * as Cesium from 'cesium';
 const RECORD_SEC = 10;
 const PAGE_URL   = () => window.location.href;
 const SHARE_TEXTS = [
-  'LiveWar3D — live military tracking on a 3D globe 🌐',
-  '🚨 Real-time conflict zones, warships & military aircraft — livewar3d.com',
-  '📡 Monitoring active war zones worldwide — LiveWar3D',
-  '🛰️ Live OSINT: military flights, naval movements & conflict alerts',
-  '⚔️ Track the world\'s conflicts in real time — livewar3d.com',
-  '🌍 Live military intel: aircraft, warships & breaking conflict news',
-  '📍 Active conflict monitor — see what\'s happening worldwide right now',
-  '🔴 SITREP: Live military tracking powered by LiveWar3D',
-  '🗺️ 3D globe with live wars, naval ops & air patrols — livewar3d.com',
-  '⚡ Real-time alerts: missile launches, naval chases & airstrike reports',
+  '🌐 LiveWar3D — track military aircraft, warships & active conflict zones on a live 3D globe.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #OSINT #War #Defense',
+  '🚨 Real-time conflict zones, warships & military aircraft all in one place.\nOpen-source intel, updated live.\nhttps://livewar3d.com\n#LiveWar3D #BreakingNews #OSINT #MilAviation #NavalOps',
+  '📡 Monitoring active war zones worldwide — NATO movements, naval ops, airstrikes & more.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #War #Geopolitics #Defense',
+  '🛰️ Live OSINT: military flights, naval movements & conflict alerts on a 3D globe.\nSee what\'s happening before the news does.\nhttps://livewar3d.com\n#OSINT #LiveWar3D #MilAviation #NavalOps #Intelligence',
+  '⚔️ Track the world\'s conflicts in real time — Ukraine, Middle East, Taiwan Strait & more.\nhttps://livewar3d.com\n#LiveWar3D #War #Ukraine #MiddleEast #Taiwan #Defense',
+  '🌍 Live military intel — aircraft carriers, fighter jets, warships & breaking conflict news.\nAll on a 3D globe.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #OSINT #Geopolitics',
+  '📍 Active conflict monitor — see what\'s happening worldwide right now.\nPowered by ADS-B, AIS & open-source intelligence.\nhttps://livewar3d.com\n#LiveWar3D #OSINT #War #LiveTracking #Defense',
+  '🔴 SITREP: Live military tracking powered by LiveWar3D.\nAircraft, warships, conflict zones & more — updated in real time.\nhttps://livewar3d.com\n#LiveWar3D #SITREP #MilitaryTracking #War #OSINT',
+  '🗺️ 3D globe with live wars, naval ops & air patrols.\nTrack carriers, F-35 flights & active frontlines in real time.\nhttps://livewar3d.com\n#LiveWar3D #NavalOps #MilAviation #War #Defense',
+  '⚡ Real-time alerts: missile launches, naval intercepts & airstrike reports.\nLiveWar3D — the pulse of global conflict.\nhttps://livewar3d.com\n#LiveWar3D #BreakingNews #MilitaryTracking #OSINT #War',
+  '🛩️ Military aircraft live on your screen — tankers, bombers, ISR & fighters tracked in real time.\nhttps://livewar3d.com\n#LiveWar3D #MilAviation #AirForce #OSINT #Defense',
+  '🚢 Warships, aircraft carriers & submarines tracked live.\nSee where the fleets are right now.\nhttps://livewar3d.com\n#LiveWar3D #NavalOps #USNavy #OSINT #MilitaryTracking',
 ];
 const getShareText = () => SHARE_TEXTS[Math.floor(Math.random() * SHARE_TEXTS.length)];
 
