@@ -14,7 +14,7 @@ import { fetchConflictEvents } from './services/conflictService.js';
 import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './services/positionTracker.js';
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
-import { maybeTweetAlert } from './services/twitterService.js';
+import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
 
 dotenv.config();
 
@@ -194,6 +194,22 @@ app.get('/api/news',     (req, res) => res.json(cache.news));
 app.get('/api/alerts',   (req, res) => res.json(cache.alerts));
 app.get('/api/conflicts',(req, res) => res.json(cache.conflicts));
 app.get('/api/cameras',  (req, res) => res.json(getCameras()));
+
+// ─── Admin: manual tweet trigger ─────────────────────────────────────────────
+app.post('/api/admin/tweet', async (req, res) => {
+  const secret = req.headers['x-admin-secret'];
+  if (!secret || secret !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    // Pick most recent critical alert, or post a generic launch tweet
+    const alert = cache.alerts.find(a => a.severity === 'critical') || null;
+    await tweetNow(alert);
+    res.json({ ok: true, tweeted: alert?.title || 'Generic launch tweet' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── Aircraft polling (every 15 seconds) ────────────────────────────────────
 async function pollAircraft() {

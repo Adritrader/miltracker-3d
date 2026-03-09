@@ -6,9 +6,11 @@
  *
  * Free tier: 500 tweets/month (~16/day) — only CRITICAL severity is posted.
  * Rate limit: minimum 15 minutes between tweets to stay within quota.
+ * Images: OpenStreetMap static map (free, no API key required).
  */
 
 import { TwitterApi } from 'twitter-api-v2';
+import fetch from 'node-fetch';
 
 const MIN_INTERVAL_MS = 15 * 60_000; // 15 min between tweets
 let lastTweetAt = 0;
@@ -38,10 +40,10 @@ function severityEmoji(severity) {
 function buildTweetText(alert) {
   const emoji = severityEmoji(alert.severity);
   const severity = alert.severity.toUpperCase();
-  const title = alert.title?.slice(0, 160) || 'Breaking military alert';
+  const title = alert.title?.slice(0, 140) || 'Breaking military alert';
   const location = alert.country
     ? `📍 ${alert.country}`
-    : (alert.lat != null ? `📍 ${alert.lat.toFixed(2)}°, ${alert.lon.toFixed(2)}°` : '');
+    : (alert.lat != null ? `📍 ${Number(alert.lat).toFixed(2)}°, ${Number(alert.lon).toFixed(2)}°` : '');
 
   const parts = [
     `${emoji} [${severity}] ${title}`,
@@ -55,6 +57,45 @@ function buildTweetText(alert) {
   return parts.join('\n').slice(0, 280);
 }
 
+// Fetch a static satellite map image centered on lat/lon (free OSM-based service)
+async function fetchMapImage(lat, lon) {
+  if (lat == null || lon == null) return null;
+  const zoom = 7;
+  const url = `https://staticmap.openstreetmap.de/staticmap.php` +
+    `?center=${lat},${lon}&zoom=${zoom}&size=800x400` +
+    `&markers=${lat},${lon},red-pushpin`;
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'LiveWar3D/1.0 (https://livewar3d.com)' },
+    });
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+// Post a tweet with optional map image attached
+async function postTweet(xClient, text, lat, lon) {
+  const rwClient = xClient.readWrite;
+
+  const imgBuffer = await fetchMapImage(lat, lon);
+  if (imgBuffer) {
+    try {
+      const mediaId = await rwClient.v1.uploadMedia(imgBuffer, { mimeType: 'image/png' });
+      await rwClient.v2.tweet({ text, media: { media_ids: [mediaId] } });
+      return true;
+    } catch (imgErr) {
+      console.warn('[Twitter] Image upload failed, falling back to text-only:', imgErr.message);
+    }
+  }
+
+  // Fallback: text-only tweet
+  await rwClient.v2.tweet(text);
+  return true;
+}
+
 // Track already-tweeted alert IDs to avoid duplicates across polls
 const tweetedIds = new Set();
 
@@ -65,36 +106,47 @@ const tweetedIds = new Set();
  */
 export async function maybeTweetAlert(alerts = []) {
   const xClient = getClient();
-  if (!xClient) return; // env vars not set
+  if (!xClient) return;
 
   const now = Date.now();
-  if (now - lastTweetAt < MIN_INTERVAL_MS) return; // rate-limit guard
+  if (now - lastTweetAt < MIN_INTERVAL_MS) return;
 
-  // Only post critical severity
   const candidates = alerts.filter(
     a => a.severity === 'critical' && !tweetedIds.has(a.id)
   );
   if (candidates.length === 0) return;
 
-  // Pick the newest one
   const alert = candidates.sort(
     (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
   )[0];
 
-  const text = buildTweetText(alert);
-
   try {
-    const rwClient = xClient.readWrite;
-    await rwClient.v2.tweet(text);
+    await postTweet(xClient, buildTweetText(alert), alert.lat, alert.lon);
     tweetedIds.add(alert.id);
     lastTweetAt = now;
-    // Keep set bounded
-    if (tweetedIds.size > 500) {
-      const first = tweetedIds.values().next().value;
-      tweetedIds.delete(first);
-    }
-    console.log(`[Twitter] Tweeted alert: ${alert.title?.slice(0, 60)}`);
+    if (tweetedIds.size > 500) tweetedIds.delete(tweetedIds.values().next().value);
+    console.log(`[Twitter] Auto-tweeted: ${alert.title?.slice(0, 60)}`);
   } catch (err) {
     console.error('[Twitter] Failed to post tweet:', err.message || err);
   }
+}
+
+/**
+ * Manual/admin trigger — posts a specific alert or a generic launch tweet.
+ * @param {object|null} alert — alert object, or null for a generic tweet
+ */
+export async function tweetNow(alert = null) {
+  const xClient = getClient();
+  if (!xClient) throw new Error('X API credentials not configured');
+
+  const text = alert
+    ? buildTweetText(alert)
+    : `🌐 LiveWar3D is now live — real-time military aircraft, naval vessels & conflict alerts worldwide.\n\nhttps://livewar3d.com\n\n#LiveWar3D #MilitaryTracking #BreakingNews`;
+
+  await postTweet(xClient, text, alert?.lat, alert?.lon);
+  if (alert) {
+    tweetedIds.add(alert.id);
+    lastTweetAt = Date.now();
+  }
+  console.log(`[Twitter] Manual tweet sent: ${text.slice(0, 60)}`);
 }
