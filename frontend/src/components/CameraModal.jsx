@@ -122,9 +122,8 @@ const CameraModal = ({ camera, onClose }) => {
               src={camera.feedUrl}
               title={camera.name}
               className="w-full h-full border-0"
-              allow="autoplay; fullscreen"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              referrerPolicy="no-referrer"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowFullScreen
             />
           )}
         </div>
