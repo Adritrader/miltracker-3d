@@ -270,7 +270,7 @@ const FilterPanel = ({
         >
           {/* Drawer header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-hud-border/40 shrink-0">
-            <span className="hud-title text-glitch text-sm">MILTRACKER 3D</span>
+            <span className="hud-title text-glitch text-sm">LIVEWAR3D</span>
             <div className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green' : 'bg-red-500'}`} />
               <span className="hud-label text-xs">{connected ? 'LIVE' : 'OFFLINE'}</span>
@@ -313,7 +313,7 @@ const FilterPanel = ({
           className="flex items-center justify-between mb-1 cursor-pointer select-none"
           onClick={() => setPanelOpen(p => !p)}
         >
-          <span className="hud-title text-glitch">MILTRACKER 3D</span>
+          <span className="hud-title text-glitch">LIVEWAR3D</span>
           <div className="flex items-center gap-1">
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-hud-green' : 'bg-red-500'}`} />
             <span className="hud-label text-xs">{connected ? 'LIVE' : 'OFFLINE'}</span>

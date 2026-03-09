@@ -1,5 +1,5 @@
 /**
- * App.jsx – MilTracker 3D main application component
+ * App.jsx – LiveWar3D main application component
  * Assembles: Globe + Aircraft + Ships + News + Danger Zones + UI Panels
  */
 

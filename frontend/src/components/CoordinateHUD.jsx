@@ -171,7 +171,7 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
       {!isMobile && (
       <div className="flex-1 flex items-center justify-center h-full pointer-events-none select-none">
         <span className="text-hud-border text-xs font-mono opacity-50 tracking-wider">
-          MILTRACKER 3D · PUBLIC SOURCES: ADSB.LOL / ADSB.FI / GDELT
+          LIVEWAR3D · PUBLIC SOURCES: ADSB.LOL / ADSB.FI / GDELT
         </span>
       </div>
       )}
