@@ -466,6 +466,7 @@ function App() {
         conflictCount={conflicts.length}
         connected={connected}
         isMobile={isMobile}
+        onOpenLegal={setLegalPage}
       />
 
       {/* Full blocking overlay — only when there's truly nothing cached to show */}

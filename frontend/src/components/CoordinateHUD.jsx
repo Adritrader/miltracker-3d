@@ -30,7 +30,7 @@ const Seg = ({ label, value, valueClass = 'text-hud-green', children }) => (
   </div>
 );
 
-const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false }) => {
+const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false, onOpenLegal }) => {
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
@@ -210,6 +210,23 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
           {utcTime}Z
         </span>
       </div>
+
+      {/* Legal links */}
+      {!isMobile && onOpenLegal && (<>
+        <Divider />
+        <div className="flex items-center gap-3 px-3 h-full">
+          {[['privacy','Privacy'],['cookies','Cookies'],['terms','Terms']].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => onOpenLegal(key)}
+              className="font-mono text-xs transition-colors hover:text-hud-green"
+              style={{ color: 'rgba(74,96,128,0.7)' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </>)}
     </div>
   );
 };
