@@ -292,7 +292,7 @@ export function alertsFromNews(newsItems = []) {
       if (sev[b.severity] !== sev[a.severity]) return sev[b.severity] - sev[a.severity];
       return new Date(b.timestamp) - new Date(a.timestamp);
     })
-    .slice(0, 30);
+    .slice(0, 100);
 }
 
 // ─── Local rule-based analysis (zones only — no alert generation) ─────────────

@@ -367,8 +367,8 @@ function App() {
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}
       <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"
-           style={{ bottom: 28 + newsPanelHeight + 8, right: 16, transition: 'bottom 0.3s ease',
-                    // D1: cap height so AlertPanel can't overlap on small screens
+           style={{ bottom: 28 + newsPanelHeight + trackingPanelHeight + 8, right: 16, transition: 'bottom 0.3s ease',
+                    // cap height so AlertPanel can't overlap on small screens
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture
