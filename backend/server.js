@@ -14,6 +14,7 @@ import { fetchConflictEvents } from './services/conflictService.js';
 import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './services/positionTracker.js';
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
+import { maybeTweetAlert } from './services/twitterService.js';
 
 dotenv.config();
 
@@ -314,6 +315,8 @@ async function pollNews() {
       cache.alerts = alertsFromNews(cache.news);
       saveCache('alerts', cache.alerts);
       console.log(`[Alerts] ${cache.alerts.length} news-driven alerts generated (critical:${cache.alerts.filter(a=>a.severity==='critical').length})`);
+      // Auto-tweet new critical alerts
+      maybeTweetAlert(cache.alerts).catch(() => {});
     }
 
     // AI analysis — only when news changed AND 30-min cooldown has elapsed
