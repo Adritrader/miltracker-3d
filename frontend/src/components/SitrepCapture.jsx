@@ -29,31 +29,53 @@ function bestMime() {
 }
 
 // ── Watermark helpers ───────────────────────────────────────────────────────────────
-function drawWatermarkOnCtx(ctx, w, h) {
-  const pad = 14;
+const LOGO_URL = '/icon-192.png';
+
+function drawWatermarkOnCtx(ctx, w, h, logoImg) {
+  const pad      = 14;
   const fontSize = Math.max(11, Math.round(w / 90));
+  const logoSize = fontSize * 2.6;
+
   ctx.save();
   ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+
+  // Logo icon (bottom-right, above text)
+  if (logoImg) {
+    const lx = w - pad - logoSize;
+    const ly = h - pad - fontSize * 2.4 - logoSize - 4;
+    ctx.globalAlpha = 0.75;
+    ctx.drawImage(logoImg, lx, ly, logoSize, logoSize);
+  }
+
+  // Name + domain text
   ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
   ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
-  ctx.globalAlpha = 0.45; ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 0.55; ctx.fillStyle = '#ffffff';
   ctx.fillText('LiveWar3D', w - pad, h - pad - fontSize - 3);
-  ctx.globalAlpha = 0.60; ctx.fillStyle = '#00ff88';
+  ctx.globalAlpha = 0.70; ctx.fillStyle = '#00ff88';
   ctx.fillText(window.location.hostname, w - pad, h - pad);
   ctx.restore();
 }
-function addWatermark(dataUrl) {
+
+function loadImage(src) {
   return new Promise(resolve => {
     const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = img.width; c.height = img.height;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      drawWatermarkOnCtx(ctx, c.width, c.height);
-      resolve(c.toDataURL('image/png'));
-    };
-    img.src = dataUrl;
+    img.onload  = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function addWatermark(dataUrl) {
+  return new Promise(async resolve => {
+    const [img, logo] = await Promise.all([loadImage(dataUrl), loadImage(LOGO_URL)]);
+    if (!img) { resolve(dataUrl); return; }
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    drawWatermarkOnCtx(ctx, c.width, c.height, logo);
+    resolve(c.toDataURL('image/png'));
   });
 }
 
@@ -171,9 +193,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     wmCanvas.width  = viewer.canvas.width;
     wmCanvas.height = viewer.canvas.height;
     const wmCtx = wmCanvas.getContext('2d');
+    let videoLogo = null;
+    loadImage(LOGO_URL).then(img => { videoLogo = img; });
     const copyFrame = () => {
       wmCtx.drawImage(viewer.canvas, 0, 0);
-      drawWatermarkOnCtx(wmCtx, wmCanvas.width, wmCanvas.height);
+      drawWatermarkOnCtx(wmCtx, wmCanvas.width, wmCanvas.height, videoLogo);
     };
     viewer.scene.postRender.addEventListener(copyFrame);
 
