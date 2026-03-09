@@ -444,8 +444,8 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     <button
       onClick={() => setMode('menu')}
       className={inline
-        ? 'hud-btn text-xs px-3 py-2 font-bold'
-        : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold'
+        ? 'hud-btn text-xs px-3 py-2 font-bold bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
+        : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
       }
       title="Generar SITREP â€” captura de pantalla o video"
     >
