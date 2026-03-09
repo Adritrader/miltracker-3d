@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#050810" />
@@ -11,44 +12,112 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="LiveWar3D" />
 
-    <!-- Primary SEO -->
+    <!-- ══════════════════════════════════════════════════
+         PRIMARY SEO
+    ══════════════════════════════════════════════════ -->
     <title>LiveWar3D — Real-Time Military Tracking on a 3D Globe</title>
-    <meta name="description" content="LiveWar3D: real-time military aircraft, warships and active conflict zones on an interactive 3D globe. Live cameras, AI threat analysis, FIRMS fire data and breaking war news." />
-    <meta name="keywords" content="live war map, military tracking, real-time conflict map, warship tracker, military aircraft live, 3D globe conflict, ukraine war live, taiwan strait, south china sea, military intelligence, OSINT, live war camera, defense tracker" />
+    <meta name="description" content="LiveWar3D: track military aircraft, warships and active conflict zones live on an interactive 3D globe. AI threat analysis, live conflict cameras, FIRMS fire data and breaking war news updated every 30 seconds." />
+    <meta name="keywords" content="live war map, military tracking, real-time conflict map, warship tracker, military aircraft live, 3D globe war, ukraine war live, russia ukraine tracker, taiwan strait conflict, south china sea, korean dmz, red sea houthi, military intelligence, OSINT tracker, live war camera, defense tracking, military radar, conflict monitor, nato tracker, warzone live" />
     <meta name="author" content="LiveWar3D" />
+    <meta name="copyright" content="LiveWar3D" />
     <link rel="canonical" href="https://livewar3d.com/" />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="rating" content="general" />
+    <meta name="revisit-after" content="1 day" />
+    <meta name="language" content="English" />
+    <meta name="geo.region" content="US" />
+    <meta name="geo.placename" content="Global" />
 
-    <!-- Open Graph (Facebook / Discord / WhatsApp) -->
+    <!-- ══════════════════════════════════════════════════
+         OPEN GRAPH — Facebook / Discord / WhatsApp / LinkedIn
+    ══════════════════════════════════════════════════ -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://livewar3d.com/" />
-    <meta property="og:title" content="LiveWar3D — Real-Time Military Tracking" />
-    <meta property="og:description" content="Track military aircraft, warships and active conflict zones on a live 3D globe. Live conflict cameras, AI threat scores and breaking war news." />
-    <meta property="og:image" content="https://livewar3d.com/icon-512.png" />
+    <meta property="og:title" content="LiveWar3D — Real-Time Military Tracking on a 3D Globe" />
+    <meta property="og:description" content="Track military aircraft, warships and active conflict zones live. AI threat scores, live conflict cameras, FIRMS fire data and breaking war news — all on an interactive 3D globe." />
+    <meta property="og:image" content="https://livewar3d.com/og-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="LiveWar3D — interactive 3D globe showing live military aircraft and warship positions" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:site_name" content="LiveWar3D" />
     <meta property="og:locale" content="en_US" />
 
-    <!-- Twitter / X Card -->
+    <!-- ══════════════════════════════════════════════════
+         TWITTER / X CARD
+    ══════════════════════════════════════════════════ -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@livewar3d" />
+    <meta name="twitter:creator" content="@livewar3d" />
     <meta name="twitter:title" content="LiveWar3D — Real-Time Military Tracking" />
     <meta name="twitter:description" content="Live military aircraft, warships and conflict zones on an interactive 3D globe. AI threat analysis, live conflict cameras and breaking war news." />
-    <meta name="twitter:image" content="https://livewar3d.com/icon-512.png" />
+    <meta name="twitter:image" content="https://livewar3d.com/og-preview.png" />
+    <meta name="twitter:image:alt" content="LiveWar3D 3D globe with live military tracking" />
 
-    <!-- Structured Data -->
+    <!-- ══════════════════════════════════════════════════
+         STRUCTURED DATA — JSON-LD
+    ══════════════════════════════════════════════════ -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "LiveWar3D",
+      "alternateName": "Live War 3D",
       "url": "https://livewar3d.com",
-      "description": "Real-time military aircraft, warships and active conflict zones on an interactive 3D globe with AI threat analysis and live cameras.",
+      "logo": "https://livewar3d.com/icon-512.png",
+      "image": "https://livewar3d.com/og-preview.png",
+      "description": "Real-time military aircraft, warships and active conflict zones on an interactive 3D globe with AI threat analysis, live conflict cameras and breaking war news.",
       "applicationCategory": "NewsApplication",
+      "applicationSubCategory": "Military Intelligence",
       "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      "browserRequirements": "Requires WebGL",
+      "inLanguage": "en",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Real-time military aircraft tracking",
+        "Live warship positions",
+        "Active conflict zone overlay",
+        "AI threat danger scoring",
+        "Live conflict cameras",
+        "FIRMS wildfire data",
+        "Breaking geopolitical news",
+        "Interactive 3D globe"
+      ],
+      "potentialAction": {
+        "@type": "ViewAction",
+        "target": "https://livewar3d.com"
+      },
+      "sameAs": [
+        "https://twitter.com/livewar3d"
+      ]
     }
     </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "LiveWar3D",
+      "url": "https://livewar3d.com",
+      "logo": "https://livewar3d.com/icon-512.png",
+      "sameAs": [
+        "https://twitter.com/livewar3d"
+      ]
+    }
+    </script>
+
+    <!-- ══════════════════════════════════════════════════
+         PERFORMANCE HINTS
+    ══════════════════════════════════════════════════ -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.open-meteo.com" />
+    <link rel="dns-prefetch" href="https://firms.modaps.eosdis.nasa.gov" />
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
