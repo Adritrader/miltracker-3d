@@ -77,19 +77,17 @@ export async function probeGeminiModel(key) {
 const CONFLICT_ZONES = [
   { id: 'ukraine',       name: 'Ukraine Conflict Zone',          lat: 48.38, lon: 31.17, radius: 600, severity: 'critical', color: '#ff0000' },
   { id: 'gaza',          name: 'Gaza Strip Operations',          lat: 31.35, lon: 34.35, radius: 80,  severity: 'critical', color: '#ff0000' },
-  { id: 'israel_north',  name: 'Israel–Lebanon Front',            lat: 33.10, lon: 35.45, radius: 120, severity: 'critical', color: '#ff0000' },
-  { id: 'lebanon',       name: 'Lebanese Airspace (active ops)', lat: 33.70, lon: 35.80, radius: 180, severity: 'high',     color: '#ff6600' },
-  { id: 'iran_nuclear',  name: 'Iran Nuclear Sites (Natanz/Fordow)', lat: 34.00, lon: 51.50, radius: 200, severity: 'critical', color: '#ff0000' },
-  { id: 'iran_airspace', name: 'Iran Airspace Restricted',       lat: 32.43, lon: 53.69, radius: 700, severity: 'critical', color: '#ff0000' },
-  { id: 'strait_hormuz', name: 'Strait of Hormuz',               lat: 26.57, lon: 56.28, radius: 120, severity: 'critical', color: '#ff0000' },
-  { id: 'persiangulf',   name: 'Persian Gulf (Active Ops)',      lat: 26.50, lon: 53.00, radius: 400, severity: 'critical', color: '#ff0000' },
+  // Israel/Lebanon: single zone covers both fronts (north front folded into Lebanon zone)
+  { id: 'lebanon',       name: 'Israel–Lebanon–Gaza Ops',       lat: 33.20, lon: 35.50, radius: 200, severity: 'critical', color: '#ff0000' },
+  // Iran: single zone covers airspace + nuclear sites (iran_nuclear sub-zone removed)
+  { id: 'iran_airspace', name: 'Iran Restricted Airspace',      lat: 32.43, lon: 53.69, radius: 700, severity: 'critical', color: '#ff0000' },
+  // Persian Gulf + Hormuz together (strait_hormuz + bahrain sub-zones removed)
+  { id: 'persiangulf',   name: 'Persian Gulf / Strait of Hormuz', lat: 26.50, lon: 53.00, radius: 450, severity: 'critical', color: '#ff0000' },
   { id: 'red_sea',       name: 'Red Sea (Houthi Zone)',          lat: 20.00, lon: 38.00, radius: 500, severity: 'critical', color: '#ff0000' },
-  { id: 'gulf_aden',     name: 'Gulf of Aden',                         lat: 12.00, lon: 46.00, radius: 300, severity: 'high',     color: '#ff6600' },
-  { id: 'iraq_syria',    name: 'Iraq-Syria Border Ops',                lat: 34.00, lon: 40.00, radius: 350, severity: 'high',     color: '#ff6600' },
+  { id: 'iraq_syria',    name: 'Iraq-Syria Border Ops',          lat: 34.00, lon: 40.00, radius: 350, severity: 'high',     color: '#ff6600' },
   // Mar 2026: Iranian missile/drone attacks on coalition bases
-  { id: 'bahrain',       name: 'Bahrain / US 5th Fleet HQ',           lat: 26.07, lon: 50.55, radius: 80,  severity: 'critical', color: '#ff0000' },
-  { id: 'kuwait',        name: 'Kuwait (US Base Under Attack)',         lat: 29.37, lon: 47.98, radius: 150, severity: 'critical', color: '#ff0000' },
-  { id: 'cyprus',        name: 'Cyprus (RAF Akrotiri Attacked)',        lat: 34.72, lon: 33.05, radius: 120, severity: 'critical', color: '#ff0000' },
+  { id: 'kuwait',        name: 'Kuwait / US Base (Under Attack)', lat: 29.37, lon: 47.98, radius: 150, severity: 'critical', color: '#ff0000' },
+  { id: 'cyprus',        name: 'Cyprus (RAF Akrotiri Attacked)', lat: 34.72, lon: 33.05, radius: 120, severity: 'critical', color: '#ff0000' },
   { id: 'taiwan_strait', name: 'Taiwan Strait Tensions',               lat: 24.50, lon: 119.50,radius: 300, severity: 'high',     color: '#ff6600' },
   { id: 'south_cs',      name: 'South China Sea',                lat: 14.00, lon: 115.00,radius: 800, severity: 'high',     color: '#ff6600' },
   { id: 'uae_op_zone',   name: 'UAE Operational Zone',           lat: 24.50, lon: 54.50, radius: 200, severity: 'high',     color: '#ff6600' },

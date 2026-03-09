@@ -239,36 +239,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
         ? Cesium.Cartesian3.fromDegreesArray(polyCoords)
         : circlePositions(zone.lat, zone.lon, zone.radius);
 
-      const positionsFlat = polyCoords
-        ? polyCoords
-        : (() => {
-            const cosLat = Math.cos(zone.lat * Math.PI / 180);
-            const pts = [];
-            for (let i = 0; i <= 72; i++) {
-              const a = (i * 2 * Math.PI) / 72;
-              pts.push(zone.lon + (zone.radius / (111.32 * cosLat)) * Math.sin(a));
-              pts.push(zone.lat + (zone.radius / 111.32) * Math.cos(a));
-            }
-            return pts;
-          })();
-
-      // 1. Filled polygon
-      try {
-        const fillE = ds.entities.add({
-          id: `zone-fill-${zone.id}`,
-          polygon: {
-            hierarchy: new Cesium.PolygonHierarchy(
-              Cesium.Cartesian3.fromDegreesArray(positionsFlat)
-            ),
-            material: col.withAlpha(s.fill),
-            height: 0,
-            perPositionHeight: false,
-          },
-        });
-        zoneEntitiesRef.current.push(fillE);
-      } catch { /* skip */ }
-
-      // 2. Perimeter polyline
+      // 1. Perimeter polyline (no filled polygon — avoids overlapping fill artifacts)
       try {
         const borderE = ds.entities.add({
           id: `zone-border-${zone.id}`,
@@ -287,7 +258,7 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
         zoneEntitiesRef.current.push(borderE);
       } catch { /* skip */ }
 
-      // 3. Centre pin + label
+      // 2. Centre pin + label
       try {
         const pinE = ds.entities.add({
           id: `zone-pin-${zone.id}`,
