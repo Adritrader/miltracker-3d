@@ -80,7 +80,13 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => 
       {/* Ticker bar */}
       <div
         className="hud-panel border-t border-hud-border h-10 flex items-center gap-3 px-3 cursor-pointer select-none"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => {
+          const next = !expanded;
+          setExpanded(next);
+          // Anticipate final height immediately so Timeline/buttons start their transition
+          // in sync with the NewsPanel CSS animation (h-10=40px collapsed, h-64=256px expanded)
+          if (onHeightChange) onHeightChange(next ? 256 : 40);
+        }}
         style={{ borderRadius: 0 }}
       >
         <div className="flex items-center gap-1 shrink-0">
