@@ -400,12 +400,13 @@ export function filterAircraft(aircraft, filters) {
     if (filters.missionType && filters.missionType !== 'ALL') {
       const cat = categorizeAircraft(ac);
       const mt = filters.missionType;
-      if (mt === 'FIGHTER'   && cat !== 'Fighter')   return false;
-      if (mt === 'BOMBER'    && cat !== 'Bomber')     return false;
-      if (mt === 'ISR'       && cat !== 'ISR/Recon')  return false;
-      if (mt === 'TANKER'    && cat !== 'Tanker')     return false;
-      if (mt === 'TRANSPORT' && cat !== 'Transport')  return false;
-      if (mt === 'PATROL'    && cat !== 'Patrol')     return false;
+      if (mt === 'FIGHTER'     && cat !== 'Fighter')    return false;
+      if (mt === 'BOMBER'      && cat !== 'Bomber')      return false;
+      if (mt === 'ISR'         && cat !== 'ISR/Recon')   return false;
+      if (mt === 'TANKER'      && cat !== 'Tanker')      return false;
+      if (mt === 'TRANSPORT'   && cat !== 'Transport')   return false;
+      if (mt === 'PATROL'      && cat !== 'Patrol')      return false;
+      if (mt === 'HELICOPTER'  && cat !== 'Helicopter')  return false;
     }
     return true;
   });
@@ -459,19 +460,54 @@ export function filterNews(news, filters) {
   });
 }
 
+// Module-level Sets used by categorizeAircraft — defined once, not per-call.
+const _CAT_FIGHTER = new Set([
+  'F15','F16','F18','F35','F22','F14','A10',
+  'SU27','SU30','SU34','SU35','SU57','MIG29','MIG31',
+  'RAFA','EUFI','EF','EF19','TPHR','JAS39','JAS3','GRPE','F2',
+  'J10','J11','J15','J16','J20', // PLAAF
+  'KF21','T50', // Korea, Russia
+]);
+const _CAT_BOMBER = new Set([
+  'B52','B1','B2',
+  'TU95','TU22','TU160','T22M','TU16',
+  'H6', // PLAAF H-6
+]);
+const _CAT_TANKER = new Set(['KC135','KC46','MRTT','IL78','VC10']);
+const _CAT_TRANSPORT = new Set([
+  'C17','C5','C5M','C130','C130J','A400','A40M','IL76',
+  'C12','C21','C32','C37','C40','VC25','AN26','AN72','AN124',
+]);
+const _CAT_ISR = new Set([
+  'RC135','E3','E8','E2','U2','RQ4','MQ9','P8','EP3','IL20','E145','A50',
+  'EA18', // EA-18G Growler (SEAD/EW)
+]);
+
 export function categorizeAircraft(ac) {
+  const t = (ac.aircraftType || '').toUpperCase();
+
+  // 1. Type-code classification — most accurate, runs first
+  if (t && isHelicopter(t)) return 'Helicopter';
+  if (t && _CAT_FIGHTER.has(t))   return 'Fighter';
+  if (t && _CAT_BOMBER.has(t))    return 'Bomber';
+  if (t && _CAT_TANKER.has(t))    return 'Tanker';
+  if (t && _CAT_TRANSPORT.has(t)) return 'Transport';
+  if (t && _CAT_ISR.has(t))       return 'ISR/Recon';
+
+  // 2. Callsign prefix matching (US military callsign conventions)
   const cs = (ac.callsign || '').toUpperCase();
-  // Tankers — air-refuelling callsigns
-  if (['SHELL', 'POLO', 'QUID', 'ARCO', 'SWIFT', 'JAKE60', 'JAKE7'].some(p => cs.startsWith(p))) return 'Tanker';
+  // Tankers
+  if (['SHELL', 'POLO', 'QUID', 'ARCO', 'SWIFT', 'JAKE60', 'JAKE7', 'IRON'].some(p => cs.startsWith(p))) return 'Tanker';
   // Bombers
-  if (['RAIDR', 'DEATH', 'BONE', 'DARK', 'GHOST'].some(p => cs.startsWith(p))) return 'Bomber';
+  if (['RAIDR', 'DEATH', 'BONE', 'DARK', 'GHOST', 'SPIRIT'].some(p => cs.startsWith(p))) return 'Bomber';
   // Transport / Airlift
   if (['RCH', 'REACH', 'JAKE', 'CNV', 'SPAR', 'EXEC', 'ATLAS', 'HAVOC'].some(p => cs.startsWith(p))) return 'Transport';
   // ISR / Recon
-  if (['DRAGON', 'COBRA', 'MAGMA', 'FORTE', 'ROVER'].some(p => cs.startsWith(p))) return 'ISR/Recon';
+  if (['DRAGON', 'COBRA', 'MAGMA', 'FORTE', 'ROVER', 'REAPER', 'HAWK'].some(p => cs.startsWith(p))) return 'ISR/Recon';
   // Naval Patrol
   if (['PAT', 'NAVY', 'MARCO', 'AWACS', 'SENTRY'].some(p => cs.startsWith(p))) return 'Patrol';
-  // Heuristics
+
+  // 3. Altitude/speed heuristics (last resort)
   if (ac.altitude > 18000) return 'ISR/Recon';
   if (ac.altitude > 10000 && (ac.velocity || 0) > 350) return 'Fighter';
   return 'Military';

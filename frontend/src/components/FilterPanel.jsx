@@ -147,6 +147,7 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource 
         <option value="TANKER">&#9632; TANKER</option>
         <option value="TRANSPORT">&#9660; TRANSPORT</option>
         <option value="PATROL">&#9650; PATROL</option>
+        <option value="HELICOPTER">&#9904; HELICOPTER</option>
       </select>
     </div>
 

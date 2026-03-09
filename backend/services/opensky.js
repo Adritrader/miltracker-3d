@@ -157,10 +157,21 @@ const GULF_CENTER = { lat: 26.5, lon: 56.0, dist: 700 }; // 700 nm radius
 
 const MIL_TYPE_CODES = new Set([
   'F15','F16','F18','F-15','F-16','F-18','F35','F-35','F14','F-14',
+  'F22','F-22',                // F-22 Raptor
   'C130','C-130','C17','C-17','C5','E3','E-3','E8','P8','P-8',
-  'B52','B-52','B2','B-2','KC135','KC-135','A10','A-10',
+  'B52','B-52','B2','B-2','B1','B-1',
+  'KC135','KC-135','KC46','KC-46', // tankers
+  'A10','A-10',
   'SU27','SU30','SU34','SU35','MIG29','MIG31','TU22','TU95','TU160',
   'CH47','UH60','AH64','EH101',
+  'RC135',                     // RC-135 Rivet Joint (ISR)
+  'U2',                        // U-2 Dragon Lady
+  'MQ9','MQ-9',                // MQ-9 Reaper
+  'RQ4','RQ-4',                // RQ-4 Global Hawk
+  'E2','E-2',                  // E-2 Hawkeye (carrier AEW)
+  'EA18','EA-18',              // EA-18G Growler (SEAD/EW)
+  'IL76',                      // Il-76 Candid transport
+  'IL20',                      // Il-20 Coot-A (ISR)
   // D1: European/Russian types previously missing
   'RAFA',                      // Dassault Rafale (all variants)
   'EUFI','EF19','TPHR',        // Eurofighter Typhoon
@@ -171,6 +182,10 @@ const MIL_TYPE_CODES = new Set([
   'IL78',                      // Ilyushin Il-78 Midas tanker
   'A400','A40M',               // Airbus A400M Atlas
   'V22','V-22','CMV22',        // Bell-Boeing V-22 Osprey
+  'J10','J11','J15','J16','J20', // PLAAF fighters
+  'KF21','T50',                // Korean KF-21, Russian T-50/Su-57 proto
+  'AN26','AN72','AN124',       // Russian/Ukrainian transports
+  'A50',                       // A-50 Mainstay (AEW)
 ]);
 
 /**
