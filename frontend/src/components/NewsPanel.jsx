@@ -22,7 +22,7 @@ function fmtDate(d) {
   return dt.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => {
+const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange, onExpandedChange }) => {
   const [expanded, setExpanded] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [visibleCount, setVisibleCount] = useState(0);
@@ -86,6 +86,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => 
           // Anticipate final height immediately so Timeline/buttons start their transition
           // in sync with the NewsPanel CSS animation (h-10=40px collapsed, h-64=256px expanded)
           if (onHeightChange) onHeightChange(next ? 256 : 40);
+          if (onExpandedChange) onExpandedChange(next);
         }}
         style={{ borderRadius: 0 }}
       >

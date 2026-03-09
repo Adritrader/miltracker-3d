@@ -81,6 +81,7 @@ function App() {
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
+  const [newsFeedExpanded, setNewsFeedExpanded] = useState(false);
 
   // F1: persist filters whenever they change
   useEffect(() => {
@@ -308,35 +309,49 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Top-left: Filter controls */}
-      <FilterPanel
-        filters={filters}
-        onFilterChange={setFilters}
-        aircraftCount={filteredAircraft.length}
-        shipCount={filteredShips.length}
-        newsCount={filteredNews.filter(n => n.lat).length}
-        conflictCount={filteredConflicts.length}
-        alertCount={alerts.length}
-        connected={connected}
-        lastUpdate={lastUpdate}
-        aircraftSource={aircraftSource}
-        spaceView={spaceView}
-        onSpaceViewChange={setSpaceView}
-        isMobile={isMobile}
-        onSearchOpen={() => setSearchOpen(true)}
-      />
+      {/* Top-left: Filter controls — slides up/fades when Intel Feed expands */}
+      <div style={{
+        transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
+        opacity: newsFeedExpanded ? 0 : 1,
+        transform: newsFeedExpanded ? 'translateY(-10px)' : 'translateY(0)',
+        pointerEvents: newsFeedExpanded ? 'none' : undefined,
+      }}>
+        <FilterPanel
+          filters={filters}
+          onFilterChange={setFilters}
+          aircraftCount={filteredAircraft.length}
+          shipCount={filteredShips.length}
+          newsCount={filteredNews.filter(n => n.lat).length}
+          conflictCount={filteredConflicts.length}
+          alertCount={alerts.length}
+          connected={connected}
+          lastUpdate={lastUpdate}
+          aircraftSource={aircraftSource}
+          spaceView={spaceView}
+          onSpaceViewChange={setSpaceView}
+          isMobile={isMobile}
+          onSearchOpen={() => setSearchOpen(true)}
+        />
+      </div>
 
-      {/* Top-right: Threat board + AI intel */}
-      <AlertPanel
-        alerts={alerts}
-        aiInsight={aiInsight}
-        aiError={aiError}
-        geminiEnabled={geminiEnabled}
-        viewer={viewer}
-        onFlyTo={handleFlyToAlert}
-        isMobile={isMobile}
-        onHeightChange={setAlertPanelHeight}
-      />
+      {/* Top-right: Threat board + AI intel — same fade when feed expands */}
+      <div style={{
+        transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
+        opacity: newsFeedExpanded ? 0 : 1,
+        transform: newsFeedExpanded ? 'translateY(-10px)' : 'translateY(0)',
+        pointerEvents: newsFeedExpanded ? 'none' : undefined,
+      }}>
+        <AlertPanel
+          alerts={alerts}
+          aiInsight={aiInsight}
+          aiError={aiError}
+          geminiEnabled={geminiEnabled}
+          viewer={viewer}
+          onFlyTo={handleFlyToAlert}
+          isMobile={isMobile}
+          onHeightChange={setAlertPanelHeight}
+        />
+      </div>
 
       {/* Tracking panel — right-side floating, multi-entity */}
       <TrackingPanel
@@ -416,6 +431,7 @@ function App() {
         onSelectNews={handleNewsSelect}
         isMobile={isMobile}
         onHeightChange={setNewsPanelHeight}
+        onExpandedChange={setNewsFeedExpanded}
       />
 
       {/* Bottom: Coordinate / status bar */}
