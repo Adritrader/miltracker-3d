@@ -24,9 +24,12 @@ const ALLOWED_ORIGINS = (origin, cb) => {
     /^https:\/\/.*\.vercel\.app$/,
     /^https:\/\/.*\.railway\.app$/,
     /^https:\/\/.*\.onrender\.com$/,
+    /^https:\/\/(www\.)?livewar3d\.com$/,
   ];
   if (!origin) return cb(null, true); // server-to-server / curl
-  if (process.env.ALLOWED_ORIGIN && origin === process.env.ALLOWED_ORIGIN) return cb(null, true);
+  // Support comma-separated list of extra allowed origins in env var
+  const extraOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (extraOrigins.includes(origin)) return cb(null, true);
   if (allowed.some(re => re.test(origin))) return cb(null, true);
   // In production, reject unknown origins. In dev, allow all.
   if (process.env.NODE_ENV === 'production') {
