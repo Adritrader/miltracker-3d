@@ -90,7 +90,7 @@ export async function fetchGDELTNews() {
     imageUrl: a.socialimage || null,
     tone: null,
     type: 'news',
-  })).filter(a => a.url);
+  })).filter(a => a.url && isEnglishText(a.title));
 }
 
 // ─── GDELT GeoNews (geolocated events) ───────────────────────────────────────
@@ -180,6 +180,16 @@ function isMilitaryRelevant(title, description) {
   return MIL_KEYWORDS.some(kw => text.includes(kw));
 }
 
+// Reject articles whose title contains non-Latin scripts (Cyrillic, Arabic, CJK, Hebrew,
+// Devanagari, Thai, Greek, Hangul). GDELT sourcelang=eng is not always reliable.
+// Also rejects if >12% of characters are non-ASCII (catches Italian/French/etc. slipping through).
+function isEnglishText(text) {
+  if (!text) return true;
+  if (/[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\u0590-\u05FF\u0900-\u097F\u0E00-\u0E7F\u0370-\u03FF\uAC00-\uD7AF]/.test(text)) return false;
+  const nonAscii = (text.match(/[^\u0000-\u007F]/g) || []).length;
+  return text.length === 0 || nonAscii / text.length < 0.12;
+}
+
 function extractRSSImage(item) {
   // B6: only accept https:// URLs — http:// causes mixed-content warnings in the browser
   // thumbnail field (rss2json)
@@ -209,6 +219,7 @@ export async function fetchRSSFeeds() {
       for (const item of data.items) {
         if (!item.title || !item.link) continue;
         if (!isMilitaryRelevant(item.title, item.description || '')) continue;
+        if (!isEnglishText(item.title)) continue;
         const imageUrl = extractRSSImage(item);
         results.push({
           id: `rss-${src.label.replace(/\s/g,'-')}-${encodeURIComponent(item.link).slice(0, 40)}`,

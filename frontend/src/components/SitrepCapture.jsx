@@ -157,7 +157,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
   const recordVideo = useCallback(() => {
     if (!viewer) return;
     if (typeof MediaRecorder === 'undefined' || !viewer.canvas.captureStream) {
-      alert('Su navegador no soporta grabacion de video. Use Captura de Pantalla.');
+      alert('Your browser does not support video recording. Use Screenshot instead.');
       return;
     }
     setCaptType('video');
@@ -191,7 +191,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       try { recorder = new MediaRecorder(stream); } catch (err2) {
         console.error('[SITREP] MediaRecorder fallback failed:', err2);
         onUiShow?.(); setMode(null);
-        alert('No se puede grabar vídeo en este navegador. Use Captura de Pantalla.');
+        alert('Video recording is not supported in this browser. Use Screenshot instead.');
         return;
       }
     }
@@ -209,7 +209,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       if (blob.size === 0) {
         console.warn('[SITREP] Video blob empty — nothing was recorded');
         onUiShow?.(); setMode(null);
-        alert('El vídeo quedó vacío. Asegúrate de que el canvas esté visible y prueba de nuevo.');
+        alert('Video was empty — make sure the canvas is visible and try again.');
         return;
       }
       const url  = URL.createObjectURL(blob);
@@ -224,7 +224,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       console.error('[SITREP] MediaRecorder error:', e);
       cancelAnimationFrame(rafRef.current); rafRef.current = null;
       onUiShow?.(); setMode(null);
-      alert('Error al grabar el vídeo. Usa Captura de Pantalla.');
+      alert('Video recording error. Use Screenshot instead.');
     };
 
     recorder.start(200);
@@ -288,7 +288,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     // Fallback: copy URL
     try {
       await navigator.clipboard.writeText(PAGE_URL());
-      setShareMsg('âœ“ URL copiada');
+      setShareMsg('✔ URL copied');
     } catch (_) {
       setShareMsg(PAGE_URL().slice(0, 70));
     }
@@ -326,7 +326,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         <span className="text-red-400 text-xl animate-pulse">&#x23FA;</span>
         <div>
           <div className="text-red-400 font-mono text-xs font-bold animate-pulse">
-            {countdown === 0 ? 'CAPTURANDO...' : `REC ${countdown}s`}
+            {countdown === 0 ? 'CAPTURING...' : `REC ${countdown}s`}
           </div>
           <div className="text-hud-text text-[10px] font-mono">SITREP CAPTURE</div>
         </div>
@@ -342,9 +342,9 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         <div className="hud-panel p-5 space-y-4" style={{ width: 'min(360px, calc(100vw - 32px))' }}>
           {/* Header */}
           <div>
-            <div className="hud-title text-xs mb-1 text-hud-green">&#x2713; SITREP GUARDADO</div>
+            <div className="hud-title text-xs mb-1 text-hud-green">&#x2713; SITREP SAVED</div>
             <div className="text-white font-mono font-bold text-sm">
-              {isVideo ? `Video ${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} 6s` : 'Captura PNG'}
+              {isVideo ? `${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} video 6s` : 'Screenshot PNG'}
             </div>
             <div className="text-hud-text font-mono text-[10px] truncate mt-0.5 opacity-60">{dlName}</div>
           </div>
@@ -362,20 +362,20 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           {/* Download */}
           {dlUrl && (
             <a href={dlUrl} download={dlName} className="hud-btn text-xs py-2 text-center w-full block">
-              &#x2193; DESCARGAR {dlName.split('.').pop().toUpperCase()}
+              &#x2193; DOWNLOAD {dlName.split('.').pop().toUpperCase()}
             </a>
           )}
 
           {/* Social share grid */}
           <div>
-            <div className="hud-title text-[10px] mb-2 opacity-70">COMPARTIR</div>
+            <div className="hud-title text-[10px] mb-2 opacity-70">SHARE</div>
             <div className="grid grid-cols-2 gap-2">
               {/* Native share â€” always first, shows WhatsApp/Telegram/etc sheet on mobile */}
               <button
                 onClick={handleNativeShare}
                 className="hud-btn text-xs py-2 text-center col-span-2"
               >
-                &#x2197; Compartir archivo {isVideo ? '(video)' : '(imagen)'}
+                &#x2197; Share file {isVideo ? '(video)' : '(image)'}
               </button>
               {/* Twitter — for video: also triggers download so user can attach the file */}
               <button
@@ -387,7 +387,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
               </button>
               {isVideo && (
                 <div className="col-span-2 text-[9px] font-mono text-amber-300/80 text-center -mt-1">
-                  ↑ descargando video &mdash; adjúntalo al tweet
+                  ↑ downloading video — attach it to your tweet
                 </div>
               )}
               {NETWORKS.map(n => (
@@ -409,7 +409,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           </div>
 
           <button onClick={reset} className="text-hud-text text-xs font-mono hover:text-white transition-colors py-1 text-center w-full">
-            &times; CERRAR
+            &times; CLOSE
           </button>
         </div>
       </ModalOverlay>
@@ -423,16 +423,16 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         <div className="hud-panel p-5 space-y-3" style={{ width: 'min(300px, calc(100vw - 32px))' }}>
           <div className="hud-title text-xs">&#x1F4F7; SITREP CAPTURE</div>
           <button onClick={takeScreenshot} className="w-full hud-btn text-xs py-2.5 text-center">
-            &#x1F4F8; CAPTURA DE PANTALLA (PNG)
+            &#x1F4F8; SCREENSHOT (PNG)
           </button>
           <button onClick={recordVideo} className="w-full hud-btn text-xs py-2.5 text-center">
-            &#x1F3AC; V&#xCD;DEO CINEM&#xC1;TICO (6s)
+            &#x1F3AC; CINEMATIC VIDEO (6s)
           </button>
           <div className="text-hud-text text-[10px] font-mono opacity-60 text-center">
-            La interfaz se oculta durante la captura
+            UI is hidden during capture
           </div>
           <button onClick={() => setMode(null)} className="w-full text-hud-text text-xs font-mono hover:text-white transition-colors py-1 text-center">
-            &times; Cancelar
+            &times; Cancel
           </button>
         </div>
       </ModalOverlay>
@@ -447,7 +447,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         ? 'hud-btn text-xs px-3 py-2 font-bold bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
         : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
       }
-      title="Generar SITREP â€” captura de pantalla o video"
+      title="Generate SITREP — screenshot or video"
     >
       &#x1F4F7; SITREP
     </button>
