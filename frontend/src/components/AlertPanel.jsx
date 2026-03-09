@@ -270,7 +270,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
       ref={panelRef}
       className="fixed z-50 transition-all duration-300"
       style={{
-        top: isMobile ? 16 : 60,  // desktop: ~15px below search bar
+        top: isMobile ? 4 : 60,  // mobile: align with hamburger row; desktop: below search bar
         right: isMobile ? 8 : 16,
         // On mobile: never go wider than 42vw so hamburger + map layer hints have room
         maxWidth: isMobile ? 'min(42vw, 220px)' : 320,
