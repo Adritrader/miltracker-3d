@@ -378,9 +378,14 @@ export function filterAircraft(aircraft, filters) {
   const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
   return aircraft.filter(ac => {
     if (!filters.showAircraft) return false;
-    // Resolve operator/origin string → full country name for consistent matching
-    const resolvedCountry = resolveCountry(ac.country);
-    const countryName = resolvedCountry.code !== '??' ? resolvedCountry.name : ac.country;
+    // Resolve operator/origin string → full country name for consistent matching.
+    // Fall back to ICAO24 hex prefix when origin_country/ownOp is absent (common with OpenSky).
+    let resolvedCountry = resolveCountry(ac.country);
+    if (resolvedCountry.code === '??') {
+      const isoCode = icaoToCountry(ac.icao24 || '');
+      if (isoCode) resolvedCountry = resolveCountry(isoCode);
+    }
+    const countryName = resolvedCountry.code !== '??' ? resolvedCountry.name : (ac.country || '');
     if (filters.country !== 'ALL' && countryName !== filters.country) return false;
     if (filters.alliance !== 'ALL' && getAlliance(countryName) !== filters.alliance) return false;
     // §0.17: some ADS-B sources don't emit the on_ground boolean, so fall back to
