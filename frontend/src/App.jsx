@@ -333,8 +333,8 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Top-left: Filter controls — slides up/fades when Intel Feed expands */}
-      <div style={{
+      {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}
+      <div style={isMobile ? undefined : {
         transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
         opacity: newsFeedExpanded ? 0 : 1,
         transform: newsFeedExpanded ? 'translateY(-10px)' : 'translateY(0)',
@@ -406,7 +406,7 @@ function App() {
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}
       <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"
-           style={{ bottom: 28 + newsPanelHeight + trackingPanelHeight + 8, right: 16, transition: 'bottom 0.15s ease-out',
+           style={{ bottom: (isMobile ? 44 : 28) + newsPanelHeight + trackingPanelHeight + 8, right: isMobile ? 8 : 16, transition: 'bottom 0.15s ease-out',
                     // cap height so AlertPanel can't overlap on small screens
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />

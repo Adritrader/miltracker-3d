@@ -287,6 +287,18 @@ const FilterPanel = ({
             <StatusGrid />
           </div>
 
+          {/* Search entities button */}
+          <div className="px-4 pt-2 shrink-0">
+            <button
+              onClick={() => { setDrawerOpen(false); onSearchOpen?.(); }}
+              className="w-full hud-btn text-xs px-3 py-2 flex items-center justify-center gap-2 rounded
+                         border border-hud-border hover:border-hud-green transition-colors duration-150"
+            >
+              <span>⌕</span>
+              <span className="hud-label tracking-wider">SEARCH ENTITIES</span>
+            </button>
+          </div>
+
           {/* Scrollable controls */}
           <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
             <PanelBody
