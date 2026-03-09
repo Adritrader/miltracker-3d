@@ -75,7 +75,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange }) => 
   };
 
   return (
-    <div ref={panelRef} className={`fixed left-0 right-0 z-40 transition-all duration-300 ${expanded ? 'h-64' : 'h-10'}`}
+    <div ref={panelRef} className={`fixed left-0 right-0 z-40 transition-all duration-150 ${expanded ? 'h-64' : 'h-10'}`}
          style={{ bottom: '28px' }}>
       {/* Ticker bar */}
       <div

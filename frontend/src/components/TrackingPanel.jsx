@@ -60,7 +60,7 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
     <div
       ref={panelRef}
       className="fixed left-0 right-0"
-      style={{ bottom: 28 + newsPanelHeight, zIndex: 38, transition: 'bottom 0.3s ease' }}
+      style={{ bottom: 28 + newsPanelHeight, zIndex: 38, transition: 'bottom 0.15s ease-out' }}
     >
       {/* Content only visible when tracking — outer div always in DOM for ResizeObserver */}
       {trackedList && trackedList.size > 0 && (<>

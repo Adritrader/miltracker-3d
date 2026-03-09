@@ -83,7 +83,7 @@ export default function TimelinePanel({
 
   if (minimized) {
     return (
-      <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-auto" style={{ bottom: bottomOffset + 4, transition: 'bottom 0.25s ease' }}>
+      <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-auto" style={{ bottom: bottomOffset + 4, transition: 'bottom 0.15s ease-out' }}>
         <button
           onClick={() => setMinimized(false)}
           title="Expand timeline"
@@ -110,7 +110,7 @@ export default function TimelinePanel({
   }
 
   return (
-    <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-none" style={{ bottom: bottomOffset + 4, transition: 'bottom 0.25s ease' }}>
+    <div className="fixed left-0 right-0 z-[55] flex justify-center pointer-events-none" style={{ bottom: bottomOffset + 4, transition: 'bottom 0.15s ease-out' }}>
       <div className="w-full max-w-2xl mx-4 mb-1 pointer-events-auto select-none">
         <div
           className="rounded-xl border border-white/10 overflow-hidden"
