@@ -8,9 +8,21 @@
 import React, { useState, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
 
-const RECORD_SEC = 6;
+const RECORD_SEC = 15;
 const PAGE_URL   = () => window.location.href;
-const SHARE_TEXT = 'LiveWar3D — live military tracking';
+const SHARE_TEXTS = [
+  'LiveWar3D — live military tracking on a 3D globe 🌐',
+  '🚨 Real-time conflict zones, warships & military aircraft — livewar3d.com',
+  '📡 Monitoring active war zones worldwide — LiveWar3D',
+  '🛰️ Live OSINT: military flights, naval movements & conflict alerts',
+  '⚔️ Track the world\'s conflicts in real time — livewar3d.com',
+  '🌍 Live military intel: aircraft, warships & breaking conflict news',
+  '📍 Active conflict monitor — see what\'s happening worldwide right now',
+  '🔴 SITREP: Live military tracking powered by LiveWar3D',
+  '🗺️ 3D globe with live wars, naval ops & air patrols — livewar3d.com',
+  '⚡ Real-time alerts: missile launches, naval chases & airstrike reports',
+];
+const getShareText = () => SHARE_TEXTS[Math.floor(Math.random() * SHARE_TEXTS.length)];
 
 // Pick best supported video mime — try every candidate and use the first that works
 const MIME_CANDIDATES = [
@@ -85,19 +97,19 @@ const NETWORKS = [
     id: 'whatsapp',
     label: 'WhatsApp',
     color: '#25d366',
-    url: () => `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT + ' ' + PAGE_URL())}`,
+    url: () => `https://wa.me/?text=${encodeURIComponent(getShareText() + ' ' + PAGE_URL())}`,
   },
   {
     id: 'telegram',
     label: 'Telegram',
     color: '#0088cc',
-    url: () => `https://t.me/share/url?url=${encodeURIComponent(PAGE_URL())}&text=${encodeURIComponent(SHARE_TEXT)}`,
+    url: () => `https://t.me/share/url?url=${encodeURIComponent(PAGE_URL())}&text=${encodeURIComponent(getShareText())}`,
   },
   {
     id: 'reddit',
     label: 'Reddit',
     color: '#ff4500',
-    url: () => `https://reddit.com/submit?url=${encodeURIComponent(PAGE_URL())}&title=${encodeURIComponent(SHARE_TEXT)}`,
+    url: () => `https://reddit.com/submit?url=${encodeURIComponent(PAGE_URL())}&title=${encodeURIComponent(getShareText())}`,
   },
 ];
 
@@ -299,11 +311,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           : await fetch(dlUrl).then(r => r.blob());
         const file = new File([blob], dlName, { type: dlMime });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'LiveWar3D SITREP', text: SHARE_TEXT });
+          await navigator.share({ files: [file], title: 'LiveWar3D SITREP', text: getShareText() });
           return;
         }
         // Share without file
-        await navigator.share({ title: 'LiveWar3D', url: PAGE_URL(), text: SHARE_TEXT });
+        await navigator.share({ title: 'LiveWar3D', url: PAGE_URL(), text: getShareText() });
         return;
       } catch (e) {
         if (e.name === 'AbortError') return; // user cancelled
@@ -320,7 +332,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
 
   // Twitter: for video, auto-download + open Twitter compose so user can attach
   const handleTwitterShare = useCallback(() => {
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(PAGE_URL())}`;
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText())}&url=${encodeURIComponent(PAGE_URL())}`;
     window.open(tweetUrl, '_blank', 'noopener,noreferrer');
     // If it's a video, also trigger the download so user can attach it to the tweet
     if (captureType === 'video' && dlUrl) {
