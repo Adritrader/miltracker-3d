@@ -206,10 +206,14 @@ const SitrepView = ({ alerts, aiInsight }) => {
 
 const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange, onHeightChange }) => {
   const [open, setOpen] = useState(!isMobile);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const panelRef = useRef(null);
 
   // Notify parent when open state changes
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
+
+  // Close drawer when switching to desktop
+  useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
 
   // Measure panel height and report to parent so Timeline can move out of the way
   useEffect(() => {
@@ -265,16 +269,147 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
     onFlyTo?.(alert);
   };
 
+  /* ══════════════════════════════════════════════════════════
+     Shared tab content (used by both mobile drawer and desktop panel)
+  ══════════════════════════════════════════════════════════ */
+  const TabContent = () => (
+    <>
+      {/* Tabs */}
+      <div className="flex border-b border-hud-border" style={{ overflowX: 'hidden' }}>
+        {['alerts', 'sitrep'].map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wide transition-colors
+              ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
+          >
+            {t === 'alerts' ? `⚠ CRIT (${criticalCount})` : 'SITREP'}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-2 overflow-y-auto" style={{ maxHeight: isMobile ? undefined : 'min(18rem, 38vh)' }}>
+        {tab === 'alerts' && (
+          criticalAlerts.length > 0
+            ? (
+              <>
+                {visibleAlerts.map(a => (
+                  <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
+                ))}
+                {criticalAlerts.length > 5 && (
+                  <button
+                    onClick={() => setAlertsExpanded(e => !e)}
+                    className="w-full text-center text-[10px] font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"
+                  >
+                    {alertsExpanded
+                      ? '▲ COLLAPSE'
+                      : `▼ SEE ALL (${criticalAlerts.length})`}
+                  </button>
+                )}
+              </>
+            )
+            : <div className="text-hud-text text-[10px] text-center py-4">No critical alerts</div>
+        )}
+
+        {tab === 'sitrep' && (
+          alerts.length > 0
+            ? <SitrepView alerts={alerts} />
+            : <div className="text-hud-text text-[10px] text-center py-4">Waiting for alert data…</div>
+        )}
+      </div>
+    </>
+  );
+
+  /* ══════════════════════════════════════════════════════════
+     MOBILE — pill button (top-right) + right-side slide-in drawer
+  ══════════════════════════════════════════════════════════ */
+  if (isMobile) {
+    return (
+      <>
+        {/* Alert pill button — top-right, mirrors hamburger on left */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="fixed top-4 right-4 z-50 hud-panel flex items-center gap-2 px-3 py-2 rounded-lg
+                     border border-hud-border active:scale-95 transition-transform duration-100 select-none"
+          aria-label="Open alerts"
+        >
+          <span className="text-red-400 text-xs">⚠</span>
+          <span className="hud-label text-xs">ALERTS</span>
+          {criticalCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold font-mono rounded-full min-w-[16px] h-4
+                             flex items-center justify-center px-1 leading-none animate-pulse">
+              {criticalCount > 99 ? '99+' : criticalCount}
+            </span>
+          )}
+          {/* §10.3 — notification bell */}
+          {criticalCount > 0 && notifPerm === 'default' && (
+            <button
+              onClick={e => { e.stopPropagation(); requestNotifPermission(); }}
+              title="Enable desktop notifications"
+              className="text-hud-amber text-xs shrink-0 hover:text-white transition-colors"
+            >🔔</button>
+          )}
+        </button>
+
+        {/* Backdrop */}
+        {drawerOpen && (
+          <div
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[1px]"
+            onClick={() => setDrawerOpen(false)}
+          />
+        )}
+
+        {/* Slide-in drawer from right */}
+        <div
+          className="fixed top-0 right-0 bottom-0 z-[70] w-72 flex flex-col
+                     transition-transform duration-300 ease-in-out"
+          style={{
+            background: 'rgba(5,10,18,0.97)',
+            borderLeft: '1px solid rgba(255,60,60,0.25)',
+            transform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
+          }}
+        >
+          {/* Drawer header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-hud-border/40 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-red-400 text-sm">⚠</span>
+              <span className="hud-title text-sm">INTEL ALERTS</span>
+              {criticalCount > 0 && (
+                <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-mono font-bold animate-pulse">
+                  {criticalCount}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="text-hud-text hover:text-red-400 text-lg leading-none ml-2 transition-colors duration-150"
+              aria-label="Close alerts"
+            >✕</button>
+          </div>
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="hud-panel m-0 border-0 rounded-none">
+              <TabContent />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     DESKTOP — original fixed panel (top-right)
+  ══════════════════════════════════════════════════════════ */
   return (
     <div
       ref={panelRef}
       className="fixed z-50 transition-all duration-300"
       style={{
-        top: isMobile ? 4 : 60,  // mobile: align with hamburger row; desktop: below search bar
-        right: isMobile ? 8 : 16,
-        // On mobile: never go wider than 42vw so hamburger + map layer hints have room
-        maxWidth: isMobile ? 'min(42vw, 220px)' : 320,
-        width: isMobile ? undefined : (open ? 320 : 'auto'),
+        top: 60,
+        right: 16,
+        maxWidth: 320,
+        width: open ? 320 : 'auto',
       }}
     >
       {/* Header toggle */}
@@ -284,10 +419,10 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-red-400 text-xs shrink-0">⚠</span>
-          <span className="hud-title truncate">{isMobile ? 'ALERTS' : 'INTEL ALERTS'}</span>
+          <span className="hud-title truncate">INTEL ALERTS</span>
           {criticalCount > 0 && (
             <span className="bg-red-600 text-white text-[10px] px-1 py-0.5 rounded font-mono font-bold animate-pulse shrink-0">
-              {criticalCount}{isMobile ? '' : ' CRITICAL'}
+              {criticalCount} CRITICAL
             </span>
           )}
           {/* §10.3 — notification bell */}
@@ -309,51 +444,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
 
       {open && (
         <div className="hud-panel animate-fade-in">
-          {/* Tabs */}
-          <div className="flex border-b border-hud-border" style={{ overflowX: 'hidden' }}>
-            {['alerts', 'sitrep'].map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wide transition-colors
-                  ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
-              >
-                {t === 'alerts'
-                  ? (isMobile ? `⚠ ${criticalCount}` : `⚠ CRIT (${criticalCount})`)
-                  : (isMobile ? '≡' : 'SITREP')}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-2 overflow-y-auto" style={{ maxHeight: 'min(18rem, 38vh)' }}>
-            {tab === 'alerts' && (
-              criticalAlerts.length > 0
-                ? (
-                  <>
-                    {visibleAlerts.map(a => (
-                      <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
-                    ))}
-                    {criticalAlerts.length > 5 && (
-                      <button
-                        onClick={() => setAlertsExpanded(e => !e)}
-                        className="w-full text-center text-[10px] font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"
-                      >
-                        {alertsExpanded
-                          ? '▲ COLLAPSE'
-                          : `▼ SEE ALL (${criticalAlerts.length})`}
-                      </button>
-                    )}
-                  </>
-                )
-                : <div className="text-hud-text text-[10px] text-center py-4">No critical alerts</div>
-            )}
-
-            {tab === 'sitrep' && (
-              alerts.length > 0
-                ? <SitrepView alerts={alerts} />
-                : <div className="text-hud-text text-[10px] text-center py-4">Waiting for alert data…</div>
-            )}
-          </div>
+          <TabContent />
         </div>
       )}
     </div>
