@@ -75,6 +75,7 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource 
       <Toggle label="NEWS EVENTS"  checked={filters.showNews}          onChange={v => set('showNews', v)} />
       <Toggle label="DANGER ZONES" checked={filters.showDanger}        onChange={v => set('showDanger', v)} />
       <Toggle label="MIL BASES"    checked={filters.showBases}         onChange={v => set('showBases', v)} color="hud-amber" />
+      <Toggle label="LIVE CAMS"    checked={filters.showCameras ?? true} onChange={v => set('showCameras', v)} color="hud-blue" />
       <Toggle label="ON GROUND"    checked={filters.showOnGround}      onChange={v => set('showOnGround', v)} />
       <div className="border-t border-hud-border/50 pt-2 mt-1">
         <Toggle label="SPACE VIEW" checked={spaceView} onChange={onSpaceViewChange} color="hud-blue" />

@@ -25,6 +25,8 @@ import TimelinePanel from './components/TimelinePanel.jsx';
 import FIRMSLayer from './components/FIRMSLayer.jsx';
 import SentinelPortalModal from './components/SentinelPortalModal.jsx';
 import SitrepCapture from './components/SitrepCapture.jsx';
+import CameraLayer from './components/CameraLayer.jsx';
+import CameraModal from './components/CameraModal.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useTimeline } from './hooks/useTimeline.js';
@@ -39,6 +41,7 @@ const DEFAULT_FILTERS = {
   showConflicts: true,
   showFIRMS:     true,
   showBases:     true,
+  showCameras:   true,
   showOnGround:  false,
   country:     'ALL',
   alliance:    'ALL',
@@ -78,6 +81,8 @@ function App() {
   });
   const [satellitePortal, setSatellitePortal] = useState(null); // { lat, lon, title }
   const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
+  const [selectedCamera, setSelectedCamera] = useState(null);
+  const [cameras, setCameras] = useState([]);
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
@@ -92,6 +97,15 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('milt_tracked', JSON.stringify([...trackedList])); } catch { /* ignore */ }
   }, [trackedList]);
+
+  // Fetch conflict-zone cameras from backend once on mount
+  useEffect(() => {
+    const url = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001') + '/api/cameras';
+    fetch(url)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (Array.isArray(data)) setCameras(data); })
+      .catch(() => {});
+  }, []);
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   const {
@@ -108,8 +122,7 @@ function App() {
         if (timeline.replayMode) {
           timeline.controls.stop();
           return; // replay stop takes priority
-        }
-        setSelectedEntity(null);
+        }        if (selectedCamera) { setSelectedCamera(null); return; }        setSelectedEntity(null);
         setSearchOpen(false);
         setNewsCluster(null);
       }
@@ -120,7 +133,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [timeline.replayMode, timeline.controls]);
+  }, [timeline.replayMode, timeline.controls, selectedCamera]);
 
   // Data used by layers: replay data overrides live when in replay mode
   const effectiveAircraft = timeline.replayAircraft ?? aircraft;
@@ -287,6 +300,14 @@ function App() {
           viewer={viewer}
           visible={filters.showBases}
           onSelect={handleEntityClick}
+        />
+        </ErrorBoundary>
+        <ErrorBoundary name="CameraLayer" silent>
+        <CameraLayer
+          viewer={viewer}
+          cameras={cameras}
+          visible={filters.showCameras}
+          onSelect={setSelectedCamera}
         />
         </ErrorBoundary>
       </Globe3D>
@@ -470,6 +491,11 @@ function App() {
       )}
 
       </div>{/* end UI overlay wrapper (uiHidden) */}
+
+      {/* Camera live viewer modal */}
+      {selectedCamera && (
+        <CameraModal camera={selectedCamera} onClose={() => setSelectedCamera(null)} />
+      )}
 
     </div>
   );

@@ -13,6 +13,7 @@ import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
 import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './services/positionTracker.js';
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
+import { getCameras } from './services/cameraService.js';
 
 dotenv.config();
 
@@ -188,6 +189,7 @@ app.get('/api/ships',    (req, res) => res.json(cache.ships));
 app.get('/api/news',     (req, res) => res.json(cache.news));
 app.get('/api/alerts',   (req, res) => res.json(cache.alerts));
 app.get('/api/conflicts',(req, res) => res.json(cache.conflicts));
+app.get('/api/cameras',  (req, res) => res.json(getCameras()));
 
 // ─── Aircraft polling (every 15 seconds) ────────────────────────────────────
 async function pollAircraft() {
