@@ -8,7 +8,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
 
-const RECORD_SEC = 15;
+const RECORD_SEC = 10;
 const PAGE_URL   = () => window.location.href;
 const SHARE_TEXTS = [
   'LiveWar3D — live military tracking on a 3D globe 🌐',
