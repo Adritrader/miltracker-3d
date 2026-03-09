@@ -1,7 +1,7 @@
 {
-  "name": "miltracker-3d",
+  "name": "livewar3d",
   "version": "1.0.0",
-  "description": "MilTracker 3D - Real-time military tracking on a 3D globe",
+  "description": "LiveWar3D - Real-time military tracking on a 3D globe",
   "scripts": {
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "start": "concurrently --kill-others-on-fail --prefix-colors \"cyan,green\" --names \"BACKEND,FRONTEND\" \"npm run dev:backend\" \"npm run dev:frontend\"",

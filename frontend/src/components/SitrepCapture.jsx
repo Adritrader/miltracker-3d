@@ -10,7 +10,7 @@ import * as Cesium from 'cesium';
 
 const RECORD_SEC = 6;
 const PAGE_URL   = () => window.location.href;
-const SHARE_TEXT = 'MilTracker 3D â€” live military tracking';
+const SHARE_TEXT = 'LiveWar3D — live military tracking';
 
 // Pick best supported video mime — try every candidate and use the first that works
 const MIME_CANDIDATES = [
@@ -37,7 +37,7 @@ function drawWatermarkOnCtx(ctx, w, h) {
   ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
   ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
   ctx.globalAlpha = 0.45; ctx.fillStyle = '#ffffff';
-  ctx.fillText('MilTracker 3D', w - pad, h - pad - fontSize - 3);
+  ctx.fillText('LiveWar3D', w - pad, h - pad - fontSize - 3);
   ctx.globalAlpha = 0.60; ctx.fillStyle = '#00ff88';
   ctx.fillText(window.location.hostname, w - pad, h - pad);
   ctx.restore();
@@ -132,7 +132,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       postRenRef.current = null;
       try {
         const raw  = viewer.canvas.toDataURL('image/png');
-        const name = `MILTRACKER-SITREP-${mkTs()}.png`;
+        const name = `LIVEWAR3D-SITREP-${mkTs()}.png`;
         addWatermark(raw)
           .then(dataUrl => {
             setDlUrl(dataUrl); setDlName(name); setDlMime('image/png'); setMode('done');
@@ -213,7 +213,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         return;
       }
       const url  = URL.createObjectURL(blob);
-      const name = `MILTRACKER-SITREP-${mkTs()}.${recExt}`;
+      const name = `LIVEWAR3D-SITREP-${mkTs()}.${recExt}`;
       setDlUrl(url); setDlName(name); setDlMime(recMime);
       setMode('done'); onUiShow?.();
     };
@@ -275,11 +275,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           : await fetch(dlUrl).then(r => r.blob());
         const file = new File([blob], dlName, { type: dlMime });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'MilTracker 3D SITREP', text: SHARE_TEXT });
+          await navigator.share({ files: [file], title: 'LiveWar3D SITREP', text: SHARE_TEXT });
           return;
         }
         // Share without file
-        await navigator.share({ title: 'MilTracker 3D', url: PAGE_URL(), text: SHARE_TEXT });
+        await navigator.share({ title: 'LiveWar3D', url: PAGE_URL(), text: SHARE_TEXT });
         return;
       } catch (e) {
         if (e.name === 'AbortError') return; // user cancelled

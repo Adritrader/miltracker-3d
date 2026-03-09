@@ -424,7 +424,7 @@ app.use((err, req, res, next) => {
 // ─── Start polling ────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`\n🛰️  MilTracker 3D Backend running on port ${PORT}`);
+  console.log(`\n🛰️  LiveWar3D Backend running on port ${PORT}`);
   console.log(`   Aircraft polling: every 30 seconds (adsb.lol / adsb.fi / airplanes.live)`);
   console.log(`   Ships polling:    every 60 seconds`);
   console.log(`   News polling:     every 5 minutes\n`);

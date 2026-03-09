@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'MilTracker 3D',
-        short_name: 'MILTRACKER',
-        description: 'Real-time military aircraft, ships & conflict events on an interactive 3D globe',
+        name: 'LiveWar3D',
+        short_name: 'LiveWar3D',
+        description: 'Real-time military aircraft, warships and conflict zones on a live interactive 3D globe.',
         theme_color: '#050810',
         background_color: '#050810',
         display: 'standalone',
