@@ -19,20 +19,18 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
   const [expanded, setExpanded] = useState(false);
   const panelRef = useRef(null);
 
-  // Report rendered height to parent so Timeline/MapLayerSwitcher can move above us.
-  // Depends on `trackedList` so the effect re-runs when the panel appears/disappears
-  // (a new Map is created on every track/untrack, giving us a stable reference change).
+  // Report rendered height to parent (Timeline, MapLayerSwitcher, SITREP).
+  // The outer div is always in the DOM so panelRef.current is always set on mount.
+  // ResizeObserver fires 0 when content is hidden, actual height when visible.
   useEffect(() => {
-    if (!onHeightChange) return;
-    if (!trackedList || trackedList.size === 0) { onHeightChange(0); return; }
-    if (!panelRef.current) return;
+    if (!panelRef.current || !onHeightChange) return;
     const ro = new ResizeObserver(entries => {
       for (const e of entries) onHeightChange(Math.round(e.contentRect.height));
     });
     ro.observe(panelRef.current);
     onHeightChange(Math.round(panelRef.current.getBoundingClientRect().height));
     return () => { ro.disconnect(); };
-  }, [onHeightChange, trackedList]);
+  }, [onHeightChange]);  // stable ref — runs once on mount
 
   // Must be called BEFORE any early return so hook call count is consistent every render
   const entries = useMemo(() => {
@@ -45,8 +43,6 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
       return { id, type, entity };
     });
   }, [trackedList, aircraft, ships]);
-
-  if (!trackedList || trackedList.size === 0) return null;
 
   const flyTo = (entity, type) => {
     if (!viewer || !entity?.lat || !entity?.lon) return;
@@ -66,6 +62,8 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
       className="fixed left-0 right-0"
       style={{ bottom: 28 + newsPanelHeight, zIndex: 38, transition: 'bottom 0.3s ease' }}
     >
+      {/* Content only visible when tracking — outer div always in DOM for ResizeObserver */}
+      {trackedList && trackedList.size > 0 && (<>
       {/* ── Expanded cards –– open upward ───────────────────────── */}
       {expanded && (
         <div
@@ -241,6 +239,7 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
           >CLR</button>
         )}
       </div>
+      </>)}
     </div>
   );
 };
