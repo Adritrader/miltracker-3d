@@ -1,7 +1,6 @@
 /**
  * CameraModal – live viewer for conflict-zone cameras.
  * Displays an iframe (YouTube, panomax, EarthCam) or auto-refreshing snapshot image.
- * Data sourced from opencctv.org public camera aggregation.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -11,8 +10,12 @@ const ZONE_LABELS = {
   lebanon:       'Israel–Lebanon Front',
   taiwan_strait: 'Taiwan Strait',
   south_cs:      'South China Sea',
-  red_sea:       'Red Sea / Gulf of Aden',
+  red_sea:       'Red Sea / Horn of Africa',
   persiangulf:   'Persian Gulf',
+  bosphorus:     'Bosphorus / Dardanelles',
+  korea:         'Korean Peninsula',
+  baltic:        'Baltic – NATO Frontier',
+  black_sea:     'Black Sea Operations',
 };
 
 const ZONE_COLORS = {
@@ -22,6 +25,10 @@ const ZONE_COLORS = {
   south_cs:      '#ffaa00',
   red_sea:       '#ff6600',
   persiangulf:   '#ff2222',
+  bosphorus:     '#00bfff',
+  korea:         '#ff4488',
+  baltic:        '#44aaff',
+  black_sea:     '#00bcd4',
 };
 
 const CameraModal = ({ camera, onClose }) => {
@@ -96,16 +103,8 @@ const CameraModal = ({ camera, onClose }) => {
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <span className="text-4xl">📡</span>
                 <p className="text-hud-text font-mono text-sm text-center px-4">
-                  Feed temporarily unavailable.
-                  <br />
-                  <a
-                    href={camera.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-hud-accent mt-1 inline-block"
-                  >
-                    Open on opencctv.org ↗
-                  </a>
+                  Feed temporarily unavailable<br />
+                  <span className="text-hud-text/40 text-xs">Stream may be offline or geo-restricted</span>
                 </p>
               </div>
             ) : (
@@ -139,14 +138,9 @@ const CameraModal = ({ camera, onClose }) => {
             {camera.lat.toFixed(4)}°N {camera.lon.toFixed(4)}°E
             {isImage && <span className="ml-2 text-hud-green">↻ 5s refresh</span>}
           </div>
-          <a
-            href={camera.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-hud-accent hover:text-white transition-colors"
-          >
-            opencctv.org ↗
-          </a>
+          <div className="font-mono text-xs" style={{ color: zoneColor }}>
+            {zoneLabel}
+          </div>
         </div>
       </div>
     </div>

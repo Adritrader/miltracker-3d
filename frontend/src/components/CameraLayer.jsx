@@ -1,6 +1,5 @@
 /**
  * CameraLayer – renders live camera pins on the Cesium globe.
- * Sources: curated list from opencctv.org (conflict zones only).
  * Click a pin to open the CameraModal viewer.
  */
 
@@ -21,6 +20,11 @@ const ZONE_COLORS = {
   taiwan_strait:'#ffaa00',
   south_cs:     '#ffaa00',
   red_sea:      '#ff6600',
+  persiangulf:  '#ff2222',
+  bosphorus:    '#00bfff',
+  korea:        '#ff4488',
+  baltic:       '#44aaff',
+  black_sea:    '#00bcd4',
 };
 
 function zoneBadgeColor(zone) {
