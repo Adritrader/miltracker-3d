@@ -382,7 +382,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           <div>
             <div className="hud-title text-xs mb-1 text-hud-green">&#x2713; SITREP SAVED</div>
             <div className="text-white font-mono font-bold text-sm">
-              {isVideo ? `${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} video 6s` : 'Screenshot PNG'}
+              {isVideo ? `${dlName.endsWith('.mp4') ? 'MP4' : 'WebM'} video ${RECORD_SEC}s` : 'Screenshot PNG'}
             </div>
             <div className="text-hud-text font-mono text-[10px] truncate mt-0.5 opacity-60">{dlName}</div>
           </div>
