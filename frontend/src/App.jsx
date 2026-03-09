@@ -27,6 +27,8 @@ import SentinelPortalModal from './components/SentinelPortalModal.jsx';
 import SitrepCapture from './components/SitrepCapture.jsx';
 import CameraLayer from './components/CameraLayer.jsx';
 import CameraModal from './components/CameraModal.jsx';
+import CookieBanner from './components/CookieBanner.jsx';
+import LegalModal from './components/LegalModal.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useTimeline } from './hooks/useTimeline.js';
@@ -83,6 +85,7 @@ function App() {
   const [uiHidden, setUiHidden] = useState(false); // used during SITREP capture
   const [selectedCamera, setSelectedCamera] = useState(null);
   const [cameras, setCameras] = useState([]);
+  const [legalPage, setLegalPage] = useState(null); // 'privacy' | 'cookies' | 'terms'
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
@@ -495,6 +498,14 @@ function App() {
       {/* Camera live viewer modal */}
       {selectedCamera && (
         <CameraModal camera={selectedCamera} onClose={() => setSelectedCamera(null)} />
+      )}
+
+      {/* Cookie consent banner */}
+      <CookieBanner onOpenLegal={setLegalPage} />
+
+      {/* Legal modals — Privacy / Cookies / Terms */}
+      {legalPage && (
+        <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
       )}
 
     </div>
