@@ -329,7 +329,7 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
         {/* Alert pill button — top-right, mirrors hamburger on left */}
         <button
           onClick={() => setDrawerOpen(true)}
-          className="fixed top-4 right-4 z-50 hud-panel flex items-center gap-2 px-3 py-2 rounded-lg
+          className="fixed top-4 right-4 z-50 bg-hud-panel flex items-center gap-2 px-3 py-2 rounded-lg
                      border border-hud-border active:scale-95 transition-transform duration-100 select-none"
           aria-label="Open alerts"
         >
