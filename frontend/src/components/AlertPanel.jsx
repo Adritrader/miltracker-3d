@@ -275,10 +275,14 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
     setNotifPerm(result);
   };
 
-  // Only show CRITICAL alerts
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical');
-  const criticalCount  = criticalAlerts.length;
-  const visibleAlerts  = alertsExpanded ? criticalAlerts : criticalAlerts.slice(0, 5);
+  // Show ALL alerts, sorted by severity then credibility
+  const sortedAlerts = [...alerts].sort((a, b) => {
+    const sev = { critical: 4, high: 3, medium: 2, low: 1 };
+    return (sev[b.severity] || 0) - (sev[a.severity] || 0) || (b.credibility || 0) - (a.credibility || 0);
+  });
+  const criticalCount  = alerts.filter(a => a.severity === 'critical').length;
+  const totalCount     = alerts.length;
+  const visibleAlerts  = alertsExpanded ? sortedAlerts : sortedAlerts.slice(0, 8);
 
   const flyToAlert = (alert) => {
     if (viewer && !viewer.isDestroyed() && alert.lat != null && alert.lon != null) {
@@ -305,32 +309,32 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
             className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wide transition-colors
               ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
           >
-            {t === 'alerts' ? `⚠ ${criticalCount}` : t === 'hotspots' ? `◉ ${hotspots.length}` : '≡ SITREP'}
+            {t === 'alerts' ? `⚠ ${totalCount}` : t === 'hotspots' ? `◉ ${hotspots.length}` : '≡ SITREP'}
           </button>
         ))}
       </div>
 
       <div className="p-2 overflow-y-auto" style={{ maxHeight: isMobile ? undefined : 'min(18rem, 38vh)' }}>
         {tab === 'alerts' && (
-          criticalAlerts.length > 0
+          sortedAlerts.length > 0
             ? (
               <>
                 {visibleAlerts.map(a => (
                   <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
                 ))}
-                {criticalAlerts.length > 5 && (
+                {sortedAlerts.length > 8 && (
                   <button
                     onClick={() => setAlertsExpanded(e => !e)}
                     className="w-full text-center text-[10px] font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"
                   >
                     {alertsExpanded
                       ? '▲ COLLAPSE'
-                      : `▼ SEE ALL (${criticalAlerts.length})`}
+                      : `▼ SEE ALL (${sortedAlerts.length})`}
                   </button>
                 )}
               </>
             )
-            : <div className="text-hud-text text-[10px] text-center py-4">No critical alerts</div>
+            : <div className="text-hud-text text-[10px] text-center py-4">No alerts</div>
         )}
 
         {tab === 'hotspots' && (

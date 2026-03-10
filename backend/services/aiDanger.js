@@ -226,8 +226,10 @@ export function distKm(lat1, lon1, lat2, lon2) {
 const CRITICAL_KW = [
   // Generic combat
   /\b(war|warfare|missile.?strike|airstrike|air.?strike|bomb(ing)?|explosion|blast|warhead|invasion|nuclear|hypersonic|attack(ed|s)?|naval.?battle|combat|offensive|strikes?)\b/i,
+  // Ground warfare — tanks, armor, infantry, convoys
+  /\b(tank(s)?|armou?red.?vehicle|APC|IFV|artillery|shell(ing|ed)|mortar|ground.?(offensive|assault|forces|troops|invasion)|infantry|battalion|brigade|convoy|column|mechanized|armou?r)\b/i,
   // Casualties
-  /\b(killed|dead|casualties|fatalities|civilians.?dead|wounded.?killed|mass.?casualt)\b/i,
+  /\b(killed|dead|casualties|fatalities|civilians.?dead|wounded|injured|mass.?casualt|death.?toll|body.?count)\b/i,
   // Iran / Israel specific
   /\b(ballistic.?missile|cruise.?missile|missile.?launch|missile.?barrage|missile.?salvo|missile.?attack)\b/i,
   /\b(Iron.?Dome|David.?Sling|Arrow.?3|intercept(ed|s)?|air.?defense.?intercept)\b/i,
@@ -242,6 +244,9 @@ const HIGH_KW = [
   /\b(military|troops|deployed|warship|air.?force|navy|marines|special.?forces|fighter.?(jet|aircraft)|intercept|escalat|conflict|hostil|threat|alert|clash|incursion|provoc)\b/i,
   /\b(IRGC|IDF|Hezbollah|Hamas|Houthi|Patriot|F-35|F-15|Su-57|drone.?strike|UAV.?attack)\b/i,
   /\b(Iran|Israel|Gaza|Lebanon|Syria|Iraq|Yemen|Hormuz|Persian.?Gulf|Red.?Sea)\b/i,
+  // Troop movements, logistics, military operations
+  /\b(troop.?movement|reinforcement|advance|retreat|withdrawal|frontline|front.?line|counter.?offensive|siege|fortif|bunker|checkpoint|blockade|encircl)\b/i,
+  /\b(howitzer|MLRS|HIMARS|Leopard|Abrams|T-72|T-90|Bradley|Stryker|ATACMS|JDAM|GLSDB)\b/i,
 ];
 const MEDIUM_KW = [
   /\b(drill|exercise|sanction|tension|standoff|mobiliz|reinforce|dispatch|patrol|surveillance|warning|buildup)\b/i,
