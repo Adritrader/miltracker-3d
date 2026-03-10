@@ -117,21 +117,15 @@ const NETWORKS = [
 
 // â”€â”€ Centered overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ModalOverlay = ({ children, onClose }) => (
-  <>
-    <div
-      className="fixed inset-0 z-[55]"
-      style={{ background: 'rgba(0,0,0,0.70)' }}
-      onClick={onClose}
-    />
-    <div
-      className="fixed z-[56] flex items-center justify-center pointer-events-none"
-      style={{ top: 72, left: 0, right: 0, bottom: 88 }}
-    >
-      <div className="pointer-events-auto">
-        {children}
-      </div>
+  <div
+    className="fixed inset-0 z-[55] flex items-center justify-center"
+    style={{ background: 'rgba(0,0,0,0.70)' }}
+    onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+  >
+    <div onClick={(e) => e.stopPropagation()}>
+      {children}
     </div>
-  </>
+  </div>
 );
 
 export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = false }) {
