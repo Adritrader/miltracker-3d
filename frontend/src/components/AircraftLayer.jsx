@@ -69,8 +69,9 @@ function getCachedIcon(heading, color, helicopter = false) {
 
 const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {} }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
-  const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
+  const trailEntityRef  = useRef(new Map()); // icao24 → single polyline entity
   const trailPointsRef  = useRef(new Map());         // icao24 → {pos,altM}[] (loaded async from IDB)
+  const trajCacheRef    = useRef(new Map()); // icao24 → {len, result} trajectory analysis cache
   const prevIdsRef      = useRef(new Set());
   const dsCache         = useRef({}); // name → CustomDataSource (O(1) lookup)
   const saveTimerRef    = useRef(null); // debounce IDB writes
@@ -207,12 +208,13 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       for (const id of prevIdsRef.current) {
         if (!currentIds.has(id)) {
           // Remove immediately when aircraft leaves ADS-B feed
-          const acEnt    = entityMapRef.current.get(id);
-          const trailSegs = trailEntityRef.current.get(id);
-          if (acEnt)    acDS.entities.remove(acEnt);
-          if (trailSegs) for (const seg of trailSegs) trailDS.entities.remove(seg);
+          const acEnt   = entityMapRef.current.get(id);
+          const trailEnt = trailEntityRef.current.get(id);
+          if (acEnt)   acDS.entities.remove(acEnt);
+          if (trailEnt) trailDS.entities.remove(trailEnt);
           entityMapRef.current.delete(id);
           trailEntityRef.current.delete(id);
+          trajCacheRef.current.delete(id);
         }
       }
       prevIdsRef.current = currentIds;
@@ -242,44 +244,52 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
           if (pts.length > MAX_TRAIL_POINTS) pts.splice(0, pts.length - MAX_TRAIL_POINTS);
         }
 
-        // ── Polyline trail (per-segment altitude gradient) ─────────────────
+        // ── Polyline trail (single entity per aircraft, altitude-colored) ─
         if (TRAIL_RANGE > 0 && pts.length >= 2) {
-          // Remove old trail segments for this aircraft
-          const oldSegs = trailEntityRef.current.get(ac.id);
-          if (oldSegs) {
-            for (const seg of oldSegs) trailDS.entities.remove(seg);
-          }
-          // Create one 2-point segment per pair, colored by average altitude
-          const segs = [];
-          for (let i = 0; i < pts.length - 1; i++) {
-            const avgAlt = (pts[i].altM + pts[i + 1].altM) / 2;
-            const segColor = Cesium.Color.fromCssColorString(getAltitudeColor(avgAlt));
-            // Fade older segments (alpha based on position in trail)
-            const alpha = 0.3 + 0.6 * (i / (pts.length - 1));
-            const seg = trailDS.entities.add({
-              id: `trail-${ac.id}-${i}`,
+          const existingTrail = trailEntityRef.current.get(ac.id);
+          if (existingTrail) {
+            // Only update positions & color when the aircraft actually moved
+            if (moved) {
+              existingTrail.polyline.positions = new Cesium.ConstantProperty(pts.map(p => p.pos));
+              // Update glow color to current altitude
+              existingTrail.polyline.material.color = new Cesium.ConstantProperty(
+                Cesium.Color.fromCssColorString(getAltitudeColor(altM)).withAlpha(0.7)
+              );
+            }
+          } else {
+            const curColor = Cesium.Color.fromCssColorString(getAltitudeColor(altM));
+            const te = trailDS.entities.add({
+              id: `trail-${ac.id}`,
               polyline: {
-                positions: [pts[i].pos, pts[i + 1].pos],
-                width: 2,
-                material: segColor.withAlpha(alpha),
+                positions: new Cesium.ConstantProperty(pts.map(p => p.pos)),
+                width: 2.5,
+                material: new Cesium.PolylineGlowMaterialProperty({
+                  glowPower: 0.15,
+                  taperPower: 1.0,
+                  color: curColor.withAlpha(0.7),
+                }),
                 clampToGround: false,
                 followSurface: false,
                 distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE),
               },
             });
-            segs.push(seg);
+            trailEntityRef.current.set(ac.id, te);
           }
-          trailEntityRef.current.set(ac.id, segs);
         } else if (TRAIL_RANGE === 0 && trailEntityRef.current.has(ac.id)) {
-          // mobile: remove existing trails
-          const oldSegs = trailEntityRef.current.get(ac.id);
-          if (oldSegs) for (const seg of oldSegs) trailDS.entities.remove(seg);
+          // mobile: remove existing trail
+          trailDS.entities.remove(trailEntityRef.current.get(ac.id));
           trailEntityRef.current.delete(ac.id);
         }
 
-        // ── Trajectory analysis (every update, cheap on 40 pts) ────────────
-        const analysis = analyseTrajectory(pts, ac.aircraftType, helo);
-        ac._trajAnalysis = analysis;
+        // ── Trajectory analysis (cached — recompute only when trail grows) ─
+        const trajCache = trajCacheRef.current.get(ac.id);
+        if (!trajCache || trajCache.len !== pts.length) {
+          const analysis = analyseTrajectory(pts, ac.aircraftType, helo);
+          trajCacheRef.current.set(ac.id, { len: pts.length, result: analysis });
+          ac._trajAnalysis = analysis;
+        } else {
+          ac._trajAnalysis = trajCache.result;
+        }
 
         // ── Billboard / label ──────────────────────────────────────────────
         if (entityMapRef.current.has(ac.id)) {
@@ -357,7 +367,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       trailDS.entities.resumeEvents();
       // Persist ALL trails to IndexedDB (unlimited storage, debounced 5 s)
       clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 5_000);
+      saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 15_000);
     }
   }, [viewer, aircraft, visible, trackedList, getDS]);
 

@@ -293,7 +293,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
       trailDS.entities.resumeEvents();
       // Persist trails to IndexedDB (debounced 5s)
       clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => idbSaveTrails('ship', trailPointsRef.current), 5_000);
+      saveTimerRef.current = setTimeout(() => idbSaveTrails('ship', trailPointsRef.current), 15_000);
     }
   }, [viewer, ships, visible, trackedList, getDS]);
 
