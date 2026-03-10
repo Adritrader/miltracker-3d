@@ -391,6 +391,8 @@ export function computeHotspots({ alerts = [], aircraft = [], ships = [], confli
         label: [...c.labels].filter(Boolean).slice(0, 2).join(', ') || nearestLabel(avgLat, avgLon),
       };
     })
+    // Only keep hotspots that fall inside (or near) a known conflict zone
+    .filter(h => CONFLICT_ZONES.some(z => distKm(h.lat, h.lon, z.lat, z.lon) <= z.radius * 1.2))
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 }
