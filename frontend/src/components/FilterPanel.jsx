@@ -61,103 +61,249 @@ const SOURCE_BADGE = {
 };
 
 /* ────────────────────────────────────────────────────────── */
-/* Map Legend – icons, altitude gradient, severity, alliances */
+/* Map Legend – complete reference for all map symbology      */
 /* ────────────────────────────────────────────────────────── */
 const ALT_STOPS = [
-  { alt: '0',     color: '#00ffff' },
-  { alt: '3 750', color: '#00ff00' },
-  { alt: '7 500', color: '#ffff00' },
-  { alt: '11 250',color: '#ff8000' },
-  { alt: '15 000',color: '#ff0000' },
+  { alt: '0',      color: '#00ffff', ft: '0' },
+  { alt: '3 750',  color: '#00ff00', ft: '12 300' },
+  { alt: '7 500',  color: '#ffff00', ft: '24 600' },
+  { alt: '11 250', color: '#ff8000', ft: '36 900' },
+  { alt: '15 000', color: '#ff0000', ft: '49 200' },
 ];
 
-export const MapLegend = ({ isMobile = false }) => {
+const EVENT_COLORS = [
+  { label: 'Airstrike',  color: '#ff5500' },
+  { label: 'Missile',    color: '#ff2200' },
+  { label: 'Explosion',  color: '#ff7700' },
+  { label: 'Artillery',  color: '#ffaa00' },
+  { label: 'Drone',      color: '#cc44ff' },
+  { label: 'Naval',      color: '#0099ff' },
+  { label: 'Troops',     color: '#ffdd00' },
+  { label: 'Casualties', color: '#ff0055' },
+  { label: 'Fire',       color: '#ff6600' },
+  { label: 'Cyber',      color: '#00ffcc' },
+  { label: 'CBRN',       color: '#aaff00' },
+];
+
+const COUNTRY_COLORS = [
+  { label: 'US / UK',  color: '#4488ff' },
+  { label: 'France',   color: '#0055aa' },
+  { label: 'Russia',   color: '#cc2222' },
+  { label: 'China',    color: '#dd1111' },
+  { label: 'Turkey',   color: '#cc4400' },
+  { label: 'Ukraine',  color: '#ffcc00' },
+  { label: 'Israel',   color: '#0066cc' },
+  { label: 'Iran',     color: '#008800' },
+  { label: 'Germany',  color: '#555555' },
+];
+
+const BASE_TYPES = [
+  { code: 'AB', label: 'Airbase',     color: '#4af7ff' },
+  { code: 'NB', label: 'Naval Base',  color: '#3399ff' },
+  { code: 'MS', label: 'Missile/Nuc', color: '#ff6600' },
+  { code: 'RD', label: 'Radar/Cmd',   color: '#00ff88' },
+];
+
+const NEWS_CATEGORIES = [
+  { label: 'Attack/Blast', color: '#ff3b3b' },
+  { label: 'Aircraft',     color: '#ff6600' },
+  { label: 'Naval',        color: '#00aaff' },
+  { label: 'Military',     color: '#ffaa00' },
+  { label: 'General',      color: '#00ff88' },
+];
+
+export const MapLegend = () => {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('main'); // main | events | countries
+
+  if (!open) return (
+    <button
+      onClick={() => setOpen(true)}
+      className="bg-hud-panel border border-hud-border text-hud-green text-[10px] font-mono font-bold
+                 px-2.5 py-1.5 rounded hover:border-hud-green transition-colors select-none pointer-events-auto"
+    >
+      ◈ LEGEND
+    </button>
+  );
+
+  const Tab = ({ id, label }) => (
+    <button
+      onClick={() => setTab(id)}
+      className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold transition-colors
+        ${tab === id ? 'bg-hud-green/20 text-hud-green border border-hud-green/40' : 'text-hud-text hover:text-white border border-transparent'}`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="fixed z-50" style={{ bottom: isMobile ? 108 : 36, left: isMobile ? 8 : 16 }}>
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="bg-hud-panel border border-hud-border text-hud-green text-[10px] font-mono font-bold
-                     px-2.5 py-1.5 rounded hover:border-hud-green transition-colors select-none"
-        >
-          ◈ LEGEND
-        </button>
-      )}
-      {open && (
-        <div className="bg-hud-panel border border-hud-border rounded p-3 shadow-lg"
-             style={{ width: isMobile ? 260 : 280 }}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="hud-title text-xs">MAP LEGEND</span>
-            <button onClick={() => setOpen(false)} className="text-hud-text hover:text-white text-sm leading-none">✕</button>
+    <div className="bg-hud-panel border border-hud-border rounded p-2.5 shadow-lg pointer-events-auto"
+         style={{ width: 290, maxHeight: '70vh', overflowY: 'auto' }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="hud-title text-xs">MAP LEGEND</span>
+        <button onClick={() => setOpen(false)} className="text-hud-text hover:text-white text-sm leading-none">✕</button>
+      </div>
+
+      {/* Tab row */}
+      <div className="flex gap-1 mb-2">
+        <Tab id="main" label="GENERAL" />
+        <Tab id="events" label="EVENTS" />
+        <Tab id="countries" label="COUNTRIES" />
+      </div>
+
+      {/* ─── MAIN TAB ─── */}
+      {tab === 'main' && (
+        <div className="space-y-2">
+          {/* Entities */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">ENTITIES</div>
+            <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono">
+              <span className="text-white">✈ Aircraft</span>
+              <span className="text-white">⬡ Mil Base</span>
+              <span className="text-white">🚁 Helicopter</span>
+              <span className="text-hud-amber">📰 News Event</span>
+              <span style={{color:'#00aaff'}}>⚓ Warship</span>
+              <span className="text-red-400">🔥 FIRMS Fire</span>
+              <span className="text-orange-400">◆ Conflict Evt</span>
+              <span className="text-red-500">⚠ Alert / Danger</span>
+              <span style={{color:'#4af7ff'}}>⊕ Military Base</span>
+              <span style={{color:'#00aaff'}}>📷 Live Cam</span>
+            </div>
           </div>
 
-          <div className="space-y-2.5">
-            {/* Entity icons */}
-            <div>
-              <div className="hud-label text-[10px] mb-1 opacity-70">ENTITIES</div>
-              <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono">
-                <span className="text-white">▲ Aircraft</span>
-                <span className="text-white">⬡ Mil Base</span>
-                <span className="text-white">▲ Helicopter</span>
-                <span className="text-hud-amber">■ News Event</span>
-                <span className="text-hud-blue">▬ Warship</span>
-                <span className="text-red-400">🔥 FIRMS Heat</span>
-                <span className="text-orange-400">◆ Conflict</span>
-                <span className="text-red-500">⚠ Alert</span>
-              </div>
+          {/* Trail altitude gradient */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">AIRCRAFT TRAIL – ALTITUDE</div>
+            <div className="h-3 rounded" style={{ background: 'linear-gradient(to right, #00ffff 0%, #00ff00 25%, #ffff00 50%, #ff8000 75%, #ff0000 100%)' }} />
+            <div className="flex justify-between text-[9px] font-mono mt-0.5">
+              {ALT_STOPS.map(s => (
+                <span key={s.alt} style={{ color: s.color }}>{s.alt}</span>
+              ))}
             </div>
+            <div className="text-[8px] font-mono text-hud-text opacity-60 mt-0.5 text-center">
+              metres · trail fades older segments
+            </div>
+          </div>
 
-            {/* Altitude gradient */}
-            <div>
-              <div className="hud-label text-[10px] mb-1 opacity-70">TRAIL ALTITUDE (m)</div>
-              <div className="h-3 rounded" style={{ background: 'linear-gradient(to right, #00ffff, #00ff00, #ffff00, #ff8000, #ff0000)' }} />
-              <div className="flex justify-between text-[9px] font-mono text-hud-text mt-0.5">
-                {ALT_STOPS.map(s => (
-                  <span key={s.alt} style={{ color: s.color }}>{s.alt}</span>
-                ))}
+          {/* Severity + Credibility side by side  */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <div className="hud-label text-[10px] mb-1 opacity-70">SEVERITY</div>
+              <div className="flex flex-col gap-0.5 text-[10px] font-mono font-bold">
+                <span style={{color:'#ff2222'}}>● CRITICAL</span>
+                <span style={{color:'#ff6600'}}>● HIGH</span>
+                <span style={{color:'#ffaa00'}}>● MEDIUM</span>
+                <span style={{color:'#00ff88'}}>● LOW</span>
               </div>
             </div>
+            <div className="flex-1">
+              <div className="hud-label text-[10px] mb-1 opacity-70">CREDIBILITY</div>
+              <div className="flex flex-col gap-0.5 text-[10px] font-mono font-bold">
+                <span style={{ color: '#00ff88' }}>≥70 % HIGH</span>
+                <span style={{ color: '#ffaa00' }}>≥45 % MED</span>
+                <span style={{ color: '#ff6666' }}>&lt;45 % LOW</span>
+              </div>
+            </div>
+          </div>
 
-            {/* Severity + Credibility */}
-            <div className="flex gap-4">
-              <div>
-                <div className="hud-label text-[10px] mb-1 opacity-70">SEVERITY</div>
-                <div className="flex flex-col gap-0.5 text-[10px] font-mono font-bold">
-                  <span className="text-red-400">● CRITICAL</span>
-                  <span className="text-orange-400">● HIGH</span>
-                  <span className="text-yellow-400">● MEDIUM</span>
-                  <span className="text-green-400">● LOW</span>
-                </div>
-              </div>
-              <div>
-                <div className="hud-label text-[10px] mb-1 opacity-70">CREDIBILITY</div>
-                <div className="flex flex-col gap-0.5 text-[10px] font-mono font-bold">
-                  <span style={{ color: '#00ff88' }}>≥70% HIGH</span>
-                  <span style={{ color: '#ffaa00' }}>≥45% MED</span>
-                  <span style={{ color: '#ff6666' }}>&lt;45% LOW</span>
-                </div>
+          {/* Alliances + special */}
+          <div className="flex gap-3 text-[10px] font-mono">
+            <div className="flex-1">
+              <div className="hud-label text-[10px] mb-1 opacity-70">ALLIANCES</div>
+              <div className="flex flex-col gap-0.5">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4488ff] inline-block" /> NATO</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff4444] inline-block" /> ADVERSARY</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffaa00] inline-block" /> OTHER</span>
               </div>
             </div>
+            <div className="flex-1">
+              <div className="hud-label text-[10px] mb-1 opacity-70">SPECIAL</div>
+              <div className="flex flex-col gap-0.5">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FFD700] inline-block" /> Tracked</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white inline-block" /> Default</span>
+              </div>
+            </div>
+          </div>
 
-            {/* Alliances + Special */}
-            <div className="flex gap-4 text-[10px] font-mono">
-              <div>
-                <div className="hud-label text-[10px] mb-1 opacity-70">ALLIANCES</div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4488ff] inline-block" /> NATO</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff4444] inline-block" /> ADVERSARY</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffaa00] inline-block" /> OTHER</span>
-                </div>
-              </div>
-              <div>
-                <div className="hud-label text-[10px] mb-1 opacity-70">SPECIAL</div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FFD700] inline-block" /> Tracked</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white inline-block" /> Default</span>
-                </div>
-              </div>
+          {/* Base types */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">MILITARY BASE TYPES</div>
+            <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono">
+              {BASE_TYPES.map(b => (
+                <span key={b.code} style={{ color: b.color }}>[{b.code}] {b.label}</span>
+              ))}
             </div>
+          </div>
+
+          {/* Danger zone rings */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">DANGER ZONE PERIMETER</div>
+            <div className="flex gap-2 text-[10px] font-mono font-bold">
+              <span style={{color:'#ff2222'}}>━ CRIT</span>
+              <span style={{color:'#ff6600'}}>━ HIGH</span>
+              <span style={{color:'#ffaa00'}}>━ MED</span>
+              <span style={{color:'#00ff88'}}>━ LOW</span>
+            </div>
+            <div className="text-[8px] font-mono text-hud-text opacity-60 mt-0.5">
+              glow polyline · crosshair center pin
+            </div>
+          </div>
+
+          {/* News categories */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">NEWS PIN COLOURS</div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono">
+              {NEWS_CATEGORIES.map(n => (
+                <span key={n.label} style={{ color: n.color }}>● {n.label}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── EVENTS TAB ─── */}
+      {tab === 'events' && (
+        <div className="space-y-2">
+          <div className="hud-label text-[10px] mb-1 opacity-70">CONFLICT EVENT TYPES</div>
+          <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono font-bold">
+            {EVENT_COLORS.map(e => (
+              <span key={e.label} style={{ color: e.color }}>◆ {e.label}</span>
+            ))}
+          </div>
+          <div className="text-[8px] font-mono text-hud-text opacity-60 mt-1">
+            Each event has a severity ring (CRIT / HIGH / MED / LOW) and unique SVG symbol.
+            Cluster badges show event count when zoomed out.
+          </div>
+
+          {/* FIRMS detail */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">NASA FIRMS HOTSPOTS</div>
+            <div className="flex gap-3 text-[10px] font-mono">
+              <span style={{color:'#ff6600'}}>🔥 Single</span>
+              <span style={{color:'#ff4400'}}>⊙ Cluster</span>
+            </div>
+            <div className="text-[8px] font-mono text-hud-text opacity-60 mt-0.5">
+              thermal anomalies via MODIS / VIIRS satellite
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── COUNTRIES TAB ─── */}
+      {tab === 'countries' && (
+        <div className="space-y-2">
+          <div className="hud-label text-[10px] mb-1 opacity-70">AIRCRAFT / SHIP COLOURS BY COUNTRY</div>
+          <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono font-bold">
+            {COUNTRY_COLORS.map(c => (
+              <span key={c.label} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: c.color }} />
+                {c.label}
+              </span>
+            ))}
+          </div>
+          <div className="text-[8px] font-mono text-hud-text opacity-60 mt-1">
+            Icons use white by default — country colour applies when hex/MMSI is matched.
+            Tracked entities override to gold (#FFD700).
           </div>
         </div>
       )}

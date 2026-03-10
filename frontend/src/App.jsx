@@ -406,14 +406,12 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* Map Legend – floating bottom-left */}
-      <MapLegend isMobile={isMobile} />
-
-      {/* Bottom-right: Map layer + SITREP stacked vertically */}
+      {/* Bottom-right: Legend + Map layer + SITREP stacked vertically */}
       <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"
            style={{ bottom: (isMobile ? 100 : 28) + newsPanelHeight + trackingPanelHeight + 8, right: isMobile ? 8 : 16, transition: 'bottom 0.15s ease-out',
                     // cap height so AlertPanel can't overlap on small screens
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
+        <MapLegend />
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture
           viewer={viewer}
