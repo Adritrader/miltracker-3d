@@ -169,10 +169,19 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
 
       {/* Data source watermark (desktop only) */}
       {!isMobile && (
-      <div className="flex-1 flex items-center justify-center h-full pointer-events-none select-none">
-        <span className="text-hud-border text-xs font-mono opacity-50 tracking-wider">
+      <div className="flex-1 flex items-center justify-center h-full select-none">
+        <span className="text-hud-border text-xs font-mono opacity-50 tracking-wider pointer-events-none">
           LIVEWAR3D · PUBLIC SOURCES: ADSB.LOL / ADSB.FI / GDELT
         </span>
+        <a
+          href="https://twitter.com/livewar3D"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-3 text-xs font-mono tracking-wider opacity-60 hover:opacity-100 hover:text-hud-cyan transition-opacity duration-150"
+          style={{ color: '#1d9bf0' }}
+        >
+          @livewar3D
+        </a>
       </div>
       )}
 

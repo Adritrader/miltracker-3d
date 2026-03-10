@@ -275,8 +275,11 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
     setNotifPerm(result);
   };
 
-  // Show ALL alerts, sorted by severity then credibility
+  // Show ALL alerts, sorted by date (newest first) then severity then credibility
   const sortedAlerts = [...alerts].sort((a, b) => {
+    const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    if (tB !== tA) return tB - tA;
     const sev = { critical: 4, high: 3, medium: 2, low: 1 };
     return (sev[b.severity] || 0) - (sev[a.severity] || 0) || (b.credibility || 0) - (a.credibility || 0);
   });
