@@ -14,6 +14,7 @@ import ConflictLayer from './components/ConflictLayer.jsx';
 import MilitaryBasesLayer from './components/MilitaryBasesLayer.jsx';
 import EntityPopup from './components/EntityPopup.jsx';
 import FilterPanel from './components/FilterPanel.jsx';
+import { MapLegend } from './components/FilterPanel.jsx';
 import AlertPanel from './components/AlertPanel.jsx';
 import NewsPanel from './components/NewsPanel.jsx';
 import SearchBar from './components/SearchBar.jsx';
@@ -404,6 +405,9 @@ function App() {
         newsPanelHeight={newsPanelHeight}
         isMobile={isMobile}
       />
+
+      {/* Map Legend – floating bottom-left */}
+      <MapLegend isMobile={isMobile} />
 
       {/* Bottom-right: Map layer + SITREP stacked vertically */}
       <div className="fixed z-[60] flex flex-col gap-2 items-end pointer-events-auto"

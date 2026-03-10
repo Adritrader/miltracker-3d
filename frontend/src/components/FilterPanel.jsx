@@ -71,88 +71,92 @@ const ALT_STOPS = [
   { alt: '15 000',color: '#ff0000' },
 ];
 
-const MapLegend = () => {
+export const MapLegend = ({ isMobile = false }) => {
   const [open, setOpen] = useState(false);
   return (
-    <div className="hud-panel px-3 py-2">
-      <div
-        className="flex items-center justify-between cursor-pointer select-none"
-        onClick={() => setOpen(o => !o)}
-      >
-        <div className="hud-title mb-0">MAP LEGEND</div>
-        <span className="text-hud-text text-xs">{open ? '▴' : '▾'}</span>
-      </div>
-
+    <div className="fixed z-50" style={{ bottom: isMobile ? 108 : 36, left: isMobile ? 8 : 16 }}>
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="bg-hud-panel border border-hud-border text-hud-green text-[10px] font-mono font-bold
+                     px-2.5 py-1.5 rounded hover:border-hud-green transition-colors select-none"
+        >
+          ◈ LEGEND
+        </button>
+      )}
       {open && (
-        <div className="mt-2 space-y-3">
-          {/* Entity icons */}
-          <div>
-            <div className="hud-label text-[10px] mb-1 opacity-70">ENTITIES</div>
-            <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px] font-mono">
-              <span className="text-white">▲ Aircraft</span>
-              <span className="text-white">⬡ Mil Base</span>
-              <span className="text-white">▲ Helicopter</span>
-              <span className="text-hud-amber">■ News Event</span>
-              <span className="text-hud-blue">▬ Warship</span>
-              <span className="text-red-400">🔥 FIRMS Heat</span>
-              <span className="text-orange-400">◆ Conflict</span>
-              <span className="text-red-500">⚠ Alert</span>
-            </div>
+        <div className="bg-hud-panel border border-hud-border rounded p-3 shadow-lg"
+             style={{ width: isMobile ? 260 : 280 }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="hud-title text-xs">MAP LEGEND</span>
+            <button onClick={() => setOpen(false)} className="text-hud-text hover:text-white text-sm leading-none">✕</button>
           </div>
 
-          {/* Altitude gradient */}
-          <div>
-            <div className="hud-label text-[10px] mb-1 opacity-70">TRAIL ALTITUDE (m)</div>
-            <div className="flex items-center gap-1">
-              <div
-                className="flex-1 h-3 rounded"
-                style={{ background: 'linear-gradient(to right, #00ffff, #00ff00, #ffff00, #ff8000, #ff0000)' }}
-              />
+          <div className="space-y-2.5">
+            {/* Entity icons */}
+            <div>
+              <div className="hud-label text-[10px] mb-1 opacity-70">ENTITIES</div>
+              <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono">
+                <span className="text-white">▲ Aircraft</span>
+                <span className="text-white">⬡ Mil Base</span>
+                <span className="text-white">▲ Helicopter</span>
+                <span className="text-hud-amber">■ News Event</span>
+                <span className="text-hud-blue">▬ Warship</span>
+                <span className="text-red-400">🔥 FIRMS Heat</span>
+                <span className="text-orange-400">◆ Conflict</span>
+                <span className="text-red-500">⚠ Alert</span>
+              </div>
             </div>
-            <div className="flex justify-between text-[9px] font-mono text-hud-text mt-0.5">
-              {ALT_STOPS.map(s => (
-                <span key={s.alt} style={{ color: s.color }}>{s.alt}</span>
-              ))}
-            </div>
-          </div>
 
-          {/* Severity levels */}
-          <div>
-            <div className="hud-label text-[10px] mb-1 opacity-70">ALERT SEVERITY</div>
-            <div className="flex gap-2 text-[10px] font-mono font-bold">
-              <span className="text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-700/50">● CRIT</span>
-              <span className="text-orange-400 bg-orange-950/60 px-1.5 py-0.5 rounded border border-orange-700/50">● HIGH</span>
-              <span className="text-yellow-400 bg-yellow-950/60 px-1.5 py-0.5 rounded border border-yellow-700/50">● MED</span>
-              <span className="text-green-400 bg-green-950/60 px-1.5 py-0.5 rounded border border-green-700/50">● LOW</span>
+            {/* Altitude gradient */}
+            <div>
+              <div className="hud-label text-[10px] mb-1 opacity-70">TRAIL ALTITUDE (m)</div>
+              <div className="h-3 rounded" style={{ background: 'linear-gradient(to right, #00ffff, #00ff00, #ffff00, #ff8000, #ff0000)' }} />
+              <div className="flex justify-between text-[9px] font-mono text-hud-text mt-0.5">
+                {ALT_STOPS.map(s => (
+                  <span key={s.alt} style={{ color: s.color }}>{s.alt}</span>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Credibility */}
-          <div>
-            <div className="hud-label text-[10px] mb-1 opacity-70">CREDIBILITY %</div>
-            <div className="flex gap-2 text-[10px] font-mono font-bold">
-              <span style={{ color: '#00ff88' }}>≥70% HIGH</span>
-              <span style={{ color: '#ffaa00' }}>≥45% MED</span>
-              <span style={{ color: '#ff6666' }}>&lt;45% LOW</span>
+            {/* Severity + Credibility */}
+            <div className="flex gap-4">
+              <div>
+                <div className="hud-label text-[10px] mb-1 opacity-70">SEVERITY</div>
+                <div className="flex flex-col gap-0.5 text-[10px] font-mono font-bold">
+                  <span className="text-red-400">● CRITICAL</span>
+                  <span className="text-orange-400">● HIGH</span>
+                  <span className="text-yellow-400">● MEDIUM</span>
+                  <span className="text-green-400">● LOW</span>
+                </div>
+              </div>
+              <div>
+                <div className="hud-label text-[10px] mb-1 opacity-70">CREDIBILITY</div>
+                <div className="flex flex-col gap-0.5 text-[10px] font-mono font-bold">
+                  <span style={{ color: '#00ff88' }}>≥70% HIGH</span>
+                  <span style={{ color: '#ffaa00' }}>≥45% MED</span>
+                  <span style={{ color: '#ff6666' }}>&lt;45% LOW</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Alliance colors */}
-          <div>
-            <div className="hud-label text-[10px] mb-1 opacity-70">ALLIANCES</div>
-            <div className="flex gap-3 text-[10px] font-mono">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4488ff] inline-block" /> NATO</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff4444] inline-block" /> ADVERSARY</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffaa00] inline-block" /> OTHER</span>
-            </div>
-          </div>
-
-          {/* Tracked entity */}
-          <div>
-            <div className="hud-label text-[10px] mb-1 opacity-70">SPECIAL</div>
-            <div className="flex gap-3 text-[10px] font-mono">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FFD700] inline-block" /> Tracked</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white inline-block" /> Default</span>
+            {/* Alliances + Special */}
+            <div className="flex gap-4 text-[10px] font-mono">
+              <div>
+                <div className="hud-label text-[10px] mb-1 opacity-70">ALLIANCES</div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4488ff] inline-block" /> NATO</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff4444] inline-block" /> ADVERSARY</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffaa00] inline-block" /> OTHER</span>
+                </div>
+              </div>
+              <div>
+                <div className="hud-label text-[10px] mb-1 opacity-70">SPECIAL</div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FFD700] inline-block" /> Tracked</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white inline-block" /> Default</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -269,9 +273,6 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource 
         <div className="text-hud-text text-xs">30s refresh</div>
       </div>
     </div>
-
-    {/* Map Legend */}
-    <MapLegend />
   </>
 );
 
