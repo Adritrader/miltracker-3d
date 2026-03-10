@@ -54,7 +54,7 @@ export default function TimelinePanel({
   isMobile = false,
 }) {
   const fetchedRef = useRef(false);
-  const [minimized, setMinimized] = useState(isMobile);
+  const [minimized, setMinimized] = useState(true);
 
   // Sit above NewsPanel + TrackingPanel + gaps
   const bottomOffset = 28 + newsPanelHeight + trackingPanelHeight + (trackingPanelHeight > 0 ? 4 : 0) + 4;
