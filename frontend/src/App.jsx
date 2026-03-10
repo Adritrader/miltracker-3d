@@ -263,6 +263,7 @@ function App() {
           historyTrack={timeline.historyTrack}
           speedUnit={speedUnit}
           altUnit={altUnit}
+        />
         <ShipLayer
           viewer={viewer}
           ships={filteredShips}
