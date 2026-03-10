@@ -454,11 +454,11 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       <ModalOverlay onClose={() => setMode(null)}>
         <div className="hud-panel p-5 space-y-3" style={{ width: 'min(300px, calc(100vw - 32px))' }}>
           <div className="hud-title text-xs">&#x1F4F7; SITREP CAPTURE</div>
-          <button onClick={takeScreenshot} className="w-full hud-btn text-xs py-2.5 text-center">
-            &#x1F4F8; SCREENSHOT (PNG)
+          <button onClick={takeScreenshot} className="w-full hud-btn text-xs py-2.5 text-center select-none">
+            <span className="pointer-events-none">&#x1F4F8; SCREENSHOT (PNG)</span>
           </button>
-          <button onClick={recordVideo} className="w-full hud-btn text-xs py-2.5 text-center">
-            &#x1F3AC; CINEMATIC VIDEO ({RECORD_SEC}s)
+          <button onClick={recordVideo} className="w-full hud-btn text-xs py-2.5 text-center select-none">
+            <span className="pointer-events-none">&#x1F3AC; CINEMATIC VIDEO ({RECORD_SEC}s)</span>
           </button>
           <div className="text-hud-text text-[10px] font-mono opacity-60 text-center">
             UI is hidden during capture
@@ -476,12 +476,12 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     <button
       onClick={() => setMode('menu')}
       className={inline
-        ? 'hud-btn text-xs px-3 py-2 font-bold bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
-        : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
+        ? 'hud-btn text-xs px-3 py-2 font-bold select-none bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
+        : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold select-none bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
       }
       title="Generate SITREP — screenshot or video"
     >
-      &#x1F4F7; SITREP
+      <span className="pointer-events-none">&#x1F4F7; SITREP</span>
     </button>
   );
 }
