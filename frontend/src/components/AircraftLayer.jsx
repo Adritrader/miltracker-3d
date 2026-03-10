@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
-import { AIRCRAFT_SVG, HELICOPTER_SVG, getAircraftColor } from '../utils/icons.js';
+import { AIRCRAFT_SVG, HELICOPTER_SVG, getAircraftColor, getAltitudeColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
 import { icaoToCountry, getAircraftTypeName, resolveCountry, isHelicopter } from '../utils/militaryFilter.js';
 
@@ -194,9 +194,10 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         const altM     = Math.max(ac.altitude || 0, 100);
         const position = Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, altM);
         const isTracked = trackedList?.has(ac.id);
-        const color    = isTracked ? '#FFD700' : getAircraftColor(ac.country);
+        const countryColor = getAircraftColor(ac.country);
+        const altColor = isTracked ? '#FFD700' : getAltitudeColor(altM);
         const helo     = isHelicopter(ac.aircraftType);
-        const iconUri  = getCachedIcon(ac.heading, color, helo);
+        const iconUri  = getCachedIcon(ac.heading, altColor, helo);
 
         // ── Append to trail history ─────────────────────────────────────────
         if (!trailPointsRef.current.has(ac.id)) {
@@ -212,7 +213,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
           if (pts.length > MAX_TRAIL_POINTS) pts.splice(0, pts.length - MAX_TRAIL_POINTS);
         }
 
-        const cesiumColor = Cesium.Color.fromCssColorString(color);
+        const cesiumColor = Cesium.Color.fromCssColorString(altColor);
 
         // ── Polyline trail ─────────────────────────────────────────────────
         if (TRAIL_RANGE > 0 && pts.length >= 2) {

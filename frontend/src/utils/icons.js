@@ -94,6 +94,20 @@ export function getAircraftColor(country) {
   return colors[country] || '#ffffff';
 }
 
+/**
+ * Altitude → color gradient (HSL interpolation)
+ * Ground/low → cyan, mid → green/yellow, high → orange/red
+ * @param {number} altM  Altitude in metres (barometric or geometric)
+ * @returns {string} CSS hex color
+ */
+export function getAltitudeColor(altM = 0) {
+  // Quantize to 500 m steps for icon-cache efficiency (~30 distinct colours)
+  const alt = Math.round(Math.max(0, Math.min(altM, 15000)) / 500) * 500;
+  // Map to hue 180 (cyan) → 0 (red)
+  const hue = 180 - (alt / 15000) * 180;
+  return `hsl(${Math.round(hue)}, 100%, 50%)`;
+}
+
 export function getShipColor(flag) {
   const colors = {
     US: '#4488ff', UK: '#4488ff', FR: '#0055aa', DE: '#555555',
