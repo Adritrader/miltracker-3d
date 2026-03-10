@@ -383,7 +383,7 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
           onClick={() => setDrawerOpen(true)}
           className="fixed right-4 z-50 bg-hud-panel flex items-center gap-2 px-3 py-2 rounded-lg
                      border border-hud-border active:scale-95 transition-transform duration-100 select-none"
-          style={{ top: 1 }}
+          style={{ top: 11 }}
           aria-label="Open alerts"
         >
           <span className="text-red-400 text-xs">⚠</span>
