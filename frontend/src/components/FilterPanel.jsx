@@ -61,6 +61,107 @@ const SOURCE_BADGE = {
 };
 
 /* ────────────────────────────────────────────────────────── */
+/* Map Legend – icons, altitude gradient, severity, alliances */
+/* ────────────────────────────────────────────────────────── */
+const ALT_STOPS = [
+  { alt: '0',     color: '#00ffff' },
+  { alt: '3 750', color: '#00ff00' },
+  { alt: '7 500', color: '#ffff00' },
+  { alt: '11 250',color: '#ff8000' },
+  { alt: '15 000',color: '#ff0000' },
+];
+
+const MapLegend = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="hud-panel px-3 py-2">
+      <div
+        className="flex items-center justify-between cursor-pointer select-none"
+        onClick={() => setOpen(o => !o)}
+      >
+        <div className="hud-title mb-0">MAP LEGEND</div>
+        <span className="text-hud-text text-xs">{open ? '▴' : '▾'}</span>
+      </div>
+
+      {open && (
+        <div className="mt-2 space-y-3">
+          {/* Entity icons */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">ENTITIES</div>
+            <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px] font-mono">
+              <span className="text-white">▲ Aircraft</span>
+              <span className="text-white">⬡ Mil Base</span>
+              <span className="text-white">▲ Helicopter</span>
+              <span className="text-hud-amber">■ News Event</span>
+              <span className="text-hud-blue">▬ Warship</span>
+              <span className="text-red-400">🔥 FIRMS Heat</span>
+              <span className="text-orange-400">◆ Conflict</span>
+              <span className="text-red-500">⚠ Alert</span>
+            </div>
+          </div>
+
+          {/* Altitude gradient */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">TRAIL ALTITUDE (m)</div>
+            <div className="flex items-center gap-1">
+              <div
+                className="flex-1 h-3 rounded"
+                style={{ background: 'linear-gradient(to right, #00ffff, #00ff00, #ffff00, #ff8000, #ff0000)' }}
+              />
+            </div>
+            <div className="flex justify-between text-[9px] font-mono text-hud-text mt-0.5">
+              {ALT_STOPS.map(s => (
+                <span key={s.alt} style={{ color: s.color }}>{s.alt}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Severity levels */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">ALERT SEVERITY</div>
+            <div className="flex gap-2 text-[10px] font-mono font-bold">
+              <span className="text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-700/50">● CRIT</span>
+              <span className="text-orange-400 bg-orange-950/60 px-1.5 py-0.5 rounded border border-orange-700/50">● HIGH</span>
+              <span className="text-yellow-400 bg-yellow-950/60 px-1.5 py-0.5 rounded border border-yellow-700/50">● MED</span>
+              <span className="text-green-400 bg-green-950/60 px-1.5 py-0.5 rounded border border-green-700/50">● LOW</span>
+            </div>
+          </div>
+
+          {/* Credibility */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">CREDIBILITY %</div>
+            <div className="flex gap-2 text-[10px] font-mono font-bold">
+              <span style={{ color: '#00ff88' }}>≥70% HIGH</span>
+              <span style={{ color: '#ffaa00' }}>≥45% MED</span>
+              <span style={{ color: '#ff6666' }}>&lt;45% LOW</span>
+            </div>
+          </div>
+
+          {/* Alliance colors */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">ALLIANCES</div>
+            <div className="flex gap-3 text-[10px] font-mono">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4488ff] inline-block" /> NATO</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ff4444] inline-block" /> ADVERSARY</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ffaa00] inline-block" /> OTHER</span>
+            </div>
+          </div>
+
+          {/* Tracked entity */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">SPECIAL</div>
+            <div className="flex gap-3 text-[10px] font-mono">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FFD700] inline-block" /> Tracked</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white inline-block" /> Default</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────────── */
 /* Shared inner panel content (used by desktop + drawer)     */
 /* ────────────────────────────────────────────────────────── */
 const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource }) => (
@@ -168,6 +269,9 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource 
         <div className="text-hud-text text-xs">30s refresh</div>
       </div>
     </div>
+
+    {/* Map Legend */}
+    <MapLegend />
   </>
 );
 
