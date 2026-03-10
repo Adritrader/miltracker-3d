@@ -8,44 +8,37 @@ import * as Cesium from 'cesium';
 import { SHIP_SVG, getShipColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
 import { resolveCountry } from '../utils/militaryFilter.js';
+import { saveTrails as idbSaveTrails, loadTrails as idbLoadTrails } from '../utils/trailStore.js';
 
 const MAX_TRAIL_POINTS = 60;         // ~30 min of history at 30-s intervals
 
 // Duration (ms) over which entity position is linearly interpolated.
 // Ships move slowly so a 20-second lerp window is smooth and realistic.
 const SMOOTH_MS = 20_000;
-const TRAIL_STORAGE_KEY = 'mlt_ship_trails_v1';
 
-function loadStoredTrails() {
-  try {
-    const raw = sessionStorage.getItem(TRAIL_STORAGE_KEY);
-    if (!raw) return new Map();
-    const parsed = JSON.parse(raw);
-    const map = new Map();
-    for (const [id, pts] of Object.entries(parsed)) {
-      map.set(id, pts.map(p => new Cesium.Cartesian3(p.x, p.y, p.z)));
-    }
-    return map;
-  } catch { return new Map(); }
-}
-
-function saveTrails(trailPointsMap) {
-  try {
-    const obj = {};
-    for (const [id, pts] of trailPointsMap.entries()) {
-      obj[id] = pts.map(p => ({ x: p.x, y: p.y, z: p.z }));
-    }
-    sessionStorage.setItem(TRAIL_STORAGE_KEY, JSON.stringify(obj));
-  } catch { /* storage full */ }
-}
+// Ship trail point mapper: IndexedDB {x,y,z} → Cesium.Cartesian3
+const shipPointFromDB = p => new Cesium.Cartesian3(p.x, p.y, p.z);
 
 const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {} }) => {
   const entityMapRef   = useRef(new Map());
   const trailEntityRef = useRef(new Map());
-  const trailPointsRef = useRef(loadStoredTrails());
+  const trailPointsRef = useRef(new Map());
   const prevIdsRef     = useRef(new Set());
   const dsCache        = useRef({}); // name → CustomDataSource (O(1) lookup)
-  const saveTimerRef   = useRef(null); // B9: debounce sessionStorage writes (10s)
+  const saveTimerRef   = useRef(null); // debounce IDB writes (10s)
+
+  // Load persisted trails from IndexedDB on mount
+  useEffect(() => {
+    let cancelled = false;
+    idbLoadTrails('ship', shipPointFromDB).then(stored => {
+      if (cancelled || stored.size === 0) return;
+      const cur = trailPointsRef.current;
+      for (const [id, pts] of stored.entries()) {
+        if (!cur.has(id)) cur.set(id, pts);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // LOD constants — ships are always visible regardless of zoom level
   const MAX_RANGE   = 2e7;                    // 20 000 km (full-globe visibility)
@@ -277,9 +270,9 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     } finally {
       shipDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
-      // B9: debounce sessionStorage writes — 200KB+ JSON per write, no need on every 30s tick
+      // Persist trails to IndexedDB (debounced 10s)
       clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => saveTrails(trailPointsRef.current), 10_000);
+      saveTimerRef.current = setTimeout(() => idbSaveTrails('ship', trailPointsRef.current), 10_000);
     }
   }, [viewer, ships, visible, trackedList, getDS]);
 

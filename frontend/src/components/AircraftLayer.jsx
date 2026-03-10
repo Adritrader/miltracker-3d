@@ -8,6 +8,7 @@ import * as Cesium from 'cesium';
 import { AIRCRAFT_SVG, HELICOPTER_SVG, getAltitudeColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
 import { icaoToCountry, getAircraftTypeName, resolveCountry, isHelicopter } from '../utils/militaryFilter.js';
+import { saveTrails as idbSaveTrails, loadTrails as idbLoadTrails, pruneOldTrails } from '../utils/trailStore.js';
 
 /** Build two-line label text for a given aircraft */
 function buildLabelText(ac) {
@@ -41,30 +42,9 @@ const MAX_TRAIL_POINTS = 40;
 // Duration (ms) over which entity position is linearly interpolated.
 // Matches the aircraft poll interval so movement looks continuous.
 const SMOOTH_MS = 10_000;
-const TRAIL_STORAGE_KEY = 'mlt_trails_v2';
 
-function loadStoredTrails() {
-  try {
-    const raw = sessionStorage.getItem(TRAIL_STORAGE_KEY);
-    if (!raw) return new Map();
-    const parsed = JSON.parse(raw);
-    const map = new Map();
-    for (const [id, pts] of Object.entries(parsed)) {
-      map.set(id, pts.map(p => ({ pos: new Cesium.Cartesian3(p.x, p.y, p.z), altM: p.a || 0 })));
-    }
-    return map;
-  } catch (_) { return new Map(); }
-}
-
-function saveTrails(trailPointsMap) {
-  try {
-    const obj = {};
-    for (const [id, pts] of trailPointsMap.entries()) {
-      obj[id] = pts.map(p => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, a: p.altM }));
-    }
-    sessionStorage.setItem(TRAIL_STORAGE_KEY, JSON.stringify(obj));
-  } catch (_) { /* storage full — ignore */ }
-}
+// Aircraft trail point mapper: IndexedDB {x,y,z,a} → runtime {pos, altM}
+const acPointFromDB = p => ({ pos: new Cesium.Cartesian3(p.x, p.y, p.z), altM: p.a || 0 });
 
 // Cache SVG icons by (heading rounded to 10°, color, type) to avoid re-encoding on every render.
 // Theoretical max: 36 headings × ~4 colors × 2 types = ~288 entries.
@@ -84,9 +64,24 @@ function getCachedIcon(heading, color, helicopter = false) {
 const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {} }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity
-  const trailPointsRef  = useRef(loadStoredTrails()); // icao24 → Cartesian3[] (persisted)
+  const trailPointsRef  = useRef(new Map());         // icao24 → {pos,altM}[] (loaded async from IDB)
   const prevIdsRef      = useRef(new Set());
   const dsCache         = useRef({}); // name → CustomDataSource (O(1) lookup)
+  const saveTimerRef    = useRef(null); // debounce IDB writes
+
+  // Load persisted trails from IndexedDB on mount (async, merges with any already-collected points)
+  useEffect(() => {
+    let cancelled = false;
+    pruneOldTrails(); // housekeeping — remove >24 h old trails
+    idbLoadTrails('aircraft', acPointFromDB).then(stored => {
+      if (cancelled || stored.size === 0) return;
+      const cur = trailPointsRef.current;
+      for (const [id, pts] of stored.entries()) {
+        if (!cur.has(id)) cur.set(id, pts); // don't overwrite freshly-collected data
+      }
+    });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // LOD constants — tighter on mobile to preserve frame rate
   const MAX_RANGE      = isMobile ? 2.5e6 : 4.5e6;  // hide billboard beyond this (m)
@@ -328,13 +323,9 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     } finally {
       acDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
-      // Persist only tracked-entity trails — prevents sessionStorage QuotaExceededError (O4)
-      if (trackedList && trackedList.size > 0) {
-        const trackedTrails = new Map(
-          [...trailPointsRef.current.entries()].filter(([id]) => trackedList.has(id))
-        );
-        saveTrails(trackedTrails);
-      }
+      // Persist ALL trails to IndexedDB (unlimited storage, debounced 10 s)
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 10_000);
     }
   }, [viewer, aircraft, visible, trackedList, getDS]);
 
