@@ -493,8 +493,9 @@ const FilterPanel = ({
         {/* Hamburger pill button */}
         <button
           onClick={() => setDrawerOpen(true)}
-          className="fixed top-4 left-4 z-50 bg-hud-panel flex items-center gap-2 px-3 py-2 rounded-lg
+          className="fixed left-4 z-50 bg-hud-panel flex items-center gap-2 px-3 py-2 rounded-lg
                      border border-hud-border active:scale-95 transition-transform duration-100 select-none"
+          style={{ top: 1 }}
           aria-label="Open menu"
         >
           {/* Hamburger icon */}

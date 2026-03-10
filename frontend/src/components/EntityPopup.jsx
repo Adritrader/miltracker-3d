@@ -200,7 +200,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
       {/* Centering overlay — constrained between top chrome and bottom chrome */}
       <div
         className="fixed z-50 flex items-center justify-center pointer-events-none"
-        style={{ top: isMobile ? 62 : 72, left: 0, right: 0, bottom: isMobile ? 78 : 88 }}
+        style={{ top: isMobile ? 47 : 72, left: 0, right: 0, bottom: isMobile ? 78 : 88 }}
       >
       {/* Panel – positioned by overlay when not dragged; draggable by header */}
       <div
