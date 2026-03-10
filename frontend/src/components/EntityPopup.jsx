@@ -60,7 +60,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, speedUnit = 'kt', onToggleSpeedUnit }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, speedUnit = 'kt', onToggleSpeedUnit, altUnit = 'ft', onToggleAltUnit }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -291,7 +291,21 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               {entity.aircraftType  && <Row label="AC TYPE" value={acTypeName}          highlight="text-white" />}
               <Row label="ICAO24"    value={entity.icao24} />
               <Row label="COUNTRY"   value={acCountryDisplay} />
-              <Row label="ALTITUDE"  value={`${acAltFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
+              <div className="flex justify-between items-center py-px border-b border-hud-border/40">
+                <span className="hud-label text-[10px] sm:text-xs">ALTITUDE</span>
+                <span className="flex items-center gap-1">
+                  <span className="font-mono text-[10px] sm:text-xs font-bold text-hud-amber">
+                    {altUnit === 'm' ? `${Math.round(acAltFt / 3.28084).toLocaleString()} m` : `${acAltFt.toLocaleString()} ft`}
+                  </span>
+                  {onToggleAltUnit && (
+                    <button
+                      onClick={onToggleAltUnit}
+                      className="px-1 py-px rounded border border-hud-border/50 text-[8px] sm:text-[9px] font-mono font-bold text-hud-text hover:text-hud-cyan hover:border-hud-cyan transition-colors"
+                      title="Toggle ft / m"
+                    >{altUnit === 'ft' ? 'M' : 'FT'}</button>
+                  )}
+                </span>
+              </div>
               <div className="flex justify-between items-center py-px border-b border-hud-border/40">
                 <span className="hud-label text-[10px] sm:text-xs">SPEED</span>
                 <span className="flex items-center gap-1">

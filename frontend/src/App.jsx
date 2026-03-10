@@ -92,11 +92,16 @@ function App() {
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
   const [newsFeedExpanded, setNewsFeedExpanded] = useState(false);
   const [speedUnit, setSpeedUnit] = useState(() => localStorage.getItem('milt_speedUnit') || 'kt');
+  const [altUnit, setAltUnit] = useState(() => localStorage.getItem('milt_altUnit') || 'ft');
 
   // Persist speed unit
   useEffect(() => {
     try { localStorage.setItem('milt_speedUnit', speedUnit); } catch { /* ignore */ }
   }, [speedUnit]);
+  // Persist altitude unit
+  useEffect(() => {
+    try { localStorage.setItem('milt_altUnit', altUnit); } catch { /* ignore */ }
+  }, [altUnit]);
 
   // F1: persist filters whenever they change
   useEffect(() => {
@@ -257,9 +262,7 @@ function App() {
           replayMode={timeline.replayMode}
           historyTrack={timeline.historyTrack}
           speedUnit={speedUnit}
-        />
-        </ErrorBoundary>
-        <ErrorBoundary name="ShipLayer" silent>
+          altUnit={altUnit}
         <ShipLayer
           viewer={viewer}
           ships={filteredShips}
@@ -397,6 +400,7 @@ function App() {
         onHeightChange={setTrackingPanelHeight}
         newsPanelHeight={newsPanelHeight}
         speedUnit={speedUnit}
+        altUnit={altUnit}
       />
 
       {/* Bottom-center: Timeline — always visible video-controls bar (auto-fetches history on mount) */}
@@ -449,6 +453,8 @@ function App() {
         onSatellite={setSatellitePortal}
         speedUnit={speedUnit}
         onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
+        altUnit={altUnit}
+        onToggleAltUnit={() => setAltUnit(u => u === 'ft' ? 'm' : 'ft')}
       />
 
       {/* SITREP capture — already rendered inline in the bottom-right container above */}

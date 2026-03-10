@@ -12,7 +12,7 @@ import { saveTrails as idbSaveTrails, loadTrails as idbLoadTrails, pruneOldTrail
 import { analyseTrajectory } from '../utils/trajectoryAnalysis.js';
 
 /** Build two-line label text for a given aircraft */
-function buildLabelText(ac, speedUnit = 'kt') {
+function buildLabelText(ac, speedUnit = 'kt', altUnit = 'ft') {
   // Resolve country -> compact ISO tag displayed on canvas (emoji fail on Windows canvas)
   const rawCountry = ac.country || icaoToCountry(ac.icao24 || '');
   const resolved   = rawCountry ? resolveCountry(rawCountry) : null;
@@ -23,7 +23,9 @@ function buildLabelText(ac, speedUnit = 'kt') {
   const altFt    = ac.altitudeFt != null
     ? ac.altitudeFt
     : Math.round((ac.altitude || 0) * 3.28084);
-  const altStr   = ac.on_ground ? 'GND' : `${Math.round(altFt / 100) * 100}ft`;
+  const altStr   = ac.on_ground ? 'GND' : altUnit === 'm'
+    ? `${Math.round(altFt / 3.28084).toLocaleString()}m`
+    : `${Math.round(altFt / 100) * 100}ft`;
 
   // Speed in user-selected unit
   const rawKt = ac.velocity || 0;
@@ -73,7 +75,7 @@ function getCachedIcon(heading, color, helicopter = false) {
   return _iconCache.get(key);
 }
 
-const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {}, speedUnit = 'kt' }) => {
+const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {}, speedUnit = 'kt', altUnit = 'ft' }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity[]
   const trailPointsRef  = useRef(new Map());         // icao24 → {pos,altM}[] (loaded async from IDB)
@@ -325,7 +327,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
           tr.to     = position;
           tr.start  = Date.now();
           if (entity.billboard) entity.billboard.image = iconUri;
-          if (entity.label)     entity.label.text      = new Cesium.ConstantProperty(buildLabelText(ac, speedUnit));
+          if (entity.label)     entity.label.text      = new Cesium.ConstantProperty(buildLabelText(ac, speedUnit, altUnit));
           if (entity.label && isTracked) entity.label.fillColor = Cesium.Color.fromCssColorString('#FFD700');
           else if (entity.label)        entity.label.fillColor = Cesium.Color.fromCssColorString('#00ff88');
           entity._milData = ac;
@@ -353,7 +355,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
               disableDepthTestDistance: 2e6,
             },
             label: {
-              text: buildLabelText(ac, speedUnit),
+              text: buildLabelText(ac, speedUnit, altUnit),
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
               fillColor: Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00ff88'),
               outlineColor: Cesium.Color.BLACK,
@@ -381,7 +383,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 15_000);
     }
-  }, [viewer, aircraft, visible, trackedList, speedUnit, getDS]);
+  }, [viewer, aircraft, visible, trackedList, speedUnit, altUnit, getDS]);
 
   // ── Click selection handled centrally by Globe3D's screenSpaceEventHandler ─
   // (§0.18: removed per-layer handler — Globe3D picks _milData and calls onEntityClick)
