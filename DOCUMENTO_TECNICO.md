@@ -1,72 +1,140 @@
 # MILTRACKER 3D — Documento Técnico, Ejecutivo y de Negocio
 
-> Versión 2.1 · 6 de marzo de 2026  
+> **Versión 3.0** · 10 de marzo de 2026  
 > Estado de producción: **LIVE** — Railway (backend) + Vercel (frontend)  
 > Repositorio: `github.com/Adritrader/miltracker-3d`  
-> Último commit: `bb6064f` — 15 bugs corregidos · auditoría completa en `AUDIT.md`
+> Dominio: `livewar3d.com`
 
 ---
 
-## RESUMEN EJECUTIVO
+# PARTE I — RESUMEN EJECUTIVO
 
-**MilTracker 3D** es una plataforma de inteligencia de situación militar en tiempo real que visualiza aeronaves militares, buques de guerra, eventos de conflicto activo, alertas de IA y noticias geoespaciales sobre un globo 3D interactivo. Agrega y correlaciona datos de múltiples fuentes públicas actualizando cada 30 segundos la actividad militar mundial.
+---
 
-La plataforma opera con **coste operativo próximo a cero** (infraestructura gratuita, fuentes abiertas) y está lista para producción: backend en Railway, frontend en Vercel, CI/CD automático desde GitHub.
+## EXECUTIVE SUMMARY
+
+**MilTracker 3D** es una plataforma de inteligencia de situación militar (ISR) en tiempo real que visualiza aeronaves militares, buques de guerra, eventos de conflicto activo, alertas con IA, anomalías térmicas (NASA FIRMS) y noticias geoespaciales sobre un globo 3D interactivo. Agrega y correlaciona datos de **35+ fuentes públicas** actualizando cada 30 segundos la actividad militar mundial.
+
+### Datos clave del producto
+
+| Métrica | Valor |
+|---|---|
+| **Entidades vivas simultáneas** | 100–400 (aeronaves + buques + conflictos + noticias) |
+| **Fuentes de datos integradas** | 35+ (3 ADS-B + 6 regionales + 5 AIS + 25 RSS + GDELT + FIRMS + Gemini) |
+| **Zonas de conflicto monitorizadas** | 14 regiones activas |
+| **Catálogo MMSI naval** | 154 buques de guerra identificados |
+| **Aeródromos militares** | 104 bases con nombre resuelto |
+| **Países identificables por ICAO hex** | 27 naciones |
+| **Tipos de aeronave con nombre** | 56 designaciones |
+| **Patrones de trayectoria reconocidos** | 8 (ORBIT, RACETRACK, LINEAR, LOITER, DESCENT, CLIMB, ERRATIC, UNKNOWN) |
+| **Inferencia de misión automatizada** | 40+ combinaciones patrón × categoría |
+| **Motor de credibilidad** | 0–95 % con 5 factores de corroboración |
+| **Hotspots geoespaciales** | Grid 3°×3° (~330 km), top 8 por densidad |
+| **Persistencia de trayectorias** | IndexedDB, TTL 24 h, flush en `beforeunload` |
+| **Replay histórico** | 120 snapshots × 30 s = 1 h, velocidades 1×–120× |
+| **Coste operativo** | **~0–5 USD/mes** |
 
 ### Diferenciación competitiva
 
-| | MilTracker 3D | Flightradar24 / MarineTraffic | Global Conflict Tracker (CFR) | LiveUAMaps |
+| | MilTracker 3D | Flightradar24 / MarineTraffic | Global Conflict Tracker (CFR) | LiveUAMap |
 |---|---|---|---|---|
 | **Foco** | Exclusivamente militar/defensa | Civil + militar mezclado | Texto estático | Mapas 2D básicos |
-| **Correlación multicapa** | Aeronaves + Buques + Conflictos + Noticias + IA | Datos en silos | Sin datos live | Sin ADS-B/AIS |
-| **Globo 3D** | CesiumJS, altitud real de vuelo, rotación libre | Vista 2D | Sin mapa interactivo | 2D Leaflet |
-| **IA de amenazas** | Análisis de proximidad + Gemini | Sin IA de alerta | Sin IA | Sin IA |
-| **Replay histórico** | 1h+ navegable con controles de vídeo | Parcial (pago) | Sin replay | Sin replay |
-| **SITREP** | Captura + vídeo cinético compartible | Sin captura | Sin captura | Sin captura |
-| **Coste operativo** | ~0–5 USD/mes | Miles USD/mes en datos | — | — |
+| **Correlación multicapa** | Aeronaves + Buques + Conflictos + Noticias + FIRMS + IA | Datos en silos | Sin datos live | Sin ADS-B/AIS |
+| **Globo 3D** | CesiumJS, altitud real, rotación libre | Vista 2D | Sin mapa interactivo | 2D Leaflet |
+| **Inteligencia de trayectoria** | Detección de patrones + inferencia de misión automática | Sin análisis | N/A | N/A |
+| **IA de amenazas** | Proximidad + credibilidad multifuente + Gemini | Sin IA de alerta | Sin IA | Sin IA |
+| **Hotspots** | Clustering geoespacial + FIRMS + corroboración cruzada | N/A | N/A | Manual |
+| **Replay histórico** | 1 h navegable con controles de vídeo | Parcial (pago) | Sin replay | Sin replay |
+| **SITREP** | Captura PNG + vídeo cinético + share social | Sin captura | Sin captura | Sin captura |
+| **Coste operativo** | ~0–5 USD/mes | Miles USD/mes | — | — |
+
+---
+
+# PARTE II — ARQUITECTURA TÉCNICA
 
 ---
 
 ## 1. ARQUITECTURA GENERAL
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                         FUENTES DE DATOS (gratuitas)                      │
-│  adsb.lol · adsb.fi · airplanes.live │ VesselFinder │ GDELT API · NASA   │
-└────────────────────────────┬─────────────────────────────────────────────┘
-                             │ HTTP polling (30s / 60s / 5-10 min)
-                             ▼
-┌─────────────────────── BACKEND (Node.js 20+) ────────────────────────────┐
-│  Express + Socket.io                                                       │
-│  ├── Fallback chain ADS-B: adsb.lol → adsb.fi → airplanes.live            │
-│  ├── Conflict store: GDELT + seed dataset (72h TTL, sin duplicados)        │
-│  ├── News store: GDELT DOC + keyword geocoding (72h TTL)                   │
-│  ├── NASA FIRMS thermal anomalies (incendios / hotspots activos)           │
-│  ├── Position tracker: ring buffer 120 snapshots (~1h historial)           │
-│  ├── AI risk engine: reglas de proximidad + Gemini (opcional)              │
-│  ├── Disk cache: *.cache.json async (non-blocking, arranque instantáneo)   │
-│  ├── Rate limiting: HTTP (express-rate-limit) + WS por socket (5s/10s)     │
-│  ├── Jitter geocodificación: determinista (hash Knuth, no Math.random)     │
-│  └── CORS: producción solo orígenes allowlist / dev abierto                │
-│                              │ Socket.io (delta only si hash cambia)       │
-└──────────────────────────────┼───────────────────────────────────────────┘
-                               │ WebSocket (Socket.io)
-                               ▼
-┌─────────────────── FRONTEND (React 18 + Vite) ───────────────────────────┐
-│  CesiumJS 1.115 + Resium 1.17                                              │
-│  ├── AircraftLayer — billboards SVG + trails PolylineGlow (40 pts)        │
-│  ├── ShipLayer — billboards SVG orientados por heading real               │
-│  ├── ConflictLayer — símbolos militares Canvas (sin emoji)                │
-│  ├── NewsLayer — clusters geoespaciales zoom-aware                        │
-│  ├── DangerZoneLayer — círculos de zona de conflicto activo               │
-│  ├── MilitaryBasesLayer — bases militares mundiales (~200 bases)          │
-│  ├── FilterPanel — toggles, país, misión, alianza, FIRMS                 │
-│  ├── AlertPanel — CRITICAL threats + SITREP + AI Intel tabs               │
-│  ├── TrackingPanel — seguimiento multi-entidad en tiempo real             │
-│  ├── TimelinePanel — replay histórico con controles de vídeo             │
-│  ├── SitrepCapture — captura PNG / vídeo cinético MP4/WebM + social share │
-│  └── CoordinateHUD — barra lat/lon + contadores live                     │
-└──────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        FUENTES DE DATOS (gratuitas / públicas)                │
+│                                                                               │
+│  ADS-B (3 globales + 6 regionales)  │  AIS 5-tier (WebSocket + REST + RSS)   │
+│  GDELT GEO + DOC  │  25 RSS militares  │  NASA FIRMS  │  Gemini 1.5 Flash   │
+└──────────────────────────┬───────────────────────────────────────────────────┘
+                           │ HTTP polling (30s / 60s / 5–10 min)
+                           ▼
+┌──────────────────── BACKEND (Node.js 20+ · Express · Socket.io) ─────────────┐
+│                                                                                │
+│  12 servicios independientes:                                                  │
+│  ├── opensky.js ........... ADS-B fallback chain (3) + regional fetches (6)   │
+│  ├── vesselFinder.js ...... AIS 5-tier: WS→REST→Norwegian→AISHub→Catalog      │
+│  ├── conflictService.js ... GDELT GEO/DOC + seed dataset (72h TTL, dedup)     │
+│  ├── newsService.js ....... 25 RSS feeds militares + GDELT DOC (5 min)        │
+│  ├── firmsService.js ...... NASA FIRMS VIIRS/MODIS (10 min)                   │
+│  ├── aiDanger.js .......... 14 zonas conflicto + reglas proximidad + Gemini   │
+│  │                          + motor credibilidad (0–95%) + hotspots grid       │
+│  ├── positionTracker.js ... Ring buffer 120 snapshots, disk persist 5 min     │
+│  ├── militaryMMSI.js ...... Catálogo 154 buques de guerra por MMSI            │
+│  ├── carrierAirWing.js .... 46 callsign prefixes → detección operaciones CVW  │
+│  ├── diskCache.js ......... Cache async JSON (non-blocking, warmstart)        │
+│  ├── cameraService.js ..... Cámaras en vivo en zonas de conflicto             │
+│  └── twitterService.js .... Auto-tweet para alertas CRITICAL                  │
+│                                                                                │
+│  Middleware: CORS (allowlist), rate-limit 30 req/min, compression (gzip)      │
+│  WebSocket: Socket.io con hash-diff (solo deltas), cooldowns 5s/10s           │
+└──────────────────────────┬───────────────────────────────────────────────────┘
+                           │ WebSocket (Socket.io — delta only)
+                           ▼
+┌──────────────────── FRONTEND (React 18 · Vite 5 · CesiumJS 1.115) ──────────┐
+│                                                                                │
+│  26 componentes · 4 hooks · 6 módulos de utilidad                             │
+│                                                                                │
+│  CAPAS DE DATOS (8):                                                          │
+│  ├── AircraftLayer ........ Billboards SVG + trails altitud-gradient (40 pts) │
+│  │                          + inferencia misión + persistencia IndexedDB       │
+│  ├── ShipLayer ............ Billboards SVG por heading + trails + IndexedDB   │
+│  ├── ConflictLayer ........ Símbolos militares Canvas, 15 tipos de evento     │
+│  ├── NewsLayer ............ Clusters geoespaciales zoom-aware                 │
+│  ├── DangerZoneLayer ...... Perímetros de zona de conflicto color-coded       │
+│  ├── MilitaryBasesLayer ... ~200 bases militares mundiales (4 tipos)          │
+│  ├── FIRMSLayer ........... Hotspots térmicos NASA (VIIRS + MODIS)           │
+│  └── SentinelPortalModal .. Sentinels de monitoreo                            │
+│                                                                                │
+│  PANELES DE CONTROL (12):                                                     │
+│  ├── FilterPanel .......... Toggles, país, misión, alianza, FIRMS             │
+│  ├── MapLegend ............ Leyenda 3 tabs (GENERAL / EVENTS / COUNTRIES)     │
+│  ├── AlertPanel ........... Alertas + Hotspots + SITREP + AI Intel tabs       │
+│  ├── TrackingPanel ........ Seguimiento multi-entidad aeronaves + barcos      │
+│  ├── TimelinePanel ........ Replay histórico 1h, controles tipo vídeo         │
+│  ├── NewsPanel ............ Panel detalle noticias                             │
+│  ├── NewsClusterModal ..... Modal agrupación de noticias geoespacial          │
+│  ├── EntityPopup .......... Popup con inteligencia de trayectoria + ruta      │
+│  ├── SearchBar ............ Búsqueda global callsign/nombre/tipo              │
+│  ├── CoordinateHUD ........ HUD lat/lon + contadores live                     │
+│  ├── SitrepCapture ........ Captura PNG + vídeo cinético MP4/WebM             │
+│  └── MapLayerSwitcher ..... Selector de 7 basemaps                            │
+│                                                                                │
+│  UTILIDADES (6):                                                              │
+│  ├── militaryFilter.js .... 27 países ICAO + 104 aeródromos + 56 tipos       │
+│  ├── trajectoryAnalysis.js  8 patrones + 8 categorías + inferencia misión     │
+│  ├── trailStore.js ........ IndexedDB persistencia trails (TTL 24h)           │
+│  ├── geoUtils.js .......... Haversine, bearing, helpers geoespaciales         │
+│  ├── icons.js ............. Generadores SVG inline para billboards             │
+│  └── mediaLookup.js ....... ~400 imágenes Wikimedia por tipo entidad          │
+│                                                                                │
+│  HOOKS (4):                                                                   │
+│  ├── useRealTimeData ...... Socket.io + caching localStorage + reconnect      │
+│  ├── useTimeline .......... Control replay 1×–120×, scrubbing, play/pause     │
+│  ├── useIsMobile .......... Detección responsive (< 768px)                    │
+│  └── useCesiumEntities .... Gestión DataSource lifecycle Cesium               │
+│                                                                                │
+│  PERSISTENCIA CLIENT-SIDE:                                                    │
+│  ├── localStorage ......... Aeronaves (30min), Buques (60min), Noticias (2h)  │
+│  ├── IndexedDB ............ Trayectorias aeronaves + buques (TTL 24h)         │
+│  └── sessionStorage ....... Estado de filtros y preferencias UI               │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -78,22 +146,29 @@ La plataforma opera con **coste operativo próximo a cero** (infraestructura gra
 | Componente | Tecnología | Versión |
 |---|---|---|
 | Runtime | Node.js | 20+ |
-| Framework HTTP | Express | 4.x |
-| WebSocket | Socket.io | 4.x |
+| Framework HTTP | Express | 4.18.3 |
+| WebSocket | Socket.io | 4.7.5 |
+| AIS WebSocket | ws | 8.19.0 |
+| HTTP client | node-fetch | 3.3.2 |
+| XML → JSON | xml2js | 0.6.2 |
+| Twitter API | twitter-api-v2 | 1.29.0 |
 | Compresión | compression (gzip) | — |
 | Rate limiting | express-rate-limit | — |
 | Variables de entorno | dotenv | — |
-| Caché en disco | JSON nativo (`fs`) | — |
+| Caché en disco | JSON nativo (`fs/promises`) | — |
 
 ### Frontend
 
 | Componente | Tecnología | Versión |
 |---|---|---|
-| UI framework | React | 18.x |
-| Build tool | Vite | 5.x |
-| 3D Globe engine | CesiumJS + Resium | 1.115 / 1.17 |
-| Estilos | Tailwind CSS | 3.x |
+| UI framework | React | 18.3.1 |
+| Build tool | Vite | 5.3.5 |
+| Globe engine 3D | CesiumJS | 1.115.0 |
+| Cesium–React bridge | Resium | 1.17.3 |
+| Estilos | Tailwind CSS | 3.4.7 |
 | WebSocket client | socket.io-client | 4.x |
+| Captura vídeo | html2canvas + MediaRecorder API | — |
+| Persistencia trails | IndexedDB (nativo) | — |
 
 ### Infraestructura
 
@@ -110,66 +185,313 @@ La plataforma opera con **coste operativo próximo a cero** (infraestructura gra
 
 ### 3.1 Aeronaves militares — ADS-B
 
+**Cadena de fallback global (3 fuentes):**
+
 | Fuente | Endpoint | Intervalo | Método |
 |---|---|---|---|
-| **adsb.lol** (primario) | `api.adsb.lol/v2/mil` | 30s | REST JSON |
-| **adsb.fi** (fallback 1) | `opendata.adsb.fi/api/v2/mil` | 30s | REST JSON |
-| **airplanes.live** (fallback 2) | `api.airplanes.live/v2/mil` | 30s | REST JSON |
+| **adsb.lol** (primario) | `api.adsb.lol/v2/mil` | 30 s | REST JSON |
+| **adsb.fi** (fallback 1) | `opendata.adsb.fi/api/v2/mil` | 30 s | REST JSON |
+| **airplanes.live** (fallback 2) | `api.airplanes.live/v2/mil` | 30 s | REST JSON |
+
+**Fetches regionales paralelos (6 zonas):**
+
+Además del fetch global, el backend ejecuta 6 queries regionales en paralelo para mejorar la cobertura en zonas de conflicto activo. Si la fuente primaria ya contiene las aeronaves, los duplicados se descartan por ICAO hex.
 
 Cadena de fallback automática. Si todas fallan, se sirven datos del disco cache.  
 **Limitación:** Los aparatos pueden desactivar transponder en operaciones sensibles.
 
-### 3.2 Buques de guerra — AIS
+### 3.2 Buques de guerra — AIS (5 tiers)
 
-| Fuente | Método | Intervalo |
+| Tier | Fuente | Método | Notas |
+|---|---|---|---|
+| 1 | **AISStream** (MMSI targeted) | WebSocket | 154 MMSI del catálogo, tiempo real |
+| 2 | **AISStream REST** | HTTP global | Complemento global |
+| 3 | **Norwegian Coastal Admin** | REST | Cobertura Ártico / Noruega |
+| 4 | **AISHub** | REST | Red comunitaria |
+| 5 | **Catálogo baseline** | Estático | Posiciones homeport si todo falla |
+
+Identificación militar por lista MMSI curada (`militaryMMSI.js` — **154 buques catalogados**):
+
+| Armada | Buques | Incluye |
 |---|---|---|
-| VesselFinder scraper | HTML parsing | 60s |
-
-Identificación militar por lista MMSI curada (`militaryMMSI.js`).
+| US Navy | 36 | 8 portaaviones, 10 destructores/cruceros, 5 LHD, 8 logística |
+| Royal Navy | 10 | Carriers, Type 45, frigates |
+| Marine Nationale | 7 | Charles de Gaulle, FREMM |
+| Deutsche Marine | 5 | F124, F125 |
+| Altre NATO (NL, IT, ES, DK, NO, SE) | 21 | Frigatas, OPV |
+| Россия ВМФ | 9 | Kuznetsov, Kirov, Slava |
+| PLAN (China) | 8 | Carriers, Type 055 |
+| Irán (IRIN/IRGCN) | 5 | Moudge, Jamaran |
+| Israel (INS) | 4 | Sa'ar 6, Dolphin subs |
+| Turquía (TCG) | 5 | TF-2000, ADA class |
+| Otras (GR, JP, KR, IN, AU, CA) | 44 | Commonwealth + aliados Pacific |
 
 ### 3.3 Eventos de conflicto
 
-Store en memoria (Map por ID, TTL 72h, sin duplicados por hash título+fecha).
+Store en memoria (Map por ID, TTL 72 h, sin duplicados por hash título+fecha).
 
 | Fuente | Tipo | Intervalo |
 |---|---|---|
-| GDELT GEO 2.0 | Geolocated events | 10min |
-| GDELT DOC 2.0 | News articles | 5min |
+| GDELT GEO 2.0 | Eventos geolocalizados | 10 min |
+| GDELT DOC 2.0 | Artículos noticias | 5 min |
 | Dataset semilla interno | 90+ eventos baseline | Estáticos |
 
-### 3.4 Anomalías térmicas (NASA FIRMS)
+**Clasificación automática** en 15 tipos de evento: `airstrike`, `missile`, `explosion`, `artillery`, `drone`, `naval`, `troops`, `casualties`, `fire`, `cyber`, `cbrn`, `collapse`, `siege`, `infrastructure`, `hostage`.
+
+### 3.4 Noticias militares — 25 RSS feeds
+
+BBC World/Middle East/Europe, Al Jazeera, USNI News, Breaking Defense, The War Zone, Kyiv Independent, Defense News, Times of Israel, Jerusalem Post, Iran International, Middle East Eye, War on the Rocks, Reuters, Al-Monitor, i24, Atlantic Council, Military Times, Task & Purpose, Stars & Stripes, The Guardian, Foreign Policy, Bellingcat, Sky News, CBS News, SOFREP/ISW.
+
+### 3.5 Anomalías térmicas (NASA FIRMS)
 
 - Clave gratuita: `FIRMS_MAP_KEY` (NASA Earthdata)
-- Resolución VIIRS 375m / MODIS 1km
+- Resolución VIIRS 375 m / MODIS 1 km
+- Intervalo: 10 min
 - Filtro por Fire Radiative Power calibrado por región
+
+### 3.6 IA Generativa — Google Gemini
+
+- Modelo: Gemini 1.5 Flash (gratuito hasta 1 M tokens/día)
+- Input: resumen táctico (aeronaves + buques + conflictos cercanos)
+- Output: JSON `{ summary, threats[], recommendations[] }`
+- Cooldown configurable para evitar quemar cuota
 
 ---
 
-## 4. FUNCIONALIDADES PRINCIPALES (estado marzo 2026)
+## 4. FUNCIONALIDADES PRINCIPALES
 
-| Funcionalidad | Estado | Notas |
+### 4.1 Tabla de estado (marzo 2026)
+
+| # | Funcionalidad | Estado | Notas |
+|---|---|---|---|
+| 1 | Globo 3D interactivo (CesiumJS) | ✅ Live | 7 basemaps: Dark, Satellite, Sentinel, GIBS, Relief, Street, Light |
+| 2 | Aeronaves militares en tiempo real | ✅ Live | ADS-B 3+6 fuentes, hasta 300 entidades, trails 40 pts |
+| 3 | Buques de guerra en tiempo real | ✅ Live | AIS 5-tier, heading real, 154 MMSI catalogados |
+| 4 | Eventos de conflicto geolocalizados | ✅ Live | GDELT + seed, 72 h TTL, 15 tipos de evento, dedup 9 km |
+| 5 | Noticias militares geocodificadas | ✅ Live | 25 RSS + GDELT DOC, clusters zoom-aware |
+| 6 | Zonas de peligro (DangerZones) | ✅ Live | 14 zonas activas, perímetros color-coded |
+| 7 | Bases militares mundiales | ✅ Live | ~200 bases, 4 tipos (AB/NB/MS/RD) |
+| 8 | NASA FIRMS (hotspots térmicos) | ✅ Live | VIIRS + MODIS, FRP filtrado por región |
+| 9 | **Motor de alertas IA** | ✅ Live | Proximidad + credibilidad multifuente (0–95 %) |
+| 10 | **Hotspots dashboard** | ✅ Live | Grid 3°×3°, top 8 clusters, mín. 3 eventos |
+| 11 | **Credibilidad cruzada** | ✅ Live | 5 factores: zona, corroboración, FIRMS, aeronaves, buques |
+| 12 | SITREP automático | ✅ Live | Resumen táctico generado de datos live |
+| 13 | AI Intel (Gemini 1.5 Flash) | ✅ Live | Opcional vía GEMINI_API_KEY |
+| 14 | Replay histórico | ✅ Live | 120 snapshots × 30 s = 1 h, velocidades 1×–120× |
+| 15 | Tracking multi-entidad | ✅ Live | Seguimiento simultáneo aeronaves + buques |
+| 16 | Filtros avanzados | ✅ Live | País, alianza, tipo misión, FIRMS, severidad |
+| 17 | SITREP Capture | ✅ Live | PNG + vídeo cinético MP4/WebM, social share |
+| 18 | Share de vista | ✅ Live | URL `?fly=` con parámetros de cámara |
+| 19 | Notificaciones push | ✅ Live | Browser push para alertas CRITICAL |
+| 20 | **Inteligencia de trayectoria** | ✅ Live | 8 patrones × 8 categorías → inferencia misión |
+| 21 | **Trails con gradiente altitud** | ✅ Live | Cyan → Verde → Amarillo → Naranja → Rojo |
+| 22 | **Persistencia IndexedDB** | ✅ Live | Trails aeronaves + buques, TTL 24 h |
+| 23 | **Resolución aeródromos** | ✅ Live | 104 bases militares con nombre resuelto |
+| 24 | **Identificación ICAO hex** | ✅ Live | 27 países por prefijo hexadecimal |
+| 25 | **Detección Carrier Air Wing** | ✅ Live | 46 prefijos callsign → CVW + portaaviones |
+| 26 | **Leyenda de mapa interactiva** | ✅ Live | 3 tabs: GENERAL / EVENTS / COUNTRIES |
+| 27 | Búsqueda de entidades | ✅ Live | Por callsign, nombre, tipo (busca en datos completos) |
+| 28 | Rate limiting WebSocket | ✅ Live | Cooldown por socket: 5 s datos, 10 s historial |
+| 29 | Cache persistente async | ✅ Live | Escritura no bloqueante, arranque desde cache |
+| 30 | **Optimización mobile** | ✅ Live | Layout responsive, paneles adaptados |
+
+### 4.2 Detalle: Inteligencia de Trayectoria
+
+**Módulo:** `trajectoryAnalysis.js`
+
+Motor de análisis geométrico que detecta patrones de vuelo a partir de las coordenadas del trail y clasifica automáticamente la misión probable de cada aeronave.
+
+**8 patrones reconocidos:**
+
+| Patrón | Detección | Significado táctico |
 |---|---|---|
-| Globo 3D interactivo (CesiumJS) | ✅ Live | 6 basemaps: Dark, Sat, Relief, Street, Light, Night |
-| Aeronaves militares en tiempo real | ✅ Live | ADS-B, hasta 300 entidades, trails de vuelo |
-| Buques de guerra en tiempo real | ✅ Live | AIS, heading real, identificación MMSI |
-| Eventos de conflicto geolocalizados | ✅ Live | GDELT + seed dataset, 72h TTL, IDs deduplicados |
-| Noticias militares con geocodificación | ✅ Live | Clusters zoom-aware, 70+ ubicaciones de conflicto |
-| Zonas de peligro (DangerZones) | ✅ Live | Círculos color-coded por severidad |
-| Bases militares mundiales | ✅ Live | ~200 bases globales |
-| Intel Alerts (reglas de proximidad) | ✅ Live | CRITICAL / HIGH / MED / LOW |
-| SITREP automático | ✅ Live | Resumen táctico generado de datos live |
-| AI Intel (Gemini 1.5 Flash) | ✅ Live | Opcional vía GEMINI_API_KEY |
-| Replay histórico | ✅ Live | 120 snapshots × 30s = ~1h, velocidades 1×–120× |
-| Tracking multi-entidad | ✅ Live | Seguimiento simultáneo de aviones y barcos |
-| Filtros avanzados | ✅ Live | País, alianza, tipo de misión, FIRMS; toggle conflictos corregido |
-| SITREP Capture | ✅ Live | PNG + vídeo cinético MP4/WebM, social share |
-| Share de vista | ✅ Live | URL con parámetros de cámara, copia al portapapeles |
-| Notificaciones push | ✅ Live | Browser push para alertas CRITICAL |
-| NASA FIRMS (incendios/hotspots) | ✅ Live | Precisa clave gratuita NASA Earthdata |
-| Búsqueda de entidades | ✅ Live | Por callsign, nombre, tipo |
-| Modo space view | ✅ Live | Vista desde órbita |
-| Rate limiting WebSocket | ✅ Live | Cooldown por socket: 5s datos, 10s historial |
-| Cache persistente async | ✅ Live | Escritura no bloqueante, cache coherente en restart |
+| `ORBIT` | ≥ 1 rotación 360°, compactness alto | Vigilancia, reabastecimiento, CAP |
+| `RACETRACK` | Óvalo elongado (turn bias > 0.6) | Patrulla AWACS, SIGINT, refueling |
+| `LINEAR` | Straightness > 0.85, sin órbitas | Tránsito, ferry, scramble |
+| `LOITER` | Movimiento lento, área compacta, sin órbitas completas | Overwatch, holding, hover ops |
+| `DESCENT` | Δ altitud negativo consistente | Aproximación / aterrizaje |
+| `CLIMB` | Δ altitud positivo consistente | Despegue / ascenso |
+| `ERRATIC` | Turn rate alto, straightness bajo | Combate, entrenamiento, evasión |
+| `UNKNOWN` | < 5 puntos de trail o sin patrón claro | Datos insuficientes |
+
+**8 categorías de aeronave (regex en tipo ICAO):**
+
+| Categoría | Regex | Ejemplos |
+|---|---|---|
+| Tanker | `KC, K35, K46, MRTT, IL78...` | KC-135, KC-46, A330MRTT |
+| AWACS | `E3, E7, E2, A50, KJ...` | E-3 Sentry, E-7 Wedgetail |
+| ISR | `RC, EP, MC12, U2, P8, GLEX...` | RC-135, P-8 Poseidon |
+| UAV | `MQ, RQ, TB2, ANKA, BAYRKTR...` | MQ-9 Reaper, RQ-4 Global Hawk |
+| Helicopter | `AH, UH, CH, MH, V22, S70...` | AH-64, UH-60, V-22 Osprey |
+| Fighter | `F1x, FA18, SU, MIG, EF2K...` | F-16, F-35, Su-27, Eurofighter |
+| Bomber | `B52, B1, B2, TU95, TU160, H6` | B-52H, Tu-160, H-6K |
+| Cargo | `C17, C130, A400, AN, IL76, Y20` | C-17, C-130J, A400M |
+
+**Tabla de inferencia de misión (40+ combinaciones):**
+
+La misión se determina cruzando `patrón × categoría`:
+
+| Patrón \ Categoría | Tanker | AWACS | ISR | UAV | Fighter | Bomber | Helo | Cargo |
+|---|---|---|---|---|---|---|---|---|
+| ORBIT | Refueling Orbit | Early Warning | ISR / Recon | UAV Surveillance | CAP | Holding | Patrol / SAR | Airdrop |
+| RACETRACK | Refueling Racetrack | AWACS Patrol | SIGINT | Persistent Surv. | CAP | — | Border Patrol | — |
+| LINEAR | Repositioning | — | — | Transit to AO | Intercept / Scramble | **Strike Route** | Point-to-Point | Strategic Airlift |
+| LOITER | — | Station Keeping | Target Surv. | Persistent Overwatch | Defensive Counter-Air | — | CAS / Hover | — |
+| ERRATIC | — | — | — | Evasive | **Air Combat (ACM)** | — | NOE / Tactical | — |
+| DESCENT | Approach | Approach | Approach | Approach | Approach | Approach | Approach | Approach |
+| CLIMB | Departure | Departure | Departure | Departure | Departure | Departure | Departure | Departure |
+
+**Métricas calculadas por aeronave:**
+
+| Métrica | Descripción |
+|---|---|
+| `totalDistKm` | Distancia total recorrida (suma segmentos) |
+| `directDistKm` | Distancia inicio → fin |
+| `straightness` | Ratio directo/total (0–1) |
+| `orbits` | Rotaciones 360° completadas |
+| `turnBias` | Ratio giro firmado/absoluto (0–1) |
+| `avgTurnRate` | Grados/segmento (~°/30 s) |
+| `compactness` | Diagonal bbox / longitud camino (0–1) |
+| `altChangeM` | Cambio neto de altitud (metros) |
+| `altStdDevM` | Desviación estándar de altitud |
+| `bboxDiagKm` | Diagonal del bounding box (km) |
+
+**Confidence:** 0–100 %, basada en número de puntos y claridad del patrón geométrico.
+
+### 4.3 Detalle: Motor de Alertas y Credibilidad
+
+**14 zonas de conflicto monitorizadas:**
+
+| Zona | Severidad | Centro aproximado |
+|---|---|---|
+| Ukraine | CRITICAL | Kyiv, Donbas |
+| Gaza | CRITICAL | Gaza Strip |
+| Lebanon | CRITICAL | South Lebanon |
+| Iran | HIGH | Tehran, Isfahan |
+| Persian Gulf | HIGH | Strait of Hormuz |
+| Red Sea | CRITICAL | Bab el-Mandeb |
+| Iraq-Syria | CRITICAL | Euphrates corridor |
+| Kuwait | MEDIUM | Kuwait Bay |
+| Cyprus | MEDIUM | Buffer zone |
+| Taiwan Strait | CRITICAL | Median line |
+| South China Sea | HIGH | Spratly Islands |
+| UAE | HIGH | Abu Dhabi / Dubai |
+| Korean Peninsula | CRITICAL | DMZ |
+| Syria | HIGH | Damascus region |
+
+**Motor de credibilidad (0–95 %):**
+
+| Factor | Puntos |
+|---|---|
+| Base por severidad (CRITICAL/HIGH/MEDIUM/LOW) | 40 / 30 / 20 / 10 |
+| + En zona de conflicto activo | +15 |
+| + Corroboración por otra fuente de datos | +20 |
+| + Firma térmica FIRMS confirmada | +15 |
+| + Aeronave militar en proximidad | +10 |
+| + Buque de guerra en proximidad | +10 |
+| **Tope máximo** | **95 %** |
+
+**Hotspots (clustering geoespacial):**
+- Grid: celdas de 3° × 3° (~330 km)
+- Mínimo: 3 eventos por celda para considerar hotspot
+- Output: top 8 hotspots ordenados por densidad de eventos
+- Integrado en AlertPanel con tab dedicada
+
+### 4.4 Detalle: Persistencia de Trayectorias (IndexedDB)
+
+**Módulo:** `trailStore.js`
+
+| Parámetro | Valor |
+|---|---|
+| Database | `miltracker_trails` |
+| Object Store | `trails` |
+| Key | `{type}:{entityId}` |
+| Índices | `type`, `ts` |
+| TTL | 24 horas |
+| Prune | Automático al arranque |
+
+**Flujo de persistencia:**
+
+1. Cada ciclo de actualización (30 s / 60 s), los trails se guardan en IndexedDB con debounce de 5 s
+2. Listeners `visibilitychange` y `beforeunload` fuerzan flush inmediato antes de cerrar/refrescar
+3. Al cargar la página, se restauran los trails y se prepend a los datos frescos
+4. Puntos expirados (> 24 h) se eliminan automáticamente en el arranque
+5. Cap máximo por entidad: 40 puntos (aeronaves), 60 puntos (buques)
+
+### 4.5 Detalle: Trails con Gradiente de Altitud
+
+Cada segmento del trail de vuelo se colorea individualmente según la altitud del punto:
+
+| Altitud (m) | Altitud (ft) | Color | Hex |
+|---|---|---|---|
+| 0 | 0 | Cian | `#00ffff` |
+| 3 750 | 12 300 | Verde | `#00ff00` |
+| 7 500 | 24 600 | Amarillo | `#ffff00` |
+| 11 250 | 36 900 | Naranja | `#ff8000` |
+| 15 000 | 49 200 | Rojo | `#ff0000` |
+
+Interpolación lineal entre stops. Cada segmento del `PolylineGraphics` recibe su color individual.
+
+### 4.6 Detalle: Enriquecimiento Militar
+
+**Identificación de país por ICAO hex (27 naciones):**
+
+US, GB, FR, DE, RU, CN, KR, JP, IN, IL, TR, IR, BE, AU, CA, IT, ES, NL, PL, SE, NO, GR, PK, SA, AE, EG, UA.
+
+Cada rango hexadecimal de 24 bits se mapea al país emisor del transponder.
+
+**Resolución de aeródromos (104 bases):**
+
+| Región | Bases | Ejemplos |
+|---|---|---|
+| US CONUS | 44 | Andrews (KADW), Langley (KLFI), Nellis (KLSV) |
+| US Pacific | 8 | Hickam (PHNL), Guam (PGUA), Yokota (RJTY) |
+| Europa | 20 | Ramstein (ETAR), Aviano (LIPA), Brize Norton (EGVN) |
+| Oriente Medio | 12 | Al Udeid (OTBH), Incirlik (LTAG), Nevatim (LLNV) |
+| Asia-Pacífico | 10 | Osan (RKSO), Kadena (RODN), Diego Garcia (FJDG) |
+| Otros | 10 | Sigonella (LICZ), Lajes (LPLA), Rota (LERT) |
+
+**Tipos de aeronave con nombre (56 designaciones):**
+
+US (23): C-17, C-5M, C-130J, KC-46, B-52, B-1, B-2, F-15, F-16, F/A-18, F-35, F-22, A-10, RC-135, E-3, E-8, U-2, RQ-4, MQ-9, P-8, UH-60, CH-47, AH-64.  
+Europa (7): A400M, MRTT, E-145, F-2, Eurofighter, PA-18, DO-28.  
+Rusia (9): IL-76, IL-78, IL-20, Tu-95, Tu-22M, Tu-160, Su-27, Su-57, MiG-31.  
+Business/ISR (6): Gulfstream V/VI, Falcon 900, CL-60, GLEX.
+
+**Detección Carrier Air Wing (46 callsign prefixes):**
+
+| CVW | Portaaviones | Escuadrones (prefijos) |
+|---|---|---|
+| CVW-1 | USS Gerald R. Ford | 7 prefijos |
+| CVW-3 | USS Eisenhower | 5 prefijos |
+| CVW-8 | USS Truman | 5 prefijos |
+| CVW-11 | USS Roosevelt | 6 prefijos |
+| CVW-2 | USS Lincoln | 5 prefijos |
+| CVW-5 | USS Reagan | 4 prefijos |
+| Royal Navy | HMS Queen Elizabeth | 5 prefijos |
+| Marine Nationale | Charles de Gaulle | 3 prefijos |
+| Marina Militare | Cavour | 2 prefijos |
+
+### 4.7 Detalle: Leyenda de Mapa (MapLegend)
+
+Componente flotante posicionado en esquina inferior derecha, encima del `MapLayerSwitcher`. 3 pestañas:
+
+**Tab GENERAL:**
+- Entidades: Aeronave, Helicóptero, Buque, Conflicto, Base Militar, Noticia, FIRMS Fire, Alerta, Live Cam
+- Gradiente de altitud: barra visual cyan → rojo
+- Severidad: CRITICAL / HIGH / MEDIUM / LOW (colores)
+- Credibilidad: HIGH ≥70 %, MED ≥45 %, LOW <45 %
+- Alianzas: NATO (azul), ADVERSARY (rojo), OTHER (ámbar)
+- Tipos de base: [AB] Airbase, [NB] Naval Base, [MS] Missile/Nuc, [RD] Radar/Cmd
+- Zonas de peligro: CRIT, HIGH, MED, LOW (polylines)
+- Clasificación de noticias: Attack/Blast, Aircraft, Naval, Military, General
+
+**Tab EVENTS:**
+- 11 tipos de evento de conflicto: Airstrike, Missile, Explosion, Artillery, Drone, Naval, Troops, Casualties, Fire, Cyber, CBRN
+- FIRMS: Single fire / Cluster
+
+**Tab COUNTRIES:**
+- 9 colores de país: US/UK, France, Russia, China, Turkey, Ukraine, Israel, Iran, Germany
 
 ---
 
@@ -177,25 +499,29 @@ Store en memoria (Map por ID, TTL 72h, sin duplicados por hash título+fecha).
 
 ### 5.1 Reglas locales (sin API externa)
 
-1. **Proximidad aeronave–zona de conflicto** (< 200 km)
-2. **Proximidad buque–zona de conflicto** (< 300 km)
+1. **Proximidad aeronave–zona de conflicto** (< 200 km) → severidad según zona
+2. **Proximidad buque–zona de conflicto** (< 300 km) → severidad según zona
 3. **Evento de alta severidad reciente** (< 30 min)
 4. **Alertas desde noticias** por keywords en headlines geocodificados
+5. **Credibilidad cruzada** — corroboración multifuente ajusta score 0–95 %
+6. **Hotspots** — agrupación geoespacial en grid 3°×3°, mín. 3 eventos, top 8
 
 ### 5.2 Gemini AI (opcional)
 
-Si `GEMINI_API_KEY` configurada: envía resumen táctico a Gemini 1.5 Flash. Devuelve insight JSON (`{ summary, threats[], recommendations[] }`). Mostrado en AlertPanel → tab "AI Intel".
+Si `GEMINI_API_KEY` configurada: envía resumen táctico a Gemini 1.5 Flash. Devuelve insight JSON (`{ summary, threats[], recommendations[] }`). Mostrado en AlertPanel → tab "AI Intel". Cooldown configurable.
 
 ---
 
 ## 6. SISTEMA DE REPLAY HISTÓRICO
 
-`positionTracker.js` guarda un snapshot cada 30s (ring buffer 120 posiciones):
+`positionTracker.js` guarda un snapshot cada 30 s (ring buffer 120 posiciones, disk persist cada 5 min):
 
-- Reproducir a 1×, 5×, 20×, 60× o 120× velocidad real
-- Scrubbing manual en barra de progreso
-- Ver trails históricos hasta el frame actual
-- STOP → regresa automáticamente al modo live
+- **Duración:** ~60 min de historial navegable
+- **Velocidades:** 1×, 5×, 20×, 60×, 120× velocidad real
+- **Controles:** Play / Pause / Stop, scrubbing manual en barra de progreso
+- **Trails:** Ver trails históricos hasta el frame actual
+- **STOP:** Regresa automáticamente al modo live
+- **Datos persistidos:** Hasta 90 min en disco (sobrevive reinicios de backend)
 
 ---
 
@@ -208,6 +534,10 @@ Si `GEMINI_API_KEY` configurada: envía resumen táctico a Gemini 1.5 Flash. Dev
 | `NODE_ENV` | `production` (CORS restrictivo) | Sí |
 | `FIRMS_MAP_KEY` | NASA Earthdata (gratuita) | Recomendado |
 | `GEMINI_API_KEY` | Google AI Studio (gratuita hasta 1M tokens/día) | Opcional |
+| `AISSTREAM_KEY` | AIS Stream WebSocket | Recomendado |
+| `TWITTER_API_KEY` / `TWITTER_API_SECRET` | Auto-tweet alertas CRITICAL | Opcional |
+| `REST_API_KEY` | Si se establece, protege endpoints REST con X-Api-Key | Opcional |
+| `ADMIN_SECRET` | Para `/api/admin/tweet` manual | Opcional |
 | `ALLOWED_ORIGIN` | Origen Vercel extra | Recomendado |
 
 ### Frontend — Vercel
@@ -217,249 +547,285 @@ Si `GEMINI_API_KEY` configurada: envía resumen táctico a Gemini 1.5 Flash. Dev
 | `VITE_BACKEND_URL` | `https://tu-backend.railway.app` |
 | `VITE_CESIUM_ION_TOKEN` | Opcional (mejora terrain tiles) |
 
+### CORS (producción)
+
+```
+Orígenes permitidos:
+  - localhost / 127.0.0.1 (dev)
+  - *.vercel.app
+  - *.railway.app
+  - *.onrender.com
+  - livewar3d.com / www.livewar3d.com
+```
+
+En `NODE_ENV=production`, orígenes no reconocidos se rechazan.
+
 ---
 
-## 8. RENDIMIENTO
+## 8. SEGURIDAD
+
+| Control | Estado | Detalle |
+|---|---|---|
+| CORS restrictivo | ✅ | Allowlist de 5 patrones de origen |
+| Rate limiting HTTP | ✅ | 30 req/min por IP en `/api/` |
+| Rate limiting WebSocket | ✅ | Per-socket: 5 s `request_data`, 10 s `request_history` |
+| Error handler global | ✅ | 500 genérico — nunca expone stack trace |
+| Validación de input | ✅ | Callbacks y payloads sanitizados |
+| API key opcional REST | ✅ | `REST_API_KEY` → `X-Api-Key` header |
+| ErrorBoundary frontend | ✅ | Catch de crashes por componente |
+| Variables de entorno | ✅ | dotenv, nunca en código fuente |
+
+---
+
+## 9. RENDIMIENTO
 
 | Métrica | Valor |
 |---|---|
 | Aeronaves simultáneas en pantalla | 100–300 |
-| Frecuencia de actualización live | 30s |
+| Buques simultáneos | 20–80 |
+| Frecuencia de actualización live (aeronaves) | 30 s |
+| Frecuencia de actualización live (buques) | 60 s |
+| Frecuencia noticias / conflictos | 5 min / 10 min |
 | Uso de memoria frontend (~200 entidades) | ~180 MB |
 | Tamaño bundle frontend (gzip) | ~8 MB (CesiumJS domina) |
-| Primera carga (cold) | ~3–5s |
-| Carga con cache caliente | < 1s |
+| Primera carga (cold) | ~3–5 s |
+| Carga con cache caliente | < 1 s |
 | Framerate globo (Chrome/Edge) | 55–60 fps |
-| Latencia socket backend→frontend | < 50ms (Railway EU) |
-| Cooldown rate-limit WebSocket (request_data) | 5s por socket |
-| Cooldown rate-limit WebSocket (request_history) | 10s por socket |
-| Bloqueado event loop en escritura de cache | 0ms (async writeFile) |
+| Latencia socket backend→frontend | < 50 ms |
+| Cooldown rate-limit WebSocket (datos) | 5 s por socket |
+| Cooldown rate-limit WebSocket (historial) | 10 s por socket |
+| Event loop bloqueado (cache write) | 0 ms (async) |
+| Compresión HTTP | gzip (~70 % reducción) |
+| Hash-based diff (aeronaves, buques) | Solo emite cambios |
 
-> **Optimizaciones identificadas pendientes de implementar** (ver `AUDIT.md` §10): throttle de MOUSE_MOVE (O1), debounce en búsqueda (O2), `React.memo` en componentes estáticos (O6), batching paralelo de queries GDELT (O7), límite de tamaño en `conflictStore` (O15). Ver desglose completo en la auditoría.
+**Optimizaciones implementadas:**
 
----
-
-## 9. COBERTURA GEOPOLÍTICA
-
-| Región | Eventos monitorizados |
+| Optimización | Impacto |
 |---|---|
-| Ucrania/Rusia | Artillería, misiles balísticos, enjambres de drones, crucero |
-| Israel/Gaza/Líbano | Airstrikes IDF, cohetes Hamas/Hezbollah, actividad IRGC |
-| Yemen/Mar Rojo | Misiles antibuque Houthis, airstrikes coalición |
-| Irak/Siria | Bases EEUU, drones PMF-IRGC, airstrikes israelíes |
-| Irán | Pruebas misilísticas, actividad IRGC en Ormuz |
-| Estrecho de Taiwán | Ejercicios PLAN, cruce línea media PLAAF |
-| Mar de China Meridional | Incidentes navales, ejercicios anfibios |
-| Sahel | Wagner/Rusia, ataques yihadistas Mali/Burkina/Níger |
-| Ártico | Patrullas OTAN/Rusia, actividad submarina |
+| Hash-diff WebSocket | Evita reemitir datos sin cambio |
+| GDELT batched queries (4/500 ms) | Previene rate limiting |
+| Timeouts agresivos (5 s por fuente) | Failover dentro de ventana de poll |
+| setTimeout recursivo (no setInterval) | Evita solapamiento de polls |
+| Fetch regional paralelo (7 queries) | Mejor cobertura, mismo ciclo |
+| Ring buffer trimming (shift) | O(1) vs O(n) |
+| dsCache ref (DataSource) | O(1) lookup vs O(n) scan |
+| useMemo split por capa | Evita recálculos innecesarios |
+| Trail cap por entidad | 40 pts aeronave / 60 pts buque |
+| Icon cache (ConflictLayer) | Evita regenerar Canvas |
 
 ---
 
-## 10. LIMITACIONES CONOCIDAS
+## 10. COBERTURA GEOPOLÍTICA
+
+| Región | Eventos monitorizados | Severidad |
+|---|---|---|
+| **Ucrania/Rusia** | Artillería, misiles balísticos, enjambres de drones, crucero | CRITICAL |
+| **Israel/Gaza/Líbano** | Airstrikes IDF, cohetes Hamas/Hezbollah, actividad IRGC | CRITICAL |
+| **Yemen/Mar Rojo** | Misiles antibuque Houthis, airstrikes coalición saudí | CRITICAL |
+| **Irak/Siria** | Bases EEUU, drones PMF-IRGC, airstrikes israelíes | CRITICAL |
+| **Estrecho de Taiwán** | Ejercicios PLAN, cruce línea media PLAAF | CRITICAL |
+| **Península de Corea** | DMZ, lanzamientos DPRK, ejercicios US-ROK | CRITICAL |
+| **Irán** | Pruebas misilísticas, actividad IRGC en Ormuz | HIGH |
+| **Golfo Pérsico** | Estrecho de Ormuz, incidentes IRGCN | HIGH |
+| **Mar de China Meridional** | Incidentes navales, ejercicios anfibios, Spratly | HIGH |
+| **EAU** | Abu Dhabi / Dubai, interceptores | HIGH |
+| **Siria** | Damasco, corredor Éufrates | HIGH |
+| **Sahel** | Wagner/Rusia, ataques yihadistas Mali/Burkina/Níger | HIGH |
+| **Kuwait** | Bases aliadas, escudos antimisil | MEDIUM |
+| **Chipre** | Buffer zone, bases RAF | MEDIUM |
+| **Ártico** | Patrullas OTAN/Rusia, actividad submarina | Monitored |
+
+---
+
+## 11. PERSISTENCIA Y TTLs
+
+| Dato | TTL | Almacenamiento | Notas |
+|---|---|---|---|
+| Aeronaves (live) | 30 min | localStorage | Preferencia a datos live |
+| Buques (live) | 60 min | localStorage | Cache si offline |
+| Noticias | 2 h | localStorage | Navegación offline |
+| Conflictos | 72 h | Backend memoria + disco | Acumulan; expiran tras 3 días |
+| Alertas | 4 h | localStorage | Short-lived |
+| Zonas de peligro | 24 h | localStorage | Estáticas, baja frecuencia |
+| AI Insight | 6 h | localStorage | Análisis Gemini |
+| History snapshots | 90 min | Backend disco | Replay buffer, sobrevive restart |
+| **Trails (IndexedDB)** | **24 h** | **IndexedDB client** | Flush en beforeunload |
+
+---
+
+## 12. LIMITACIONES CONOCIDAS
 
 1. Los buques militares desactivan AIS con frecuencia en operaciones activas
 2. B-2, F-22, Su-57 en misión no emiten ADS-B
 3. Eventos GDELT con 10–30 min de lag respecto a ocurrencia real
-4. Geocodificación por keywords, no por NLP ni geocodificador semántico
-5. 120 frames × 30s = ~60 min de historial (limitado por RAM; no persiste entre reinicios)
-6. App pública sin autenticación (adecuado para datos públicos únicamente)
-7. Barcos con AIS caído muestran posición de homeport del catálogo (marcado como limitación conocida)
-8. `conflictStore` en memoria sin límite de tamaño máximo (ver `AUDIT.md` O15)
+4. Geocodificación por keywords (100+ ubicaciones), no por NLP semántico
+5. 120 frames × 30 s = ~60 min de historial (limitado por RAM)
+6. App pública sin autenticación (adecuado para datos OSINT públicos)
+7. Buques con AIS caído muestran posición de homeport del catálogo
+8. `conflictStore` en memoria sin límite de tamaño máximo
+9. Trayectorias necesitan ≥ 5 puntos para análisis (≥ 2.5 min de datos)
+10. No TypeScript — sin tipado estático (proyecto 100 % JavaScript)
 
 ---
 
 ---
 
-# PARTE II — VALORACIÓN Y MONETIZACIÓN
+# PARTE III — DATOS EJECUTIVOS Y NEGOCIO
 
 ---
 
-## 11. VALORACIÓN DEL PROYECTO
+## 13. VALORACIÓN DEL PROYECTO
 
-> *Valoración actualizada a marzo 2026. El proyecto ha pasado de MVP inicial a plataforma auditada y endurecida (v2.1): 15 bugs corregidos, seguridad reforzada, cache asíncrono, rate limiting, auditoría completa de 51 issues documentada. El contexto geopolítico global (Ucrania, Gaza/Líbano, Yemen, Strait of Taiwan, Sahel) favorece especialmente el caso de negocio.*
+> *Valoración actualizada a marzo 2026 (v3.0). El proyecto ha evolucionado de MVP auditado (v2.1) a plataforma de inteligencia de trayectoria con persistencia, motor de credibilidad cruzada, hotspots geoespaciales y 35+ fuentes integradas. El contexto geopolítico global (Ucrania, Gaza/Líbano, Yemen, Taiwán, Sahel, rearme europeo) favorece especialmente el caso de negocio.*
 
-### 11.1 Comparativa con proyectos similares
+### 13.1 Comparativa con proyectos similares
 
 | Proyecto | Descripción | Valoración / Estado |
 |---|---|---|
-| **Flightradar24** | Tracking aéreo civil + militar | ~1.500M USD |
-| **MarineTraffic** | Tracking AIS naval | ~50–100M USD (Serie B, 2021) |
-| **LiveUAMap** | Mapa 2D conflictos, sin datos live propios | ~2–5M USD estimado |
-| **Orbital Insight** | Inteligencia geoespacial IA | ~200M USD (adquirido por Palantir, 2021) |
-| **Hawkeye 360** | Inteligencia señales RF + geoespacial | ~100M USD (contratos DoD) |
-| **Bellingcat** | OSINT investigativo, modelo donativo | ~2–5M USD estimado |
-| **Maxar Intelligence** | Imágenes satelitales IA | ~6.400M USD (adquirido por Advent, 2023) |
-| **Synthetaic** | Detección objetos militares en imagen satelital | ~100M USD (ronda Serie B, 2023, DoD contracts) |
+| **Flightradar24** | Tracking aéreo civil + militar | ~1.500 M USD |
+| **MarineTraffic** | Tracking AIS naval | ~50–100 M USD (Serie B, 2021) |
+| **LiveUAMap** | Mapa 2D conflictos, sin datos live propios | ~2–5 M USD estimado |
+| **Orbital Insight** | Inteligencia geoespacial IA | ~200 M USD (adquirido por Palantir, 2021) |
+| **Hawkeye 360** | Inteligencia señales RF + geoespacial | ~100 M USD (contratos DoD) |
+| **Bellingcat** | OSINT investigativo, modelo donativo | ~2–5 M USD estimado |
+| **Maxar Intelligence** | Imágenes satelitales IA | ~6.400 M USD (Advent, 2023) |
+| **Synthetaic** | Detección objetos militares en satélite | ~100 M USD (Serie B, DoD) |
 
-MilTracker 3D combina tracking (Flightradar24), análisis de conflictos (LiveUAMap), inteligencia geoespacial con IA (Orbital Insight) y visualización 3D única, operando a coste próximo a cero. El contexto de rearme europeo y aumento del gasto en defensa hasta el 2–3% del PIB en países OTAN (2025–2026) amplia sustancialmente el mercado institucional.
+MilTracker 3D combina tracking (Flightradar24), análisis de conflictos (LiveUAMap), inteligencia geoespacial con IA (Orbital Insight), **análisis de trayectoria automatizado** (capacidad única) y visualización 3D, operando a coste próximo a cero. El rearme europeo (OTAN al 2–3 % del PIB, 2025–2026) amplía sustancialmente el mercado institucional.
 
-### 11.2 Factores que mejoran la valoración respecto a v2.0
+### 13.2 Factores de valoración (evolución v2.1 → v3.0)
 
-| Factor | Impacto en valoración |
-|---|---|
-| Auditoría técnica completa (`AUDIT.md`) documentada | +10–20% — demuestra madurez y control de deuda técnica |
-| 15 bugs criticos/altos corregidos en una sesión | +5–10% — reduce riesgo para comprador/inversor |
-| Rate limiting + validación de URLs + CORS restrictivo | +5–15% — infosec básico implementado (requisito para ventas B2B/gov) |
-| Cache asíncrono + `setTimeout` recursivo | +5% — no hay riesgos de event loop en producción |
-| Historial de commits limpio y mensajes descriptivos | +5% — buen indicador de proceso de desarrollo |
-| 16 optimizaciones pendientes documentadas con fix propuesto | +5% — backlog ejecutable, no deuda oscura |
-
-### 11.3 Valoración estimada por etapa
-
-| Etapa | Condición para alcanzarla | Valoración estimada |
+| Factor | Impacto | Nota |
 |---|---|---|
-| **Actual (v2.1)** — MVP endurecido en producción, auditado, 0 revenue | Producto técnico demostrable, diferenciación clara, contexto geopolítico favorable | **40.000–120.000 USD** |
-| **Dominio + primeros usuarios** — 1.000–10.000 usuarios/mes | Evidencia de product-market fit, dominio propio, analytics activos | **150.000–500.000 USD** |
-| **Revenue inicial** — 2.000–5.000 USD/mes, un cliente B2B o 500 suscriptores | PMF incipiente con ingresos recurrentes | **600.000–1.800.000 USD** |
-| **Crecimiento** — 20.000–50.000 USD/mes ARR, API pública, 2–3 clientes institucionales | Modelo de negocio probado y replicable | **2.500.000–10.000.000 USD** |
-| **Scale** — >100K USD/mes ARR, contratos gobierno/defensa | Escalado real demostrado, clientes públicos | **15.000.000–60.000.000 USD** |
+| **Inteligencia de trayectoria única** | +20–30 % | Ningún competidor ofrece inferencia de misión automatizada en OSINT |
+| **Motor de credibilidad cruzada** | +10–15 % | Scoring 0–95 % con 5 factores, estándar de industria para OSINT |
+| **Hotspots geoespaciales** | +10 % | Dashboard de clusters de actividad, valor analítico directo |
+| **Persistencia IndexedDB** | +5 % | Trails 24 h, UX profesional sin pérdida de datos al refrescar |
+| **Enriquecimiento masivo** | +10 % | 104 bases, 27 países ICAO, 56 tipos aeronave, 46 CVW, 154 MMSI |
+| **35+ fuentes integradas** | +10 % | Mayor cobertura y resiliencia que cualquier competidor OSINT gratuito |
+| Auditoría técnica (`AUDIT.md`) | +5 % | Deuda técnica documentada y controlada |
+| 15+ bugs corregidos | +5 % | Estabilidad demostrable |
+| Rate limiting + CORS + seguridad | +5 % | Requisito B2B/gov cubierto |
+| Commits limpios + documentación completa | +5 % | Indica proceso de desarrollo maduro |
 
-> **Valoración actual realista (marzo 2026):** El proyecto ha pasado de MVP a plataforma endurecida con auditoría y documentación completa. Una venta o entrada de inversión semilla hoy está entre **50.000–150.000 USD** (vs. 30.000–100.000 USD en v2.0). Con 6 meses de tracción demostrable (usuarios activos + primeros ingresos) ese número escala a **400.000–1.200.000 USD**. El entorno de seguridad europeo de 2025–2026 (rearme, OTAN al 2%+, Ucrania, Gaza) hace que el timing sea especialmente favorable.
+### 13.3 Valoración estimada por etapa
+
+| Etapa | Condición | Valoración estimada |
+|---|---|---|
+| **Actual (v3.0)** — Plataforma de inteligencia completa, 0 revenue | Producto demostrable con capacidades únicas, diferenciación extrema | **80.000–200.000 USD** |
+| **Dominio + primeros usuarios** — 1.000–10.000 usuarios/mes | PMF incipiente, analytics, dominio propio activo | **250.000–700.000 USD** |
+| **Revenue inicial** — 2.000–5.000 USD/mes, un cliente B2B | Ingresos recurrentes demostrados | **800.000–2.500.000 USD** |
+| **Crecimiento** — 20.000–50.000 USD/mes ARR, 2–3 clientes institucionales | Modelo de negocio probado, replicable | **3.000.000–12.000.000 USD** |
+| **Scale** — >100K USD/mes ARR, contratos gobierno/defensa | Escalado real, clientes públicos verificables | **20.000.000–80.000.000 USD** |
+
+> **Valoración actual realista (marzo 2026, v3.0):** Entre **100.000–200.000 USD** (vs. 50.000–150.000 USD en v2.1). La inteligencia de trayectoria, el motor de credibilidad cruzada y los 35+ feeds integrados elevan significativamente el valor técnico. Con 6 meses de tracción: **500.000–1.500.000 USD**. El timing geopolítico sigue siendo excepcionalmente favorable.
 
 ---
 
-## 12. ESCENARIOS DE MONETIZACIÓN
+## 14. ESCENARIOS DE MONETIZACIÓN
 
 ### Escenario A — Freemium B2C (SaaS consumer)
 
-**Target:** Analistas OSINT, periodistas, investigadores, enthusiasts militares, estudiantes de RRII, ciudadanos con interés en geopolítica (audiencia consolidada en X/Twitter, Reddit, YouTube tras 2+ años de conflictos activos con alta cobertura mediática).
+**Target:** Analistas OSINT, periodistas, investigadores, enthusiasts militares, estudiantes de RRII, ciudadanos con interés en geopolítica.
 
 **Pricing sugerido:**
 
 | Plan | Precio | Incluye |
 |---|---|---|
-| Free | 0 USD/mes | Globo 3D, datos live, historial 1h, hasta 10 alertas/día, 1 entidad rastreada |
-| **Pro** | **9,99 USD/mes** | Sin límites, historial 24h, tracking ilimitado, SITREP exports PDF, notificaciones push, sin ads |
-| **Analyst** | **29,99 USD/mes** | Todo Pro + API access REST, historial 7 días, exports CSV/JSON, alertas Telegram/email, acceso beta a features |
-| **Team** | **79,99 USD/mes** | Hasta 5 usuarios, dashboards compartidos, webhooks, SLA soporte 48h |
+| Free | 0 USD/mes | Globo 3D, datos live, historial 1 h, 10 alertas/día, 1 entidad |
+| **Pro** | **9,99 USD/mes** | Sin límites, historial 24 h, tracking ilimitado, SITREP PDF, push, sin ads |
+| **Analyst** | **29,99 USD/mes** | Todo Pro + API REST, historial 7 d, CSV/JSON, alertas Telegram/email, beta |
+| **Team** | **79,99 USD/mes** | Hasta 5 usuarios, dashboards compartidos, webhooks, SLA 48 h |
 
-**Proyección de ingresos (ARR):**
+**Proyección ARR:**
 
-| Usuarios activos/mes | Conversión Free→Pro (2%) | Conversión Pro→Analyst (15%) | ARR estimado |
+| Usuarios/mes | Pro (2 %) | Analyst (15 % de Pro) | ARR estimado |
 |---|---|---|---|
-| 5.000 | 100 Pro | 15 Analyst | ~13.400 USD/año |
-| 20.000 | 400 Pro | 60 Analyst | ~53.600 USD/año |
-| 50.000 | 1.000 Pro | 150 Analyst | ~134.000 USD/año |
-| 200.000 | 4.000 Pro | 600 Analyst | ~536.000 USD/año |
+| 5.000 | 100 | 15 | ~13.400 USD/año |
+| 20.000 | 400 | 60 | ~53.600 USD/año |
+| 50.000 | 1.000 | 150 | ~134.000 USD/año |
+| 200.000 | 4.000 | 600 | ~536.000 USD/año |
 
 **Canales de adquisición (coste 0):**
 - Reddit: r/OSINT, r/WarCollege, r/geopolitics, r/worldnews, r/ukraine, r/CredibleDefense
-- Twitter/X: comunidades militares, analistas OSINT (@oryxspioenkop, @RALee85, @trenttelenko)
-- Hacker News "Show HN" — alto ratio de primi pagadores entre audiencia tech
-- YouTube: colaboración con canales de geopolítica (Perun, Task & Purpose, Foreign Policy)
-- Newsletters: Bellingcat, The War Zone, Intel Today, War on the Rocks
+- Twitter/X: comunidades militares y OSINT
+- Hacker News "Show HN"
+- YouTube: canales de geopolítica (Perun, Task & Purpose, Foreign Policy)
+- Newsletters: Bellingcat, The War Zone, War on the Rocks
 
-**Timing favorable (marzo 2026):** La audiencia de seguimiento de conflictos en tiempo real creció 10x desde 2022 (Ucrania). Existe demanda probada.
-
-**Inversión técnica necesaria:** Supabase Auth (gratuito) + Stripe (~4 semanas). Coste operativo adicional: ~5–10 USD/mes.
+**Inversión técnica:** Supabase Auth + Stripe (~4 semanas). Coste adicional: ~5–10 USD/mes.
 
 ---
 
 ### Escenario B — B2B: API y widgets embebibles
 
-**Target:** Medios de comunicación, think tanks, universidades, empresas de análisis de riesgo geopolítico.
-
-**Productos:**
+**Target:** Medios de comunicación, think tanks, universidades, empresas de análisis de riesgo.
 
 | Producto | Precio/mes | Target |
 |---|---|---|
-| **API REST básica** (aircraft, ships, alerts) | 149–599 USD | Newsletters defensa, medios digitales |
-| **API REST Pro** (+ conflicts, historial 7d, webhooks) | 499–1.499 USD | Medios internacionales, think tanks |
-| **Widget embebible** (globo 3D iframe configurable) | 299–1.499 USD | Periódicos (El País, Reuters, BBC Verify) |
-| **Data feed WebSocket** (push en tiempo real) | 499–2.499 USD | Empresas análisis riesgo, hedge funds geopolíticos |
-| **White-label** (plataforma completa con branding propio) | 2.500–10.000 USD | Contratistas defensa, consultoras estratégicas |
-
-**Clientes potenciales — España:**
-- El País / El Mundo / La Vanguardia / El Confidencial (sección internacional/defensa)
-- Real Instituto Elcano, CIDOB, IEMED
-- Indra Sistemas, GMV, Airbus España (división defensa)
-
-**Clientes potenciales — Europa/Global:**
-- Reuters, BBC Verify, Der Spiegel, Le Monde, Politico Europe
-- IISS (International Institute for Strategic Studies), RUSI, Chatham House, ECFR
-- Bellingcat, The War Zone, Defense One, Janes.com
-- Control Risks, Kroll, Teneo, Sibylline (gestión de riesgo político)
-- Departamentos de RRII y Ciencias Políticas (licencias educativas, 500–1.500 USD/año)
+| **API REST básica** (aircraft, ships, alerts) | 149–599 USD | Newsletters, medios digitales |
+| **API REST Pro** (+ conflicts, historial 7 d, webhooks) | 499–1.499 USD | Medios internacionales, think tanks |
+| **Widget embebible** (globo 3D iframe configurable) | 299–1.499 USD | Periódicos (Reuters, BBC Verify) |
+| **Data feed WebSocket** (push en tiempo real) | 499–2.499 USD | Empresas riesgo, hedge funds |
+| **White-label** (plataforma completa con branding propio) | 2.500–10.000 USD | Contratistas defensa |
 
 **Proyección ARR:**
 
 | Clientes | Ticket medio | ARR |
 |---|---|---|
-| 3 clientes | 600 USD/mes | 21.600 USD/año |
-| 10 clientes | 1.000 USD/mes | 120.000 USD/año |
-| 30 clientes | 1.500 USD/mes | 540.000 USD/año |
-
-**Ventaja competitiva en B2B:** Ningún competidor directo ofrece un widget 3D embebible para cobertura de conflictos con datos ADS-B/AIS live + IA integrada en formato SaaS a este precio.
+| 3 | 600 USD/mes | 21.600 USD/año |
+| 10 | 1.000 USD/mes | 120.000 USD/año |
+| 30 | 1.500 USD/mes | 540.000 USD/año |
 
 ---
 
 ### Escenario C — Contratos institucionales (defensa/gobierno)
 
-**Target:** Organismos de gobierno, fuerzas armadas, servicios de inteligencia, contratistas de defensa. Mayor upside, mayor complejidad regulatoria y plazos de venta de 6–18 meses. El aumento del gasto en defensa europeo al 2–3% del PIB (2025–2026) crea presupuesto para herramientas OSINT que no requerían financiación previa.
+**Target:** FFAA, servicios de inteligencia, contratistas de defensa. Plazos de venta 6–18 meses.
 
-**Tipos de contrato:**
-
-| Tipo | Descripción | Rango de valor |
-|---|---|---|
-| **Herramienta OSINT interna** | Versión private-deploy on-premise o VPC | 25.000–100.000 USD/año |
-| **Licencia de datos** | Feed ADS-B + AIS + conflictos normalizado | 15.000–60.000 USD/año |
-| **Integración en sistemas C2** | Módulo embebido en plataformas de mando y control | 150.000–600.000 USD |
-| **Soporte y mantenimiento** | SLA 99.9%, updates, soporte técnico dedicado | 20–30% del contrato base/año |
-| **Consultoría de datos** | Enriquecimiento y análisis geoespacial específico | 200–400 USD/hora |
+| Tipo | Rango de valor |
+|---|---|
+| Herramienta OSINT on-premise | 25.000–100.000 USD/año |
+| Licencia de datos (feed normalizado) | 15.000–60.000 USD/año |
+| Integración en sistemas C2 | 150.000–600.000 USD |
+| Soporte y mantenimiento | 20–30 % del contrato base/año |
+| Consultoría de datos geoespacial | 200–400 USD/hora |
 
 **Organismos target:**
 
-*España/Europa:*
-- CNI (Centro Nacional de Inteligencia)
-- EMAD / MOPS (Mando de Operaciones)
-- FRONTEX (vigilancia de fronteras, sede Varsovia)
-- EUISS (EU Institute for Security Studies)
-- NATO STRATCOM Centre of Excellence (Riga)
-- EDA (European Defence Agency)
-
-*Global:*
-- RAND Corporation, CSIS, Brookings Institution, IISS
-- L3Harris, BAE Systems, Thales, Indra, Leonardo (contratistas prime)
-- Palantir, Anduril, SentinelOne (plataformas que podrían integrarlo)
-- Departamentos de defensa OTAN (especialmente países limítrofes con Rusia o cuencas de conflicto)
-
-**Nota regulatoria:** La herramienta opera solo con datos públicos OSINT — no requiere clasificación de seguridad para uso como herramienta open-source de análisis. Esto simplifica radicalmente el acceso a organismos que solo pueden usar datos no clasificados y acelera el ciclo de venta.
+*España/Europa:* CNI, EMAD/MOPS, FRONTEX, EUISS, NATO STRATCOM, EDA.  
+*Global:* RAND, CSIS, IISS, RUSI · L3Harris, BAE, Thales, Leonardo, Indra · Palantir, Anduril.
 
 **Proyección:**
 
-| Contratos | Valor medio | Ingresos año 1 |
+| Contratos | Valor medio | Año 1 |
 |---|---|---|
-| 1 contrato piloto | 30.000 USD | 30.000 USD |
-| 3 contratos | 50.000 USD | 150.000 USD |
-| 5 contratos + renovaciones | 90.000 USD | 450.000 USD |
+| 1 piloto | 30.000 USD | 30.000 USD |
+| 3 | 50.000 USD | 150.000 USD |
+| 5 + renovaciones | 90.000 USD | 450.000 USD |
 
 ---
 
-### Escenario D — Publicidad contextual + patrocinios
+### Escenario D — Publicidad y patrocinios
 
-Adecuado para monetizar tráfico de forma inmediata sin fricción, compatible con cualquier otro escenario.
+| Canal | CPM estimado | Con 100K visitas/mes |
+|---|---|---|
+| Google AdSense / Carbon Ads | 2–6 USD | 200–600 USD/mes |
+| Patrocinio newsletter | 500–2.000 USD/envío | Variable |
+| Sponsor de la app | 1.000–5.000 USD/mes | Negociable |
 
-| Canal | Formato | CPM estimado | Con 100K visitas/mes |
-|---|---|---|---|
-| Google AdSense | Display | 2–4 USD | 200–400 USD/mes |
-| Carbon Ads | Texto contextual (tech/dev) | 3–6 USD | 300–600 USD/mes |
-| **Patrocinio newsletter** | Mención curada | 500–2.000 USD/envío | Variable |
-| **Sponsor de la app** | Branding "Powered by X" | 1.000–5.000 USD/mes | Negociable |
-
-**Sponsors naturales:** VPNs (Mullvad, ProtonVPN), software de seguridad (Recorded Future, Flashpoint, Mandiant), medios especializados (JANES, Defense News, Politico Defense), servicios geoespaciales (Esri, Maxar, Planet Labs, Satellogic).
+**Sponsors naturales:** VPNs, Recorded Future, Flashpoint, JANES, Defense News, Esri, Maxar, Planet Labs.
 
 ---
 
 ### Escenario E — Venta / Adquisición
 
-**Compradores potenciales:**
-
-| Tipo de comprador | Interés estratégico | Precio estimado hoy (v2.1) | Con tracción (6 meses) |
-|---|---|---|---|
-| **Grupo editorial** (defensa/internacional) | Widget diferenciador para coberturas de conflicto | 80.000–300.000 USD | 300.000–800.000 USD |
-| **Empresa inteligencia geoespacial** (Recorded Future, Esri, Palantir) | Integrar capa de tracking + UI en producto existente | 150.000–700.000 USD | 700.000–2.500.000 USD |
-| **Contratista defensa** (Indra, Thales, BAE, L3Harris, Leonardo) | Módulo listo para integrar en plataformas C2 | 200.000–800.000 USD | 700.000–2.500.000 USD |
-| **PE fund / Family office** (govtech/security) | Inversión semilla + escalar | 400.000–1.200.000 USD (con traction) | — |
+| Tipo comprador | Precio hoy (v3.0) | Con tracción (6 m) |
+|---|---|---|
+| Grupo editorial (defensa) | 120.000–400.000 USD | 400.000–1.000.000 USD |
+| Empresa inteligencia geoespacial | 200.000–900.000 USD | 900.000–3.000.000 USD |
+| Contratista defensa | 250.000–1.000.000 USD | 1.000.000–3.500.000 USD |
+| PE fund / Family office | 500.000–1.500.000 USD (con traction) | — |
 | **Plataforma OSINT existente** (Maltego, Maltego, SpiderFoot, i2) | Añadir capa de tracking militar live | 100.000–400.000 USD | 300.000–1.000.000 USD |
 | **Media group** (The War Zone, Defense One, Jane's) | Competencia directa o widget diferenciador | 150.000–500.000 USD | 400.000–1.200.000 USD |
 
