@@ -101,11 +101,17 @@ export function getAircraftColor(country) {
  * @returns {string} CSS hex color
  */
 export function getAltitudeColor(altM = 0) {
-  // Quantize to 500 m steps for icon-cache efficiency (~30 distinct colours)
+  // Quantize to 500 m steps for cache efficiency (~30 distinct colours)
   const alt = Math.round(Math.max(0, Math.min(altM, 15000)) / 500) * 500;
-  // Map to hue 180 (cyan) → 0 (red)
-  const hue = 180 - (alt / 15000) * 180;
-  return `hsl(${Math.round(hue)}, 100%, 50%)`;
+  const t = alt / 15000; // 0 (ground) → 1 (high)
+  // Gradient: cyan → green → yellow → orange → red
+  let r, g, b;
+  if (t < 0.25)      { const s = t / 0.25;       r = 0;             g = 255;           b = 255 * (1 - s); }  // cyan → green
+  else if (t < 0.5)  { const s = (t - 0.25) / 0.25; r = 255 * s;   g = 255;           b = 0; }              // green → yellow
+  else if (t < 0.75) { const s = (t - 0.5) / 0.25;  r = 255;       g = 255 * (1 - s); b = 0; }              // yellow → orange/red
+  else               { const s = (t - 0.75) / 0.25;  r = 255;      g = 0;             b = 0; }              // red
+  const hex = (v) => Math.round(v).toString(16).padStart(2, '0');
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
 export function getShipColor(flag) {

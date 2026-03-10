@@ -34,7 +34,7 @@ const MAX_TRAIL_POINTS = 40;
 // Duration (ms) over which entity position is linearly interpolated.
 // Matches the aircraft poll interval so movement looks continuous.
 const SMOOTH_MS = 10_000;
-const TRAIL_STORAGE_KEY = 'mlt_trails_v1';
+const TRAIL_STORAGE_KEY = 'mlt_trails_v2';
 
 function loadStoredTrails() {
   try {
@@ -43,7 +43,7 @@ function loadStoredTrails() {
     const parsed = JSON.parse(raw);
     const map = new Map();
     for (const [id, pts] of Object.entries(parsed)) {
-      map.set(id, pts.map(p => new Cesium.Cartesian3(p.x, p.y, p.z)));
+      map.set(id, pts.map(p => ({ pos: new Cesium.Cartesian3(p.x, p.y, p.z), altM: p.a || 0 })));
     }
     return map;
   } catch (_) { return new Map(); }
@@ -53,7 +53,7 @@ function saveTrails(trailPointsMap) {
   try {
     const obj = {};
     for (const [id, pts] of trailPointsMap.entries()) {
-      obj[id] = pts.map(p => ({ x: p.x, y: p.y, z: p.z }));
+      obj[id] = pts.map(p => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, a: p.altM }));
     }
     sessionStorage.setItem(TRAIL_STORAGE_KEY, JSON.stringify(obj));
   } catch (_) { /* storage full — ignore */ }
@@ -178,9 +178,9 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         if (!currentIds.has(id)) {
           // Remove immediately when aircraft leaves ADS-B feed
           const acEnt    = entityMapRef.current.get(id);
-          const trailEnt = trailEntityRef.current.get(id);
+          const trailSegs = trailEntityRef.current.get(id);
           if (acEnt)    acDS.entities.remove(acEnt);
-          if (trailEnt) trailDS.entities.remove(trailEnt);
+          if (trailSegs) for (const seg of trailSegs) trailDS.entities.remove(seg);
           entityMapRef.current.delete(id);
           trailEntityRef.current.delete(id);
         }
@@ -195,7 +195,6 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         const position = Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, altM);
         const isTracked = trackedList?.has(ac.id);
         const iconColor = isTracked ? '#FFD700' : '#ffffff';
-        const trailColor = getAltitudeColor(altM);
         const helo     = isHelicopter(ac.aircraftType);
         const iconUri  = getCachedIcon(ac.heading, iconColor, helo);
 
@@ -206,45 +205,45 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         const pts = trailPointsRef.current.get(ac.id);
 
         // Only append if moved at least ~100 m (skip GPS jitter while on ground)
-        const last = pts[pts.length - 1];
-        const moved = !last || Cesium.Cartesian3.distance(last, position) > 100;
+        const lastPt = pts[pts.length - 1];
+        const moved = !lastPt || Cesium.Cartesian3.distance(lastPt.pos, position) > 100;
         if (moved) {
-          pts.push(position);
+          pts.push({ pos: position, altM });
           if (pts.length > MAX_TRAIL_POINTS) pts.splice(0, pts.length - MAX_TRAIL_POINTS);
         }
 
-        const cesiumTrailColor = Cesium.Color.fromCssColorString(trailColor);
-
-        // ── Polyline trail ─────────────────────────────────────────────────
+        // ── Polyline trail (per-segment altitude gradient) ─────────────────
         if (TRAIL_RANGE > 0 && pts.length >= 2) {
-          if (trailEntityRef.current.has(ac.id)) {
-            // Update existing trail positions + color
-            const te = trailEntityRef.current.get(ac.id);
-            te.polyline.positions = new Cesium.ConstantProperty(pts.slice());
-            te.polyline.material.color = cesiumTrailColor.withAlpha(0.7);
-          } else {
-            // Create trail entity
-            const te = trailDS.entities.add({
-              id: `trail-${ac.id}`,
+          // Remove old trail segments for this aircraft
+          const oldSegs = trailEntityRef.current.get(ac.id);
+          if (oldSegs) {
+            for (const seg of oldSegs) trailDS.entities.remove(seg);
+          }
+          // Create one 2-point segment per pair, colored by average altitude
+          const segs = [];
+          for (let i = 0; i < pts.length - 1; i++) {
+            const avgAlt = (pts[i].altM + pts[i + 1].altM) / 2;
+            const segColor = Cesium.Color.fromCssColorString(getAltitudeColor(avgAlt));
+            // Fade older segments (alpha based on position in trail)
+            const alpha = 0.3 + 0.6 * (i / (pts.length - 1));
+            const seg = trailDS.entities.add({
+              id: `trail-${ac.id}-${i}`,
               polyline: {
-                positions: new Cesium.ConstantProperty(pts.slice()),
-                width: 1.5,
-                material: new Cesium.PolylineGlowMaterialProperty({
-                  glowPower: 0.12,
-                  taperPower: 1.0,      // fades toward the oldest end
-                  color: cesiumTrailColor.withAlpha(0.7),
-                }),
+                positions: [pts[i].pos, pts[i + 1].pos],
+                width: 2,
+                material: segColor.withAlpha(alpha),
                 clampToGround: false,
                 followSurface: false,
                 distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE),
               },
             });
-            trailEntityRef.current.set(ac.id, te);
+            segs.push(seg);
           }
+          trailEntityRef.current.set(ac.id, segs);
         } else if (TRAIL_RANGE === 0 && trailEntityRef.current.has(ac.id)) {
           // mobile: remove existing trails
-          const te = trailEntityRef.current.get(ac.id);
-          trailDS.entities.remove(te);
+          const oldSegs = trailEntityRef.current.get(ac.id);
+          if (oldSegs) for (const seg of oldSegs) trailDS.entities.remove(seg);
           trailEntityRef.current.delete(ac.id);
         }
 
