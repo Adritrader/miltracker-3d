@@ -374,7 +374,7 @@ async function pollNews() {
     // Only emit danger_update when alerts or zones actually changed (B11/P3)
     const dangerHash = hashDanger(cache.dangerZones, cache.alerts);
     if (dangerHash !== prevHash.danger) {
-      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts, hotspots: cache.hotspots });
       prevHash.danger = dangerHash;
     }
   } catch (err) {
@@ -402,7 +402,7 @@ io.on('connection', (socket) => {
   socket.emit('ship_update',     { ships: cache.ships,       timestamp: cache.lastShipUpdate });
   socket.emit('news_update',     { news: cache.news,         timestamp: cache.lastNewsUpdate });
   socket.emit('conflict_update', { conflicts: cache.conflicts, timestamp: cache.lastConflictUpdate });
-  socket.emit('danger_update',   { dangerZones: cache.dangerZones, alerts: cache.alerts });
+  socket.emit('danger_update',   { dangerZones: cache.dangerZones, alerts: cache.alerts, hotspots: cache.hotspots });
   // Serve persisted AI insight immediately — no need to wait for next Gemini poll
   if (cachedAiInsight) socket.emit('ai_insight', cachedAiInsight);
 
