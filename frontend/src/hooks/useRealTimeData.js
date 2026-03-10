@@ -42,6 +42,7 @@ export function useRealTimeData() {
   const [news, setNews] = useState(() => cacheLoad('news') || []);
   const [conflicts, setConflicts] = useState(() => cacheLoad('conflicts') || []);
   const [alerts, setAlerts] = useState(() => cacheLoad('alerts') || []);
+  const [hotspots, setHotspots] = useState(() => cacheLoad('hotspots') || []);
   const [dangerZones, setDangerZones] = useState(() => cacheLoad('dangerZones') || []);
   const [aiInsight, setAiInsight] = useState(() => cacheLoad('aiInsight'));
   const [aiError, setAiError] = useState(null);
@@ -129,14 +130,17 @@ export function useRealTimeData() {
       lastUpdateRef.current = { ...lastUpdateRef.current, conflicts: timestamp };
     });
 
-    socket.on('danger_update', ({ dangerZones: dz, alerts: al }) => {
+    socket.on('danger_update', ({ dangerZones: dz, alerts: al, hotspots: hs }) => {
       const zones = dz || [];
       const alrts = al || [];
+      const spots = hs || [];
       // Always update alerts (they signal new threats even if empty means all-clear)
       setDangerZones(zones);
       setAlerts(alrts);
+      setHotspots(spots);
       if (zones.length > 0) cacheSave('dangerZones', zones);
       cacheSave('alerts', alrts); // always save, even empty array = all-clear
+      cacheSave('hotspots', spots);
       // B11: track last received danger timestamp so reconnect logic knows data is fresh
       lastUpdateRef.current = { ...lastUpdateRef.current, dangerZones: new Date().toISOString() };
     });
@@ -158,5 +162,5 @@ export function useRealTimeData() {
     return () => socket.disconnect();
   }, []);
 
-  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef };
+  return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, hotspots, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef };
 }

@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
 import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds } from './services/newsService.js';
-import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews, probeGeminiModel } from './services/aiDanger.js';
+import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews, computeHotspots, probeGeminiModel } from './services/aiDanger.js';
 import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
 import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './services/positionTracker.js';
@@ -161,6 +161,7 @@ let cache = {
   news:               [...newsStore.values()].sort((a,b) => new Date(b.publishedAt||b.firstSeenAt||0) - new Date(a.publishedAt||a.firstSeenAt||0)),
   conflicts:          [...conflictStore.values()].sort((a,b) => new Date(b.publishedAt||b.firstSeenAt||0) - new Date(a.publishedAt||a.firstSeenAt||0)),
   alerts:             [],
+  hotspots:           [],
   dangerZones:        [],
   lastAircraftUpdate: null,
   lastShipUpdate:     null,
@@ -192,6 +193,7 @@ app.get('/api/aircraft', (req, res) => res.json(cache.aircraft));
 app.get('/api/ships',    (req, res) => res.json(cache.ships));
 app.get('/api/news',     (req, res) => res.json(cache.news));
 app.get('/api/alerts',   (req, res) => res.json(cache.alerts));
+app.get('/api/hotspots', (req, res) => res.json(cache.hotspots));
 app.get('/api/conflicts',(req, res) => res.json(cache.conflicts));
 app.get('/api/cameras',  (req, res) => res.json(getCameras()));
 
@@ -238,7 +240,7 @@ async function pollAircraft() {
     // Only emit danger_update when zones or alerts changed (P3)
     const dHash = hashDanger(cache.dangerZones, cache.alerts);
     if (dHash !== prevHash.danger) {
-      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts });
+      io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts, hotspots: cache.hotspots });
       prevHash.danger = dHash;
     }
     const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
@@ -328,9 +330,11 @@ async function pollNews() {
       cache.lastNewsUpdate = new Date().toISOString();
       saveCache('news', cache.news);
       // Re-compute alerts only when news changed — avoids unnecessary CPU + network (B11/O17)
-      cache.alerts = alertsFromNews(cache.news);
+      cache.alerts = alertsFromNews(cache.news, { aircraft: cache.aircraft, ships: cache.ships, conflicts: cache.conflicts });
+      cache.hotspots = computeHotspots({ alerts: cache.alerts, aircraft: cache.aircraft, ships: cache.ships, conflicts: cache.conflicts });
       saveCache('alerts', cache.alerts);
-      console.log(`[Alerts] ${cache.alerts.length} news-driven alerts generated (critical:${cache.alerts.filter(a=>a.severity==='critical').length})`);
+      console.log(`[Alerts] ${cache.alerts.length} alerts (critical:${cache.alerts.filter(a=>a.severity==='critical').length}) | ${cache.hotspots.length} hotspots`);
+      console.log(`[CrossRef] Credibility range: ${Math.min(...cache.alerts.map(a=>a.credibility||0))}%–${Math.max(...cache.alerts.map(a=>a.credibility||0))}%`);
       // Auto-tweet new critical alerts
       maybeTweetAlert(cache.alerts).catch(() => {});
     }

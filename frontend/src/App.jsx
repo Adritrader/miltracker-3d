@@ -112,7 +112,7 @@ function App() {
 
   // ─ Keyboard shortcuts ──────────────────────────────────────────────────────
   const {
-    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef,
+    connected, aircraft, aircraftSource, ships, news, conflicts, alerts, hotspots, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef,
   } = useRealTimeData();
 
   // Timeline replay
@@ -367,6 +367,7 @@ function App() {
       }}>
         <AlertPanel
           alerts={alerts}
+          hotspots={hotspots}
           aiInsight={aiInsight}
           aiError={aiError}
           geminiEnabled={geminiEnabled}

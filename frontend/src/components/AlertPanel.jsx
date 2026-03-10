@@ -13,9 +13,12 @@ const SEVERITY_CONFIG = {
   low:      { label: 'LOW',      bg: 'bg-green-950/80',   border: 'border-green-800',  text: 'text-green-400',  dot: '#00ff88' },
 };
 
+const CRED_COLOR = (pct) => pct >= 70 ? '#00ff88' : pct >= 45 ? '#ffaa00' : '#ff6666';
+
 const AlertItem = ({ alert, onFlyTo }) => {
   const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.low;
   const hasGeo = alert.lat != null && alert.lon != null;
+  const cred = alert.credibility ?? null;
 
   return (
     <div
@@ -33,7 +36,7 @@ const AlertItem = ({ alert, onFlyTo }) => {
             <span className="text-hud-text text-[10px] shrink-0 ml-1">{timeAgo(alert.timestamp)}</span>
           </div>
 
-          {/* Date/time + source row */}
+          {/* Date/time + source + credibility row */}
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {alert.timestamp && (() => {
               const d = new Date(alert.timestamp);
@@ -48,11 +51,29 @@ const AlertItem = ({ alert, onFlyTo }) => {
             {alert.source && (
               <span className="text-hud-green text-[10px] font-mono">{alert.source}</span>
             )}
+            {cred != null && (
+              <span
+                className="text-[10px] font-mono font-bold px-1 py-0.5 rounded"
+                style={{ color: CRED_COLOR(cred), background: 'rgba(0,0,0,0.4)' }}
+                title={alert.credibilityReasons?.join(' · ') || 'Cross-referenced credibility'}
+              >
+                {cred}%
+              </span>
+            )}
           </div>
 
           {/* Description */}
           {alert.message && alert.message !== alert.title && (
             <p className="text-hud-text text-[10px] mt-0.5 leading-relaxed line-clamp-2">{alert.message}</p>
+          )}
+
+          {/* Credibility reasons (if available) */}
+          {alert.credibilityReasons?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {alert.credibilityReasons.map((r, i) => (
+                <span key={i} className="text-[9px] font-mono text-hud-text bg-white/5 rounded px-1 py-0.5">✓ {r}</span>
+              ))}
+            </div>
           )}
 
           {/* Actions */}
@@ -204,7 +225,7 @@ const SitrepView = ({ alerts, aiInsight }) => {
   );
 };
 
-const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange, onHeightChange }) => {
+const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange, onHeightChange }) => {
   const [open, setOpen] = useState(!isMobile);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const panelRef = useRef(null);
@@ -276,14 +297,14 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
     <>
       {/* Tabs */}
       <div className="flex border-b border-hud-border" style={{ overflowX: 'hidden' }}>
-        {['alerts', 'sitrep'].map(t => (
+        {['alerts', 'hotspots', 'sitrep'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wide transition-colors
               ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
           >
-            {t === 'alerts' ? `⚠ CRIT (${criticalCount})` : 'SITREP'}
+            {t === 'alerts' ? `⚠ ${criticalCount}` : t === 'hotspots' ? `◉ ${hotspots.length}` : '≡ SITREP'}
           </button>
         ))}
       </div>
@@ -309,6 +330,32 @@ const AlertPanel = ({ alerts, aiInsight, aiError = null, geminiEnabled = null, v
               </>
             )
             : <div className="text-hud-text text-[10px] text-center py-4">No critical alerts</div>
+        )}
+
+        {tab === 'hotspots' && (
+          hotspots.length > 0
+            ? hotspots.map((h, i) => (
+                <div
+                  key={i}
+                  className="border border-hud-border/40 rounded p-2 mb-1.5 cursor-pointer hover:border-hud-green/60 transition-colors"
+                  onClick={() => flyToAlert({ lat: h.lat, lon: h.lon })}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-hud-amber text-[10px] font-mono font-bold uppercase">{h.label}</span>
+                    <span className="text-white text-[10px] font-mono font-bold">{h.total} events</span>
+                  </div>
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    {h.aircraft > 0 && <span className="text-hud-blue text-[9px] font-mono">▲ {h.aircraft} aircraft</span>}
+                    {h.ships > 0 && <span className="text-hud-blue text-[9px] font-mono">▬ {h.ships} ships</span>}
+                    {h.news > 0 && <span className="text-hud-amber text-[9px] font-mono">■ {h.news} news</span>}
+                    {h.firms > 0 && <span className="text-red-400 text-[9px] font-mono">● {h.firms} thermal</span>}
+                  </div>
+                  <div className="text-hud-text text-[9px] mt-0.5">
+                    ⊕ Click to fly to zone
+                  </div>
+                </div>
+              ))
+            : <div className="text-hud-text text-[10px] text-center py-4">Computing hotspots…</div>
         )}
 
         {tab === 'sitrep' && (

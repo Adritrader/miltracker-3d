@@ -255,11 +255,129 @@ function classifySeverity(title = '', description = '') {
   return 'low';
 }
 
+// ─── Cross-Reference Credibility Engine ──────────────────────────────────────
+// Computes a 0–95% credibility score for each alert by cross-referencing
+// multiple independent data sources. OSINT is never 100% certain.
+const SEVERITY_BASE = { critical: 40, high: 30, medium: 20, low: 10 };
+
+function computeCredibility(alert, { allAlerts = [], aircraft = [], ships = [], conflicts = [] } = {}) {
+  let score = SEVERITY_BASE[alert.severity] || 10;
+  const reasons = [];
+
+  // Skip alerts without geolocation — can only score on keywords
+  if (alert.lat == null || alert.lon == null) {
+    return { credibility: Math.min(score, 50), credibilityReasons: ['No geolocation — keyword-only assessment'] };
+  }
+
+  // +15 — Located inside an active conflict zone
+  for (const zone of CONFLICT_ZONES) {
+    if (distKm(alert.lat, alert.lon, zone.lat, zone.lon) <= zone.radius) {
+      score += 15;
+      reasons.push(`Inside ${zone.name}`);
+      break; // only count once
+    }
+  }
+
+  // +20 — Multiple independent sources report similar event within 100km
+  const corroborating = allAlerts.filter(a =>
+    a.id !== alert.id &&
+    a.source !== alert.source &&
+    a.lat != null &&
+    distKm(alert.lat, alert.lon, a.lat, a.lon) < 100 &&
+    Math.abs(new Date(a.timestamp) - new Date(alert.timestamp)) < 6 * 3600_000 // within 6h
+  );
+  if (corroborating.length >= 2) {
+    score += 20;
+    reasons.push(`${corroborating.length} corroborating reports`);
+  } else if (corroborating.length === 1) {
+    score += 10;
+    reasons.push('1 corroborating report');
+  }
+
+  // +15 — FIRMS thermal anomaly / conflict event within 100km
+  const nearbyFirms = conflicts.filter(c =>
+    c.lat != null && c.lon != null &&
+    (c.source === 'NASA FIRMS' || c.type === 'explosion' || c.type === 'airstrike') &&
+    distKm(alert.lat, alert.lon, c.lat, c.lon) < 100
+  );
+  if (nearbyFirms.length > 0) {
+    score += 15;
+    reasons.push(`${nearbyFirms.length} thermal/conflict events nearby`);
+  }
+
+  // +10 — Military aircraft within 150km
+  const nearbyAC = aircraft.filter(a =>
+    a.lat != null && a.lon != null &&
+    distKm(alert.lat, alert.lon, a.lat, a.lon) < 150
+  );
+  if (nearbyAC.length > 0) {
+    score += 10;
+    reasons.push(`${nearbyAC.length} military aircraft nearby`);
+  }
+
+  // +10 — Warships within 100km
+  const nearbyShips = ships.filter(s =>
+    s.lat != null && s.lon != null &&
+    distKm(alert.lat, alert.lon, s.lat, s.lon) < 100
+  );
+  if (nearbyShips.length > 0) {
+    score += 10;
+    reasons.push(`${nearbyShips.length} warships nearby`);
+  }
+
+  return { credibility: Math.min(score, 95), credibilityReasons: reasons };
+}
+
+// ─── Hotspots Generator ─────────────────────────────────────────────────────
+// Clusters all geolocated activity (alerts + aircraft + ships + FIRMS/conflicts)
+// into geographic cells and returns the top hotspot zones ranked by density.
+export function computeHotspots({ alerts = [], aircraft = [], ships = [], conflicts = [] } = {}) {
+  const CELL_DEG = 3; // ~330km cells
+  const cells = {};
+
+  function addToCell(lat, lon, type, label) {
+    if (lat == null || lon == null) return;
+    const key = `${Math.round(lat / CELL_DEG) * CELL_DEG},${Math.round(lon / CELL_DEG) * CELL_DEG}`;
+    if (!cells[key]) cells[key] = { lat: 0, lon: 0, count: 0, aircraft: 0, ships: 0, news: 0, firms: 0, labels: new Set() };
+    const c = cells[key];
+    c.lat += lat; c.lon += lon; c.count++;
+    if (type === 'aircraft') c.aircraft++;
+    else if (type === 'ship') c.ships++;
+    else if (type === 'firms') c.firms++;
+    else c.news++;
+    if (label) c.labels.add(label);
+  }
+
+  for (const a of alerts)    addToCell(a.lat, a.lon, 'news', a.geocodedFrom);
+  for (const a of aircraft)  addToCell(a.lat, a.lon, 'aircraft');
+  for (const s of ships)     addToCell(s.lat, s.lon, 'ship');
+  for (const c of conflicts) {
+    const type = c.source === 'NASA FIRMS' ? 'firms' : 'news';
+    addToCell(c.lat, c.lon, type);
+  }
+
+  return Object.values(cells)
+    .filter(c => c.count >= 3) // only meaningful clusters
+    .map(c => ({
+      lat: +(c.lat / c.count).toFixed(2),
+      lon: +(c.lon / c.count).toFixed(2),
+      total: c.count,
+      aircraft: c.aircraft,
+      ships: c.ships,
+      news: c.news,
+      firms: c.firms,
+      label: [...c.labels].filter(Boolean).slice(0, 2).join(', ') || 'Unknown Area',
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+}
+
 /**
- * Convert news items into alert objects.
+ * Convert news items into alert objects with credibility scoring.
  * Only items that match at least medium severity are converted.
+ * Pass optional context ({ aircraft, ships, conflicts }) for cross-referencing.
  */
-export function alertsFromNews(newsItems = []) {
+export function alertsFromNews(newsItems = [], context = {}) {
   const alerts = [];
   for (const item of newsItems) {
     const severity = classifySeverity(item.title, item.description);
@@ -283,11 +401,21 @@ export function alertsFromNews(newsItems = []) {
       geocodedFrom: geo.geocodedFrom || null,
     });
   }
-  // Sort critical first, then by newest
+
+  // Cross-reference: compute credibility for each alert
+  const ctx = { allAlerts: alerts, aircraft: context.aircraft || [], ships: context.ships || [], conflicts: context.conflicts || [] };
+  for (const alert of alerts) {
+    const { credibility, credibilityReasons } = computeCredibility(alert, ctx);
+    alert.credibility = credibility;
+    alert.credibilityReasons = credibilityReasons;
+  }
+
+  // Sort critical first, then by credibility, then by newest
   return alerts
     .sort((a, b) => {
       const sev = { critical: 4, high: 3, medium: 2, low: 1 };
       if (sev[b.severity] !== sev[a.severity]) return sev[b.severity] - sev[a.severity];
+      if (b.credibility !== a.credibility) return b.credibility - a.credibility;
       return new Date(b.timestamp) - new Date(a.timestamp);
     })
     .slice(0, 100);
