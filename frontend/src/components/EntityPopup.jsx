@@ -60,7 +60,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, speedUnit = 'kt' }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -292,7 +292,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="ICAO24"    value={entity.icao24} />
               <Row label="COUNTRY"   value={acCountryDisplay} />
               <Row label="ALTITUDE"  value={`${acAltFt.toLocaleString()} ft`}       highlight="text-hud-amber" />
-              <Row label="SPEED"     value={`${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
+              <Row label="SPEED"     value={speedUnit === 'kmh' ? `${Math.round((entity.velocity || 0) * 1.852)} km/h` : `${Math.round(entity.velocity || 0)} kt`} highlight="text-hud-amber" />
               <Row label="HEADING"   value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
               <Row label="VERT RATE" value={acVrStr} />
               <Row label="SQUAWK"    value={entity.squawk || '\u2014'} />
@@ -355,7 +355,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="MMSI"        value={entity.mmsi} />
               <Row label="FLAG"        value={shipFlagDisplay} />
               <Row label="TYPE"        value={entity.type || 'Military'} />
-              <Row label="SPEED"       value={`${Math.round(entity.velocity || 0)} kn`} highlight="text-hud-amber" />
+              <Row label="SPEED"       value={speedUnit === 'kmh' ? `${Math.round((entity.velocity || 0) * 1.852)} km/h` : `${Math.round(entity.velocity || 0)} kn`} highlight="text-hud-amber" />
               <Row label="HEADING"     value={`${Math.round(entity.heading || 0)}\u00b0 ${headingToCompass(entity.heading || 0)}`} />
               <Row label="DESTINATION" value={entity.destination || '\u2014'} />
               <Row label="POSITION"    value={`${entity.lat?.toFixed(3)}\u00b0, ${entity.lon?.toFixed(3)}\u00b0`} />

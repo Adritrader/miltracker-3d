@@ -30,7 +30,7 @@ const Seg = ({ label, value, valueClass = 'text-hud-green', children }) => (
   </div>
 );
 
-const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false, onOpenLegal }) => {
+const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false, onOpenLegal, speedUnit = 'kt', onToggleSpeedUnit }) => {
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
@@ -198,8 +198,15 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
             }`}
           >
             {shareCopied ? '✓ COPIED' : '⎘ SHARE'}
-          </button>
-        </div>
+          </button>          <button
+            onClick={onToggleSpeedUnit}
+            title="Toggle speed units: knots / km/h"
+            className="hud-label text-xs px-2 py-0.5 rounded border border-hud-border/50
+                       hover:border-hud-cyan hover:text-hud-cyan transition-colors duration-150
+                       text-hud-amber font-bold"
+          >
+            {speedUnit === 'kt' ? 'KT' : 'KM/H'}
+          </button>        </div>
       </>)}
 
       {/* UTC Clock */}

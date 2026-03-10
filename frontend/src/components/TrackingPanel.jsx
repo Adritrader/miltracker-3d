@@ -14,7 +14,7 @@ import * as Cesium from 'cesium';
 
 const PANEL_H = 40; // fixed pill-bar height
 
-const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false, onHeightChange, newsPanelHeight = 40 }) => {
+const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntrackAll, isMobile = false, onHeightChange, newsPanelHeight = 40, speedUnit = 'kt' }) => {
   const panelRef = useRef(null);
 
   // Report rendered height to parent (Timeline, MapLayerSwitcher, SITREP).
@@ -117,7 +117,7 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
                 )}
                 {alive && speed != null && (
                   <span className="text-hud-green hidden md:inline">
-                    {speed}{type === 'aircraft' ? 'kt' : 'kn'}
+                    {type === 'aircraft' && speedUnit === 'kmh' ? `${Math.round(speed * 1.852)}km/h` : `${speed}${type === 'aircraft' ? 'kt' : 'kn'}`}
                   </span>
                 )}
                 {/* FLY TO icon */}

@@ -13,7 +13,7 @@
 
 ## EXECUTIVE SUMMARY
 
-**MilTracker 3D** es una plataforma de inteligencia de situación militar (ISR) en tiempo real que visualiza aeronaves militares, buques de guerra, eventos de conflicto activo, alertas con IA, anomalías térmicas (NASA FIRMS) y noticias geoespaciales sobre un globo 3D interactivo. Agrega y correlaciona datos de **35+ fuentes públicas** actualizando cada 30 segundos la actividad militar mundial.
+**MlTrackeri 3D** es una plataforma de inteligencia de situación militar (ISR) en tiempo real que visualiza aeronaves militares, buques de guerra, eventos de conflicto activo, alertas con IA, anomalías térmicas (NASA FIRMS) y noticias geoespaciales sobre un globo 3D interactivo. Agrega y correlaciona datos de **35+ fuentes públicas** actualizando cada 30 segundos la actividad militar mundial.
 
 ### Datos clave del producto
 

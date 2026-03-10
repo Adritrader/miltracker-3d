@@ -91,6 +91,12 @@ function App() {
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
   const [newsFeedExpanded, setNewsFeedExpanded] = useState(false);
+  const [speedUnit, setSpeedUnit] = useState(() => localStorage.getItem('milt_speedUnit') || 'kt');
+
+  // Persist speed unit
+  useEffect(() => {
+    try { localStorage.setItem('milt_speedUnit', speedUnit); } catch { /* ignore */ }
+  }, [speedUnit]);
 
   // F1: persist filters whenever they change
   useEffect(() => {
@@ -251,6 +257,7 @@ function App() {
           trackedList={trackedList}
           replayMode={timeline.replayMode}
           historyTrack={timeline.historyTrack}
+          speedUnit={speedUnit}
         />
         </ErrorBoundary>
         <ErrorBoundary name="ShipLayer" silent>
@@ -390,6 +397,7 @@ function App() {
         isMobile={isMobile}
         onHeightChange={setTrackingPanelHeight}
         newsPanelHeight={newsPanelHeight}
+        speedUnit={speedUnit}
       />
 
       {/* Bottom-center: Timeline — always visible video-controls bar (auto-fetches history on mount) */}
@@ -440,6 +448,7 @@ function App() {
         onTrack={handleTrack}
         onUntrack={handleUntrack}
         onSatellite={setSatellitePortal}
+        speedUnit={speedUnit}
       />
 
       {/* SITREP capture — already rendered inline in the bottom-right container above */}
@@ -470,6 +479,8 @@ function App() {
         connected={connected}
         isMobile={isMobile}
         onOpenLegal={setLegalPage}
+        speedUnit={speedUnit}
+        onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
       />
 
       {/* Full blocking overlay — only when there's truly nothing cached to show */}
