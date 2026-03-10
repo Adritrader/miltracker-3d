@@ -15,6 +15,7 @@ import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './service
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled } from './services/supabaseStore.js';
 
 dotenv.config();
 
@@ -232,6 +233,17 @@ async function pollAircraft() {
     // Record position snapshot for timeline replay
     recordSnapshot(aircraft, cache.ships);
 
+    // Supabase: sample positions every 10 min + daily stats
+    snapshotPositions(aircraft, cache.ships).catch(() => {});
+    upsertDailyStats({
+      aircraftCount:  aircraft.length,
+      shipCount:      cache.ships.length,
+      alertCount:     cache.alerts.length,
+      conflictCount:  cache.conflicts.length,
+      newsCount:      cache.news.length,
+      criticalAlerts: cache.alerts.filter(a => a.severity === 'critical').length,
+    }).catch(() => {});
+
     const acHash = hashArr(aircraft);
     if (acHash !== prevHash.aircraft) {
       io.emit('aircraft_update', { aircraft, timestamp: cache.lastAircraftUpdate });
@@ -337,6 +349,8 @@ async function pollNews() {
       console.log(`[CrossRef] Credibility range: ${Math.min(...cache.alerts.map(a=>a.credibility||0))}%–${Math.max(...cache.alerts.map(a=>a.credibility||0))}%`);
       // Auto-tweet new critical alerts
       maybeTweetAlert(cache.alerts).catch(() => {});
+      // Supabase: archive new alerts
+      archiveAlerts(cache.alerts).catch(() => {});
     }
 
     // AI analysis — only when news changed AND 30-min cooldown has elapsed
@@ -478,4 +492,10 @@ httpServer.listen(PORT, () => {
   setInterval(pollConflicts, 10 * 60_000);
   // Persist snapshot ring buffer to disk every 5 min so Railway redeploys retain history (A4)
   setInterval(saveHistory, 5 * 60_000);
+
+  // Supabase: purge old snapshots on startup and daily
+  if (supabaseEnabled()) {
+    purgeOldSnapshots();
+    setInterval(purgeOldSnapshots, 24 * 60 * 60_000);
+  }
 });
