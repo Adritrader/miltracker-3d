@@ -11,6 +11,7 @@ import {
   headingToCompass, timeAgo
 } from '../utils/geoUtils.js';
 import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry, resolveAirport } from '../utils/militaryFilter.js';
+import { PATTERNS } from '../utils/trajectoryAnalysis.js';
 import {
   getAircraftImageUrl, getShipImageUrl, getBaseImageUrl, getConflictImageUrl, getCountryFallbackImage,
 } from '../utils/mediaLookup.js';
@@ -311,6 +312,37 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                   {entity.carrierOps.squadron !== 'CARRIER OPS' &&
                     <Row label="SQ"     value={entity.carrierOps.squadron} highlight="text-hud-green" />}
                   <Row label="MATCH"    value={entity.carrierOps.matchType === 'callsign' ? 'Callsign' : entity.carrierOps.matchType === 'hex_range' ? 'ICAO Hex Range' : `Proximity ${entity.carrierOps.distanceKm}km`} />
+                </div>
+              )}
+              {/* Trajectory Analysis */}
+              {entity._trajAnalysis && entity._trajAnalysis.pattern !== 'UNKNOWN' && (
+                <div className="mt-2 rounded-lg border border-cyan-400/40 bg-cyan-950/40 p-2 space-y-1">
+                  <div className="text-[9px] sm:text-[10px] font-mono font-bold text-cyan-300/80 tracking-widest uppercase mb-1">
+                    \u25c8 Trajectory Intelligence
+                  </div>
+                  <Row label="PATTERN"    value={entity._trajAnalysis.pattern.replace('_', ' ')}
+                    highlight={{
+                      [PATTERNS.ORBIT]:     'text-red-400',
+                      [PATTERNS.RACETRACK]: 'text-orange-400',
+                      [PATTERNS.LINEAR]:    'text-hud-green',
+                      [PATTERNS.LOITER]:    'text-yellow-400',
+                      [PATTERNS.ERRATIC]:   'text-red-300',
+                      [PATTERNS.DESCENT]:   'text-hud-blue',
+                      [PATTERNS.CLIMB]:     'text-hud-blue',
+                    }[entity._trajAnalysis.pattern] || 'text-hud-amber'} />
+                  <Row label="MISSION"    value={entity._trajAnalysis.mission} highlight="text-cyan-300" />
+                  <Row label="CONFIDENCE" value={`${entity._trajAnalysis.confidence}%`}
+                    highlight={entity._trajAnalysis.confidence >= 70 ? 'text-hud-green' : entity._trajAnalysis.confidence >= 45 ? 'text-hud-amber' : 'text-red-400'} />
+                  {entity._trajAnalysis.metrics && (
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 text-[9px] sm:text-[10px] font-mono text-hud-text">
+                      <span>PATH: {entity._trajAnalysis.metrics.totalDistKm} km</span>
+                      <span>DIRECT: {entity._trajAnalysis.metrics.directDistKm} km</span>
+                      <span>ORBITS: {entity._trajAnalysis.metrics.orbits}</span>
+                      <span>BBOX: {entity._trajAnalysis.metrics.bboxDiagKm} km</span>
+                      <span>STRT: {entity._trajAnalysis.metrics.straightness}</span>
+                      <span>\u0394ALT: {entity._trajAnalysis.metrics.altChangeM}m</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>

@@ -9,6 +9,7 @@ import { AIRCRAFT_SVG, HELICOPTER_SVG, getAltitudeColor } from '../utils/icons.j
 import { isValidCoord } from '../utils/geoUtils.js';
 import { icaoToCountry, getAircraftTypeName, resolveCountry, isHelicopter } from '../utils/militaryFilter.js';
 import { saveTrails as idbSaveTrails, loadTrails as idbLoadTrails, pruneOldTrails } from '../utils/trailStore.js';
+import { analyseTrajectory } from '../utils/trajectoryAnalysis.js';
 
 /** Build two-line label text for a given aircraft */
 function buildLabelText(ac) {
@@ -32,7 +33,12 @@ function buildLabelText(ac) {
   const parts = [typeName || ac.registration, altStr, route].filter(Boolean);
   const line2 = parts.join(' · ');
 
-  return line2 ? `${line1}\n${line2}` : line1;
+  // Line 3: trajectory-inferred mission (if available)
+  const mission = ac._trajAnalysis?.mission;
+  const line3 = mission && mission !== 'Insufficient Data' ? `\u25c8 ${mission}` : '';
+
+  const lines = [line1, line2, line3].filter(Boolean);
+  return lines.join('\n');
 }
 
 // Maximum trail length (one point appended each poll ≈ 30 s)
@@ -270,6 +276,10 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
           if (oldSegs) for (const seg of oldSegs) trailDS.entities.remove(seg);
           trailEntityRef.current.delete(ac.id);
         }
+
+        // ── Trajectory analysis (every update, cheap on 40 pts) ────────────
+        const analysis = analyseTrajectory(pts, ac.aircraftType, helo);
+        ac._trajAnalysis = analysis;
 
         // ── Billboard / label ──────────────────────────────────────────────
         if (entityMapRef.current.has(ac.id)) {
