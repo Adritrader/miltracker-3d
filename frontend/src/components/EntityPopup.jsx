@@ -10,7 +10,7 @@ import {
   formatAltitude, formatSpeed, metersToFeet, msToKnots,
   headingToCompass, timeAgo
 } from '../utils/geoUtils.js';
-import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry } from '../utils/militaryFilter.js';
+import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry, resolveAirport } from '../utils/militaryFilter.js';
 import {
   getAircraftImageUrl, getShipImageUrl, getBaseImageUrl, getConflictImageUrl, getCountryFallbackImage,
 } from '../utils/mediaLookup.js';
@@ -297,8 +297,8 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="SQUAWK"    value={entity.squawk || '\u2014'} />
               <Row label="STATUS"    value={entity.on_ground ? '\u25cf ON GROUND' : '\u25cf AIRBORNE'}
                 highlight={entity.on_ground ? 'text-green-400' : 'text-hud-blue'} />
-              <Row label="ORIGIN"    value={entity.dep_airport || '\u2014'} />
-              <Row label="DEST"      value={entity.arr_airport || '\u2014'} />
+              <Row label="ORIGIN"    value={entity.dep_airport ? resolveAirport(entity.dep_airport) : '\u2014'} highlight={entity.dep_airport ? 'text-hud-green' : undefined} />
+              <Row label="DEST"      value={entity.arr_airport ? resolveAirport(entity.arr_airport) : '\u2014'} highlight={entity.arr_airport ? 'text-hud-amber' : undefined} />
               <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
               {entity.carrierOps && (
                 <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2 space-y-1">

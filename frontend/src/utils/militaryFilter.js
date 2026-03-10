@@ -196,22 +196,126 @@ export const COUNTRY_FLAGS = Object.fromEntries(
  */
 export function icaoToCountry(hex = '') {
   const h = hex.toUpperCase();
-  if (h.startsWith('AE') || h.startsWith('AD'))          return 'US';
-  if (h.startsWith('43C') || h.startsWith('43D') || h.startsWith('43E')) return 'GB';
-  if (h.startsWith('394') || h.startsWith('395') || h.startsWith('396')) return 'FR';
+  // US military
+  if (h.startsWith('AE') || h.startsWith('AD') || h.startsWith('AF') || h.startsWith('A9')) return 'US';
+  // UK
+  if (h.startsWith('43C') || h.startsWith('43D') || h.startsWith('43E') || h.startsWith('432')) return 'GB';
+  // France
+  if (h.startsWith('394') || h.startsWith('395') || h.startsWith('396') || h.startsWith('39C')) return 'FR';
+  // Germany
   if (h.startsWith('3C4') || h.startsWith('3C5') || h.startsWith('3C6') || h.startsWith('3C7')) return 'DE';
-  if (h.startsWith('010') || h.startsWith('011') || h.startsWith('012') || h.startsWith('013') || h.startsWith('01')) return 'RU';
-  if (h.startsWith('78')  || h.startsWith('79')  || h.startsWith('7A')  || h.startsWith('7B'))  return 'CN';
-  if (h.startsWith('738') || h.startsWith('739')) return 'KR';
-  if (h.startsWith('840') || h.startsWith('841')) return 'JP';
-  if (h.startsWith('710') || h.startsWith('711')) return 'IN';
-  if (h.startsWith('76C') || h.startsWith('76D')) return 'IL';
-  if (h.startsWith('74C') || h.startsWith('74D')) return 'TR';
-  if (h.startsWith('73C') || h.startsWith('73D')) return 'IR';
-  if (h.startsWith('EB')  || h.startsWith('EC'))  return 'BE';
-  if (h.startsWith('484') || h.startsWith('485')) return 'AU';
-  if (h.startsWith('C0')  || h.startsWith('C1'))  return 'CA';
+  // Russia
+  if (h.startsWith('01')) return 'RU';
+  // China
+  if (h.startsWith('78') || h.startsWith('79') || h.startsWith('7A') || h.startsWith('7B')) return 'CN';
+  // South Korea
+  if (h.startsWith('738') || h.startsWith('739') || h.startsWith('71B')) return 'KR';
+  // Japan
+  if (h.startsWith('840') || h.startsWith('841') || h.startsWith('842')) return 'JP';
+  // India
+  if (h.startsWith('800') || h.startsWith('801') || h.startsWith('710') || h.startsWith('711')) return 'IN';
+  // Israel
+  if (h.startsWith('738C') || h.startsWith('76C') || h.startsWith('76D')) return 'IL';
+  // Turkey
+  if (h.startsWith('74C') || h.startsWith('74D') || h.startsWith('74E')) return 'TR';
+  // Iran
+  if (h.startsWith('73C') || h.startsWith('73D') || h.startsWith('73E')) return 'IR';
+  // Belgium
+  if (h.startsWith('EB') || h.startsWith('EC')) return 'BE';
+  // Australia
+  if (h.startsWith('7C4') || h.startsWith('7C5') || h.startsWith('484') || h.startsWith('485')) return 'AU';
+  // Canada
+  if (h.startsWith('C0') || h.startsWith('C1') || h.startsWith('C2D')) return 'CA';
+  // Italy
+  if (h.startsWith('33C') || h.startsWith('33D') || h.startsWith('33E')) return 'IT';
+  // Spain
+  if (h.startsWith('344') || h.startsWith('345')) return 'ES';
+  // Netherlands
+  if (h.startsWith('480') || h.startsWith('481')) return 'NL';
+  // Poland
+  if (h.startsWith('48C') || h.startsWith('48D')) return 'PL';
+  // Sweden
+  if (h.startsWith('4A0') || h.startsWith('4A1')) return 'SE';
+  // Norway
+  if (h.startsWith('478') || h.startsWith('479')) return 'NO';
+  // Greece
+  if (h.startsWith('468') || h.startsWith('469')) return 'GR';
+  // Pakistan
+  if (h.startsWith('760') || h.startsWith('761')) return 'PK';
+  // Saudi Arabia
+  if (h.startsWith('710') || h.startsWith('718')) return 'SA';
+  // UAE
+  if (h.startsWith('896') || h.startsWith('897')) return 'AE';
+  // Egypt
+  if (h.startsWith('010C') || h.startsWith('060')) return 'EG';
+  // Ukraine
+  if (h.startsWith('508') || h.startsWith('509') || h.startsWith('50A')) return 'UA';
   return '';
+}
+
+// ─── Military Airport / Base names ───────────────────────────────────────────
+// Maps ICAO airport codes to human-readable base names.
+// Covers major military airfields worldwide.
+const MIL_AIRPORTS = {
+  // US — CONUS
+  KADW: 'Joint Base Andrews, MD', KLFI: 'Langley AFB, VA', KNGU: 'Norfolk NAS, VA',
+  KOFF: 'Offutt AFB, NE', KHIF: 'Hill AFB, UT', KEDW: 'Edwards AFB, CA',
+  KNKX: 'Miramar MCAS, CA', KNZY: 'North Island NAS, CA', KNTD: 'Point Mugu NAS, CA',
+  KLSV: 'Nellis AFB, NV', KNFL: 'Fallon NAS, NV', KBLV: 'Scott AFB, IL',
+  KDOV: 'Dover AFB, DE', KWRI: 'McGuire AFB, NJ', KNHK: 'Patuxent River NAS, MD',
+  KTIK: 'Tinker AFB, OK', KBAD: 'Barksdale AFB, LA', KSKF: 'Lackland AFB, TX',
+  KRND: 'Randolph AFB, TX', KDYS: 'Dyess AFB, TX', KFSI: 'Fort Sill, OK',
+  KGTB: 'Fort Drum, NY', KFAF: 'Fort Eustis, VA', KNIP: 'Jacksonville NAS, FL',
+  KPAM: 'Tyndall AFB, FL', KGUS: 'Grissom ARB, IN', KFOE: 'Topeka Forbes, KS',
+  KSZL: 'Whiteman AFB, MO', KFBG: 'Fort Bragg, NC', KPOB: 'Pope Field, NC',
+  KCHS: 'Charleston AFB, SC', KSUU: 'Travis AFB, CA', KSKA: 'Fairchild AFB, WA',
+  KNUW: 'Whidbey Island NAS, WA', KGFK: 'Grand Forks AFB, ND', KMOT: 'Minot AFB, ND',
+  KRDR: 'Grand Forks AFB, ND', KEND: 'Vance AFB, OK', KSPS: 'Sheppard AFB, TX',
+  KHMN: 'Holloman AFB, NM', KRCA: 'Ellsworth AFB, SD',
+  KNTU: 'Oceana NAS, VA', KPNS: 'Pensacola NAS, FL', KJAX: 'Jacksonville NAS, FL',
+  // US — Pacific
+  PHNL: 'Hickam AFB, HI', PHIK: 'Hickam AFB, HI', PGUA: 'Andersen AFB, Guam',
+  RJTY: 'Yokota AB, Japan', RJTT: 'Yokota AB, Japan', RJFK: 'Kanoya AB, Japan',
+  RJSA: 'Misawa AB, Japan', RJOI: 'Iwakuni MCAS, Japan', RJNN: 'Nagoya AB, Japan',
+  RODN: 'Kadena AB, Okinawa', ROTM: 'Futenma MCAS, Okinawa',
+  RKSO: 'Osan AB, South Korea', RKSS: 'Gimpo AB, South Korea', RKJK: 'Kunsan AB, South Korea',
+  // US — Europe / Middle East
+  ETAR: 'Ramstein AB, Germany', ETAD: 'Spangdahlem AB, Germany',
+  LICZ: 'Sigonella NAS, Italy', LIPA: 'Aviano AB, Italy', LICG: 'Pantelleria, Italy',
+  LTAG: 'Incirlik AB, Turkey', OKBK: 'Al Udeid AB, Qatar', OKAS: 'Ali Al Salem, Kuwait',
+  OMAM: 'Al Dhafra AB, UAE', OMSJ: 'Sharjah, UAE', ORBI: 'Baghdad Intl, Iraq',
+  OBBI: 'Bahrain Intl / NSA Bahrain', OTBH: 'Al Udeid AB, Qatar',
+  LCRA: 'RAF Akrotiri, Cyprus', LMML: 'Malta / NATO Hub',
+  // UK
+  EGVN: 'RAF Brize Norton', EGXW: 'RAF Waddington', EGXC: 'RAF Coningsby',
+  EGQL: 'RAF Leuchars', EGYM: 'RAF Marham', EGDY: 'RNAS Yeovilton',
+  EGDR: 'RNAS Culdrose', EGYP: 'RAF Mount Pleasant, Falklands',
+  // France
+  LFOA: 'BA 123 Orléans-Bricy', LFBC: 'BA 120 Cazaux', LFSI: 'BA 133 Nancy-Ochey',
+  LFOE: 'BA 105 Évreux', LFBM: 'BA 118 Mont-de-Marsan',
+  // Germany
+  ETNG: 'Geilenkirchen NATO AWACS', ETNN: 'Nörvenich AB', ETSN: 'Neuburg AB',
+  // Russia
+  UUBW: 'Zhukovsky / Ramenskoye', XUBS: 'Engels-2 (Bomber Base)',
+  URWW: 'Volgograd / Southern MD', URSS: 'Sochi-Adler (mil)',
+  // Middle East
+  LLBG: 'Ben Gurion / Nevatim adj', LLNV: 'Nevatim AB, Israel',
+  LLHA: 'Haifa / Ramat David, Israel', OIII: 'Tehran Mehrabad, Iran',
+  OIFM: 'Isfahan / Shahid Babaei, Iran', OIIE: 'Imam Khomeini, Iran',
+  // NATO Baltic / Eastern Europe
+  EYSA: 'Šiauliai AB, Lithuania', EETN: 'Ämari AB, Estonia',
+  EPKS: 'Krzesiny AB, Poland', LZSL: 'Sliač AB, Slovakia',
+  // Other
+  ZSJN: 'Jinan Yaoqiang (PLAAF)', ZSAM: 'Xiamen (PLAAF exercises)',
+  RCSS: 'Songshan AB, Taiwan', RCMQ: 'Ching Chuan Kang AB, Taiwan',
+  RKJJ: 'Gwangju AB, South Korea', VIDP: 'Delhi / Palam AFB, India',
+};
+
+/** Resolve airport ICAO/IATA code to a human-readable military base name */
+export function resolveAirport(code) {
+  if (!code) return null;
+  const upper = code.trim().toUpperCase();
+  return MIL_AIRPORTS[upper] || upper;
 }
 
 /**

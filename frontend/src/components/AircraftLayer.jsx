@@ -22,7 +22,14 @@ function buildLabelText(ac) {
     ? ac.altitudeFt
     : Math.round((ac.altitude || 0) * 3.28084);
   const altStr   = ac.on_ground ? 'GND' : `${Math.round(altFt / 100) * 100}ft`;
-  const line2    = [typeName || ac.registration, altStr].filter(Boolean).join(' · ');
+
+  // Show route if available (e.g. "ETAR→LTAG")
+  const route = (ac.dep_airport && ac.arr_airport)
+    ? `${ac.dep_airport}→${ac.arr_airport}`
+    : ac.dep_airport ? `${ac.dep_airport}→?` : ac.arr_airport ? `?→${ac.arr_airport}` : '';
+
+  const parts = [typeName || ac.registration, altStr, route].filter(Boolean);
+  const line2 = parts.join(' · ');
 
   return line2 ? `${line1}\n${line2}` : line1;
 }
