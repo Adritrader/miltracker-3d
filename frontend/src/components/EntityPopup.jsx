@@ -17,9 +17,9 @@ import {
 } from '../utils/mediaLookup.js';
 
 const Row = ({ label, value, highlight }) => (
-  <div className="flex justify-between items-center py-0.5 border-b border-hud-border/40">
-    <span className="hud-label text-xs sm:text-sm">{label}</span>
-    <span className={`font-mono text-xs sm:text-sm font-bold ${highlight || 'text-white'}`}>{value ?? '—'}</span>
+  <div className="flex justify-between items-center py-px border-b border-hud-border/40">
+    <span className="hud-label text-[10px] sm:text-xs">{label}</span>
+    <span className={`font-mono text-[10px] sm:text-xs font-bold ${highlight || 'text-white'}`}>{value ?? '—'}</span>
   </div>
 );
 
@@ -29,7 +29,7 @@ const EntityImage = ({ src, alt }) => {
   useEffect(() => { setState('loading'); }, [src]);
   if (!src || state === 'err') return null;
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: 130 }}>
+    <div className="relative w-full overflow-hidden" style={{ height: 100 }}>
       {state === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <span className="text-hud-text text-xs font-mono animate-pulse">LOADING IMAGE…</span>
@@ -212,7 +212,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
             ? { position: 'fixed', top: pos.top, left: pos.left, transform: 'none' }
             : { position: 'relative' }
           ),
-          width: isMobile ? 'min(340px, calc(100vw - 24px))' : 'min(520px, calc(100vw - 32px))',
+          width: isMobile ? 'min(320px, calc(100vw - 24px))' : 'min(460px, calc(100vw - 32px))',
           maxHeight: '100%',
           overflowY: 'auto',
           userSelect: dragging ? 'none' : undefined,
@@ -220,20 +220,20 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
       >
         {/* Header — drag handle */}
         <div
-          className="flex items-center justify-between px-3 py-2 border-b border-hud-border select-none"
+          className="flex items-center justify-between px-2 py-1.5 border-b border-hud-border select-none"
           style={{ background: 'rgba(0,0,0,0.4)', cursor: dragging ? 'grabbing' : 'grab' }}
           onMouseDown={onDragStart}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">
               {isAircraft ? '\u25b2' : isShip ? '\u25ac' : isConflict ? '\u25c6' : isFirms ? '\uD83D\uDD25' : isBase ? '\u2b21' : isAlert ? '\u26a0' : '\u25a0'}
             </span>
             <div>
-              <div className="hud-title text-xs sm:text-sm">
+              <div className="hud-title text-[10px] sm:text-xs">
                 {isAircraft ? 'AIRCRAFT INTEL' : isShip ? 'VESSEL INTEL' : isConflict ? 'CONFLICT EVENT'
                  : isFirms ? 'THERMAL HOTSPOT' : isBase ? 'MILITARY FACILITY' : isAlert ? 'THREAT ALERT' : 'NEWS EVENT'}
               </div>
-              <div className="text-white font-mono font-bold text-sm sm:text-base truncate max-w-[160px] sm:max-w-[220px]">
+              <div className="text-white font-mono font-bold text-xs sm:text-sm truncate max-w-[160px] sm:max-w-[220px]">
                 {isAircraft ? (entity.callsign || 'UNKNOWN')
                  : isShip    ? (entity.name || entity.mmsi)
                  : isConflict? (entity.eventType || entity.type || 'EVENT').toUpperCase()
@@ -251,7 +251,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
         <EntityImage src={imageUrl} alt={entity.name || entity.callsign || entity.title || ''} />
 
         {/* Body */}
-        <div className="px-3 py-2 space-y-0.5">
+        <div className="px-2 py-1 space-y-0">
 
           {/* ALERT */}
           {isAlert && (
@@ -302,9 +302,9 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="DEST"      value={entity.arr_airport ? resolveAirport(entity.arr_airport) : '\u2014'} highlight={entity.arr_airport ? 'text-hud-amber' : undefined} />
               <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
               {entity.carrierOps && (
-                <div className="mt-2 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2 space-y-1">
-                  <div className="text-[9px] sm:text-[10px] font-mono font-bold text-amber-300/80 tracking-widest uppercase mb-1">
-                    ✈ Carrier Air Wing
+                <div className="mt-1 rounded-lg border border-amber-400/40 bg-amber-950/40 p-1.5 space-y-0.5">
+                  <div className="text-[8px] sm:text-[9px] font-mono font-bold text-amber-300/80 tracking-widest uppercase mb-0.5">
+                    {"\u2708"} Carrier Air Wing
                   </div>
                   <Row label="CARRIER"  value={entity.carrierOps.carrier}  highlight="text-amber-300" />
                   {entity.carrierOps.cvw !== 'UNKNOWN CVW' &&
@@ -316,9 +316,9 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               )}
               {/* Trajectory Analysis */}
               {entity._trajAnalysis && entity._trajAnalysis.pattern !== 'UNKNOWN' && (
-                <div className="mt-2 rounded-lg border border-cyan-400/40 bg-cyan-950/40 p-2 space-y-1">
-                  <div className="text-[9px] sm:text-[10px] font-mono font-bold text-cyan-300/80 tracking-widest uppercase mb-1">
-                    \u25c8 Trajectory Intelligence
+                <div className="mt-1 rounded-lg border border-cyan-400/40 bg-cyan-950/40 p-1.5 space-y-0.5">
+                  <div className="text-[8px] sm:text-[9px] font-mono font-bold text-cyan-300/80 tracking-widest uppercase mb-0.5">
+                    {"\u25C6"} TRAJECTORY INTELLIGENCE
                   </div>
                   <Row label="PATTERN"    value={entity._trajAnalysis.pattern.replace('_', ' ')}
                     highlight={{
@@ -334,13 +334,13 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                   <Row label="CONFIDENCE" value={`${entity._trajAnalysis.confidence}%`}
                     highlight={entity._trajAnalysis.confidence >= 70 ? 'text-hud-green' : entity._trajAnalysis.confidence >= 45 ? 'text-hud-amber' : 'text-red-400'} />
                   {entity._trajAnalysis.metrics && (
-                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 text-[9px] sm:text-[10px] font-mono text-hud-text">
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0 mt-0.5 text-[8px] sm:text-[9px] font-mono text-hud-text">
                       <span>PATH: {entity._trajAnalysis.metrics.totalDistKm} km</span>
                       <span>DIRECT: {entity._trajAnalysis.metrics.directDistKm} km</span>
                       <span>ORBITS: {entity._trajAnalysis.metrics.orbits}</span>
                       <span>BBOX: {entity._trajAnalysis.metrics.bboxDiagKm} km</span>
                       <span>STRT: {entity._trajAnalysis.metrics.straightness}</span>
-                      <span>\u0394ALT: {entity._trajAnalysis.metrics.altChangeM}m</span>
+                      <span>{"\u0394"}ALT: {entity._trajAnalysis.metrics.altChangeM}m</span>
                     </div>
                   )}
                 </div>
@@ -467,7 +467,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
         </div>
 
         {/* Footer actions */}
-        <div className="flex gap-2 px-3 pb-3 pt-1 flex-wrap">
+        <div className="flex gap-2 px-2 pb-2 pt-1 flex-wrap">
           <button className="hud-btn-primary flex-1 text-center" onClick={flyTo}>
             &#x25B6; FLY TO
           </button>
