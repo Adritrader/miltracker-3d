@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
-import { AIRCRAFT_SVG, HELICOPTER_SVG, getAircraftColor, getAltitudeColor } from '../utils/icons.js';
+import { AIRCRAFT_SVG, HELICOPTER_SVG, getAltitudeColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
 import { icaoToCountry, getAircraftTypeName, resolveCountry, isHelicopter } from '../utils/militaryFilter.js';
 
@@ -194,10 +194,10 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         const altM     = Math.max(ac.altitude || 0, 100);
         const position = Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, altM);
         const isTracked = trackedList?.has(ac.id);
-        const countryColor = getAircraftColor(ac.country);
-        const altColor = isTracked ? '#FFD700' : getAltitudeColor(altM);
+        const iconColor = isTracked ? '#FFD700' : '#ffffff';
+        const trailColor = getAltitudeColor(altM);
         const helo     = isHelicopter(ac.aircraftType);
-        const iconUri  = getCachedIcon(ac.heading, altColor, helo);
+        const iconUri  = getCachedIcon(ac.heading, iconColor, helo);
 
         // ── Append to trail history ─────────────────────────────────────────
         if (!trailPointsRef.current.has(ac.id)) {
@@ -213,14 +213,15 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
           if (pts.length > MAX_TRAIL_POINTS) pts.splice(0, pts.length - MAX_TRAIL_POINTS);
         }
 
-        const cesiumColor = Cesium.Color.fromCssColorString(altColor);
+        const cesiumTrailColor = Cesium.Color.fromCssColorString(trailColor);
 
         // ── Polyline trail ─────────────────────────────────────────────────
         if (TRAIL_RANGE > 0 && pts.length >= 2) {
           if (trailEntityRef.current.has(ac.id)) {
-            // Update existing trail positions
+            // Update existing trail positions + color
             const te = trailEntityRef.current.get(ac.id);
             te.polyline.positions = new Cesium.ConstantProperty(pts.slice());
+            te.polyline.material.color = cesiumTrailColor.withAlpha(0.7);
           } else {
             // Create trail entity
             const te = trailDS.entities.add({
@@ -231,7 +232,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
                 material: new Cesium.PolylineGlowMaterialProperty({
                   glowPower: 0.12,
                   taperPower: 1.0,      // fades toward the oldest end
-                  color: cesiumColor.withAlpha(0.7),
+                  color: cesiumTrailColor.withAlpha(0.7),
                 }),
                 clampToGround: false,
                 followSurface: false,
