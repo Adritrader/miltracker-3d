@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
-import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds } from './services/newsService.js';
+import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds, geocodeNewsItem } from './services/newsService.js';
 import { analyzeWithGemini, analyzeLocalDanger, alertsFromNews, computeHotspots, probeGeminiModel } from './services/aiDanger.js';
 import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
@@ -302,8 +302,8 @@ async function pollNews() {
     const rssItems   = rss.status   === 'fulfilled' ? rss.value   : [];
     console.log(`[News] GDELT:${gdeltItems.length} NewsAPI:${newsItems.length} RSS:${rssItems.length}`);
 
-    // Dedup by url first, then by title fingerprint (catches same story from different sources)
-    const merged = [...rssItems, ...gdeltItems, ...newsItems];
+    // Geocode items that lack coordinates (NewsAPI/RSS often have null lat/lon)
+    const merged = [...rssItems, ...gdeltItems, ...newsItems].map(geocodeNewsItem);
     const seenUrl   = new Set();
     const seenTitle = new Set();
     const freshNews = merged.filter(n => {
