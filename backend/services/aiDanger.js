@@ -356,18 +356,36 @@ export function computeHotspots({ alerts = [], aircraft = [], ships = [], confli
     addToCell(c.lat, c.lon, type);
   }
 
+  // Reverse-geocode: find nearest named location for cells with no labels
+  function nearestLabel(lat, lon) {
+    let best = null, bestD = Infinity;
+    for (const z of CONFLICT_ZONES) {
+      const d = distKm(lat, lon, z.lat, z.lon);
+      if (d < bestD) { bestD = d; best = z.name; }
+    }
+    for (const loc of ALERT_LOCATIONS) {
+      const d = distKm(lat, lon, loc.lat, loc.lon);
+      if (d < bestD) { bestD = d; best = loc.kw.replace(/\b\w/g, c => c.toUpperCase()); }
+    }
+    return bestD < 500 ? best : `${lat.toFixed(1)}°, ${lon.toFixed(1)}°`;
+  }
+
   return Object.values(cells)
     .filter(c => c.count >= 3) // only meaningful clusters
-    .map(c => ({
-      lat: +(c.lat / c.count).toFixed(2),
-      lon: +(c.lon / c.count).toFixed(2),
-      total: c.count,
-      aircraft: c.aircraft,
-      ships: c.ships,
-      news: c.news,
-      firms: c.firms,
-      label: [...c.labels].filter(Boolean).slice(0, 2).join(', ') || 'Unknown Area',
-    }))
+    .map(c => {
+      const avgLat = +(c.lat / c.count).toFixed(2);
+      const avgLon = +(c.lon / c.count).toFixed(2);
+      return {
+        lat: avgLat,
+        lon: avgLon,
+        total: c.count,
+        aircraft: c.aircraft,
+        ships: c.ships,
+        news: c.news,
+        firms: c.firms,
+        label: [...c.labels].filter(Boolean).slice(0, 2).join(', ') || nearestLabel(avgLat, avgLon),
+      };
+    })
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 }

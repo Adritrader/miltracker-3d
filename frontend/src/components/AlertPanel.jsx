@@ -287,6 +287,7 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
         duration: 2,
       });
     }
+    if (isMobile) setDrawerOpen(false);
     onFlyTo?.(alert);
   };
 
