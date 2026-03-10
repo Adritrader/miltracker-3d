@@ -77,10 +77,32 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       if (cancelled || stored.size === 0) return;
       const cur = trailPointsRef.current;
       for (const [id, pts] of stored.entries()) {
-        if (!cur.has(id)) cur.set(id, pts); // don't overwrite freshly-collected data
+        const existing = cur.get(id);
+        if (!existing || existing.length === 0) {
+          cur.set(id, pts);
+        } else {
+          // Prepend stored history before freshly-collected points
+          const merged = [...pts, ...existing].slice(-MAX_TRAIL_POINTS);
+          cur.set(id, merged);
+        }
       }
     });
     return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush trails to IndexedDB immediately when the page is about to close/hide
+  useEffect(() => {
+    const flush = () => {
+      clearTimeout(saveTimerRef.current);
+      if (trailPointsRef.current.size > 0) idbSaveTrails('aircraft', trailPointsRef.current);
+    };
+    const onVisChange = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onVisChange);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisChange);
+      window.removeEventListener('beforeunload', flush);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // LOD constants — tighter on mobile to preserve frame rate
@@ -323,9 +345,9 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     } finally {
       acDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
-      // Persist ALL trails to IndexedDB (unlimited storage, debounced 10 s)
+      // Persist ALL trails to IndexedDB (unlimited storage, debounced 5 s)
       clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 10_000);
+      saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 5_000);
     }
   }, [viewer, aircraft, visible, trackedList, getDS]);
 

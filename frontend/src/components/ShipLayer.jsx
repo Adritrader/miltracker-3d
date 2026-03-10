@@ -34,10 +34,31 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
       if (cancelled || stored.size === 0) return;
       const cur = trailPointsRef.current;
       for (const [id, pts] of stored.entries()) {
-        if (!cur.has(id)) cur.set(id, pts);
+        const existing = cur.get(id);
+        if (!existing || existing.length === 0) {
+          cur.set(id, pts);
+        } else {
+          const merged = [...pts, ...existing].slice(-MAX_TRAIL_POINTS);
+          cur.set(id, merged);
+        }
       }
     });
     return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush trails to IndexedDB immediately when page hides/closes
+  useEffect(() => {
+    const flush = () => {
+      clearTimeout(saveTimerRef.current);
+      if (trailPointsRef.current.size > 0) idbSaveTrails('ship', trailPointsRef.current);
+    };
+    const onVisChange = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onVisChange);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisChange);
+      window.removeEventListener('beforeunload', flush);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // LOD constants — ships are always visible regardless of zoom level
@@ -270,9 +291,9 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     } finally {
       shipDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
-      // Persist trails to IndexedDB (debounced 10s)
+      // Persist trails to IndexedDB (debounced 5s)
       clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => idbSaveTrails('ship', trailPointsRef.current), 10_000);
+      saveTimerRef.current = setTimeout(() => idbSaveTrails('ship', trailPointsRef.current), 5_000);
     }
   }, [viewer, ships, visible, trackedList, getDS]);
 
