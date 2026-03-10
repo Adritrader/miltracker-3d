@@ -415,6 +415,7 @@ function App() {
         trackingPanelHeight={trackingPanelHeight}
         newsPanelHeight={newsPanelHeight}
         isMobile={isMobile}
+        popupOpen={!!selectedEntity}
       />
 
       {/* Bottom-right: Legend + Map layer + SITREP stacked vertically */}
