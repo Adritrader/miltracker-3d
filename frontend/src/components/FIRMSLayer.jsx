@@ -111,7 +111,7 @@ export default function FIRMSLayer({ viewer, firms = [], visible = true, onSelec
             height: isSingle ? 28 : 48,
             verticalOrigin: Cesium.VerticalOrigin.CENTER,
             disableDepthTestDistance: 2e6,
-            scaleByDistance: new Cesium.NearFarScalar(2e5, 0.85, 1.5e7, isSingle ? 1.4 : 1.7),
+            scaleByDistance: new Cesium.NearFarScalar(5e4, isSingle ? 1.6 : 1.8, 1.5e7, isSingle ? 0.45 : 0.55),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2e7),
           },
         });
