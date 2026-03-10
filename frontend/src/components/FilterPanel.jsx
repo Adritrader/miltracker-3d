@@ -112,7 +112,7 @@ const NEWS_CATEGORIES = [
   { label: 'General',      color: '#00ff88' },
 ];
 
-export const MapLegend = () => {
+export const MapLegend = ({ isMobile = false }) => {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState('main'); // main | events | countries
 
@@ -136,9 +136,9 @@ export const MapLegend = () => {
     </button>
   );
 
-  return (
+  const panelContent = (
     <div className="bg-hud-panel border border-hud-border rounded p-2.5 shadow-lg pointer-events-auto"
-         style={{ width: 290, maxHeight: '70vh', overflowY: 'auto' }}>
+         style={{ width: isMobile ? 'calc(100vw - 32px)' : 290, maxWidth: 340, maxHeight: isMobile ? '75vh' : '70vh', overflowY: 'auto' }}>
       <div className="flex items-center justify-between mb-1.5">
         <span className="hud-title text-xs">MAP LEGEND</span>
         <button onClick={() => setOpen(false)} className="text-hud-text hover:text-white text-sm leading-none">✕</button>
@@ -309,6 +309,19 @@ export const MapLegend = () => {
       )}
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="fixed inset-0 z-[60] bg-black/50" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-[65] flex items-center justify-center pointer-events-none p-4">
+          <div className="pointer-events-auto">{panelContent}</div>
+        </div>
+      </>
+    );
+  }
+
+  return panelContent;
 };
 
 /* ────────────────────────────────────────────────────────── */

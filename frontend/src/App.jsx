@@ -418,7 +418,7 @@ function App() {
            style={{ bottom: (isMobile ? 72 : 28) + newsPanelHeight + trackingPanelHeight + 8, right: isMobile ? 8 : 16, transition: 'bottom 0.15s ease-out',
                     // cap height so AlertPanel can't overlap on small screens
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
-        <MapLegend />
+        <MapLegend isMobile={isMobile} />
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
         <SitrepCapture
           viewer={viewer}
