@@ -213,9 +213,8 @@ function App() {
     }
   }, []);
 
-  const handleFlyToAlert = useCallback((alert) => {
-    // Show the linked entity if available, otherwise show the alert itself for popup
-    setSelectedEntity(alert.entity || alert);
+  const handleFlyToAlert = useCallback(() => {
+    // Camera fly-to already handled by AlertPanel — no modal needed
   }, []);
 
   // ── Entity tracking ──────────────────────────────────────────────────────────────────
