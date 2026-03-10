@@ -449,6 +449,7 @@ function App() {
         onUntrack={handleUntrack}
         onSatellite={setSatellitePortal}
         speedUnit={speedUnit}
+        onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
       />
 
       {/* SITREP capture — already rendered inline in the bottom-right container above */}
