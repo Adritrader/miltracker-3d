@@ -182,7 +182,7 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect, isMobile 
             height: isSingle ? singleH : clusterH,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             disableDepthTestDistance: 2e6,
-            scaleByDistance: new Cesium.NearFarScalar(5e4, isSingle ? 1.6 : 1.8, 1.5e7, isSingle ? 0.5 : 0.6),
+            scaleByDistance: new Cesium.NearFarScalar(1e5, isSingle ? 1.1 : 1.2, 1.5e7, isSingle ? 0.5 : 0.6),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2e7),
           },
         });

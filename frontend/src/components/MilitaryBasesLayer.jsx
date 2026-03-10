@@ -264,7 +264,7 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
           height: 32,
           verticalOrigin:  Cesium.VerticalOrigin.CENTER,
           horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-          scaleByDistance: new Cesium.NearFarScalar(1e4, 2.0, 2e7, 0.4),
+          scaleByDistance: new Cesium.NearFarScalar(5e4, 1.3, 2e7, 0.4),
           distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 3.0e7),
           disableDepthTestDistance: 2e6,
         },
@@ -280,7 +280,7 @@ const MilitaryBasesLayer = ({ viewer, visible, onSelect }) => {
           showBackground: true,
           backgroundColor: new Cesium.Color(0, 0, 0, 0.6),
           backgroundPadding: new Cesium.Cartesian2(6, 3),
-          scaleByDistance: new Cesium.NearFarScalar(1e4, 1.8, 4e6, 0.0),
+          scaleByDistance: new Cesium.NearFarScalar(5e4, 1.2, 4e6, 0.0),
           disableDepthTestDistance: 2e6,
         },
         // Custom data for popup
