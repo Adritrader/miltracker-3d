@@ -122,7 +122,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
   // LOD constants — tighter on mobile to preserve frame rate
   const MAX_RANGE      = isMobile ? 2.5e6 : 4.5e6;  // hide billboard beyond this (m)
   const LABEL_RANGE    = isMobile ? 8e5   : 2e6;    // hide label beyond this
-  const TRAIL_RANGE    = isMobile ? 0     : 9e5;    // hide trail beyond this (0 = disable on mobile)
+  const TRAIL_RANGE    = isMobile ? 4e5   : 9e5;    // hide trail beyond this
 
   // ── helper: get-or-create named datasource (O(1) via cache ref) ──────────────
   const getDS = useCallback((name) => {
