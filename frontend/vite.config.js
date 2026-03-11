@@ -77,8 +77,20 @@ export default defineConfig({
     chunkSizeWarningLimit: 5000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
+        // Split large deps into separate chunks so the browser loads them in
+        // parallel and the main bundle (React app code) parses faster → lower TBT
+        manualChunks(id) {
+          // Cesium + Resium are ~4 MB — must be in their own chunk
+          if (id.includes('node_modules/cesium') || id.includes('node_modules/resium')) return 'cesium';
+          // Socket.io-client adds ~200 KB; separate from app code
+          if (
+            id.includes('node_modules/socket.io-client') ||
+            id.includes('node_modules/engine.io-client') ||
+            id.includes('node_modules/@socket.io')
+          ) return 'socketio';
+          // Split react-dom (large) from react (tiny) so react can be parsed first
+          if (id.includes('node_modules/react-dom')) return 'react-dom';
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-is')) return 'react';
         },
       },
     },

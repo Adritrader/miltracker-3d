@@ -18,8 +18,9 @@ const SOURCES = [
 ];
 
 const HEADERS = { 'User-Agent': 'MilTracker3D/1.0', 'Accept': 'application/json' };
-// 5s per source — if a source is slow the fallback kicks in within 5s, not 12s
-const TIMEOUT_MS = 5000;
+// 3s per source — aggressive timeout so the fallback chain completes within 9s total
+// rather than 15s, safely under the 30s poll interval
+const TIMEOUT_MS = 3000;
 const MAX_AIRCRAFT = 500;
 
 // Cache of last successful real data

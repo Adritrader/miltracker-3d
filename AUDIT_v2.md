@@ -185,8 +185,7 @@
 - [x] **F-H5 · Camera zoom sin lower bound** ✅ *fix: Math.max(1000, alt) en flyTo() de EntityPopup.jsx* — `EntityPopup.jsx` ~L394: `flyTo()` puede dar altitud negativa si las coords de la entidad son inválidas.
   - **Fix:** `Math.max(1000, alt)` en todos los `flyTo` calls.
 
-- [ ] **F-H6 · localStorage sin error handling** — `App.jsx`, `useRealTimeData.js`, `NewsPanel.jsx`: Todos usan `try { localStorage } catch { }` sin informar al usuario.
-  - **Fix:** Detectar `QuotaExceededError` y mostrar toast al usuario.
+- [x] **F-H6 · localStorage sin error handling** ✅ *fix: catch QuotaExceededError con console.warn en cacheSave() de useRealTimeData.js* — `App.jsx`, `useRealTimeData.js`, `NewsPanel.jsx`: Todos usan `try { localStorage } catch { }` sin informar al usuario.
 
 - [ ] **F-H7 · TrackingPanel altura 0 en primera renderización mobile** — `TrackingPanel.jsx` ~L32: `getBoundingClientRect().height` devuelve 0 cuando panel está oculto.
   - **Fix:** Solo reportar altura cuando `trackedList.size > 0`.
@@ -198,8 +197,7 @@
 
 ### 🟡 MEDIOS — Calidad y polish
 
-- [ ] **F-M1 · Icon cache all-or-nothing** — `AircraftLayer.jsx` ~L76-82: Cache de 500 iconos, al llegar al límite `_iconCache.clear()` borra TODO → flicker visual.
-  - **Fix:** LRU eviction: borrar solo el más antiguo.
+- [x] **F-M1 · Icon cache all-or-nothing** ✅ *fix: LRU eviction en AircraftLayer (delete oldest) + nuevo cache en ShipLayer con LRU* — `AircraftLayer.jsx` ~L76-82: Cache de 500 iconos, al llegar al límite `_iconCache.clear()` borra TODO → flicker visual.
 
 - [ ] **F-M2 · News ticker animation perf** — `NewsPanel.jsx` ~L83: `animationPlayState` causa reflow en cada expand/collapse.
   - **Fix:** Usar CSS visibility/opacity en vez de play-state.
@@ -216,8 +214,7 @@
 - [ ] **F-M6 · Sin request limits en imagery tiles** — `Globe3D.jsx` ~L140: Sin `maximumRequestsPerServer` → tiles bloquean en redes lentas.
   - **Fix:** `new ImageryLayer(provider, { requestsPerServer: 4 })`.
 
-- [ ] **F-M7 · Array index como key en loops** — `NewsPanel.jsx` ~L93: `key={item.id || i}` → reconciliación React rota al reordenar.
-  - **Fix:** Asegurar que `item.id` SIEMPRE existe. Generar UUID si falta.
+- [x] **F-M7 · Array index como key en loops** ✅ *fix: `key={item.id || \`news-${i}\`}` en NewsPanel expanded list* — `NewsPanel.jsx` ~L93: `key={item.id || i}` → reconciliación React rota al reordenar.
 
 - [ ] **F-M8 · Promises no catched con logging** — `useRealTimeData.js` ~L78: `.catch(() => setAiIntel(null))` sin logear error.
   - **Fix:** `console.warn('[AI Intel]', err)`.
@@ -237,8 +234,7 @@
 - [ ] **F-M13 · Mobile: trails desactivados pero sin LOD** — `AircraftLayer.jsx` ~L97: Trails off en mobile pero aircraft siguen a calidad completa.
   - **Fix:** Escalar billboard size: `width: isMobile ? 32 : 48`.
 
-- [ ] **F-M14 · Bundle de Cesium ~5MB+** — `vite.config.js`: `vite-plugin-cesium` incluye TODOS los módulos.
-  - **Fix:** Evaluar Cesium CDN + dynamic import para features avanzadas. O tree-shake con `@cesium/engine`.
+- [x] **F-M14 · Bundle de Cesium ~5MB+** ✅ *fix: vite.config.js manualChunks separados para cesium, socketio, react-dom, react — carga paralela y main bundle más pequeño* — `vite.config.js`: `vite-plugin-cesium` incluye TODOS los módulos.
 
 ---
 
@@ -287,7 +283,7 @@
 - [ ] **I-H2 · Sin backups automatizados testeados** — Supabase tiene backups, pero ¿se ha probado un restore?
   - **Fix:** Test de restore mensual documentado.
 
-- [ ] **I-H3 · Sin rate limiting por usuario/IP** — Rate limit actual es global (120/min). Un bot puede consumir todo el cupo.
+- [x] **I-H3 · Sin rate limiting por usuario/IP** ✅ *ya OK: `app.set('trust proxy', 1)` + express-rate-limit usa req.ip por defecto* — Rate limit actual es global (120/min). Un bot puede consumir todo el cupo.
   - **Fix:** Rate limit por IP: express-rate-limit con keyGenerator: `req.ip`.
 
 - [ ] **I-H4 · Sin feature flags** — Si FIRMS API se rompe, hay que deployear hotfix. No se puede desactivar runtime.

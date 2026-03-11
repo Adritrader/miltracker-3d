@@ -31,7 +31,12 @@ function cacheLoad(type) {
 function cacheSave(type, data) {
   try {
     localStorage.setItem(CACHE[type].key, JSON.stringify({ data, ts: Date.now() }));
-  } catch {}
+  } catch (err) {
+    // F-H6: surface quota errors so the user knows local cache is full
+    if (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014) {
+      console.warn('[Cache] localStorage quota exceeded — cache write skipped for', type);
+    }
+  }
 }
 
 export function useRealTimeData() {

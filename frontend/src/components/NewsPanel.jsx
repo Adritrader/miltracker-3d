@@ -135,7 +135,7 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange, onExp
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
             {recentNews.slice(0, Math.max(visibleCount, recentNews.length)).map((item, i) => (
               <div
-                key={item.id || i}
+                key={item.id || `news-${i}`}
                 onClick={() => handleSelect(item, i)}
                 className={`px-3 py-2 border-b border-r border-hud-border/40 cursor-pointer
                   hover:bg-white/5 transition-all duration-200

@@ -71,7 +71,10 @@ function getCachedIcon(heading, color, helicopter = false) {
   const h = Math.round((heading || 0) / 10) * 10 % 360;
   const key = `${h}_${color}_${helicopter ? 'h' : 'a'}`;
   if (!_iconCache.has(key)) {
-    if (_iconCache.size >= MAX_ICON_CACHE) _iconCache.clear(); // safety valve
+    if (_iconCache.size >= MAX_ICON_CACHE) {
+      // LRU eviction: remove oldest entry rather than clearing all (F-M1)
+      _iconCache.delete(_iconCache.keys().next().value);
+    }
     _iconCache.set(key, helicopter ? HELICOPTER_SVG(h, color) : AIRCRAFT_SVG(h, color));
   }
   return _iconCache.get(key);
@@ -345,8 +348,16 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
           tr.from   = (cur && isFinite(cur.x)) ? Cesium.Cartesian3.clone(cur) : tr.to;
           tr.to     = position;
           tr.start  = Date.now();
-          if (entity.billboard) entity.billboard.image = iconUri;
-          if (entity.label)     entity.label.text      = new Cesium.ConstantProperty(buildLabelText(ac, speedUnit, altUnit));
+          // Skip allocating new ConstantProperty if icon/label text didn't change (reduces GC pressure)
+          if (entity.billboard && entity._lastIcon !== iconUri) {
+            entity.billboard.image = iconUri;
+            entity._lastIcon = iconUri;
+          }
+          const newLabel = buildLabelText(ac, speedUnit, altUnit);
+          if (entity.label && entity._lastLabel !== newLabel) {
+            entity.label.text = new Cesium.ConstantProperty(newLabel);
+            entity._lastLabel = newLabel;
+          }
           if (entity.label && isTracked) entity.label.fillColor = Cesium.Color.fromCssColorString('#FFD700');
           else if (entity.label)        entity.label.fillColor = Cesium.Color.fromCssColorString('#00ff88');
           entity._milData = ac;
@@ -359,6 +370,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
             if (t >= 1) return tr.to;
             return Cesium.Cartesian3.lerp(tr.from, tr.to, t, new Cesium.Cartesian3());
           }, false);
+          const labelText = buildLabelText(ac, speedUnit, altUnit);
           const entity = acDS.entities.add({
             id: `aircraft-${ac.id}`,
             position: posCallback,
@@ -374,7 +386,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
               disableDepthTestDistance: 2e6,
             },
             label: {
-              text: buildLabelText(ac, speedUnit, altUnit),
+              text: labelText,
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
               fillColor: Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00ff88'),
               outlineColor: Cesium.Color.BLACK,
@@ -390,8 +402,10 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
               disableDepthTestDistance: 2e6,
             },
           });
-          entity._milData = ac;
+          entity._milData    = ac;
           entity._transition = tr;
+          entity._lastIcon   = iconUri;   // track to skip redundant billboard updates
+          entity._lastLabel  = labelText; // track to skip redundant ConstantProperty allocs
           entityMapRef.current.set(ac.id, entity);
         }
       }

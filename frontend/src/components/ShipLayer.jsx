@@ -16,6 +16,23 @@ const MAX_TRAIL_POINTS = 60;         // ~30 min of history at 30-s intervals
 // Ships move slowly so a 20-second lerp window is smooth and realistic.
 const SMOOTH_MS = 20_000;
 
+// Cache ship SVG icons keyed by (heading rounded to 10°, color).
+// 36 headings × ~5 colors = 180 max entries.  LRU eviction keeps memory stable.
+const MAX_SHIP_ICON_CACHE = 200;
+const _shipIconCache = new Map();
+function getCachedShipIcon(heading, color) {
+  const h   = Math.round((heading || 0) / 10) * 10 % 360;
+  const key = `${h}_${color}`;
+  if (!_shipIconCache.has(key)) {
+    if (_shipIconCache.size >= MAX_SHIP_ICON_CACHE) {
+      // LRU: evict oldest entry (Maps preserve insertion order)
+      _shipIconCache.delete(_shipIconCache.keys().next().value);
+    }
+    _shipIconCache.set(key, SHIP_SVG(h, color));
+  }
+  return _shipIconCache.get(key);
+}
+
 // Ship trail point mapper: IndexedDB {x,y,z} → Cesium.Cartesian3
 const shipPointFromDB = p => new Cesium.Cartesian3(p.x, p.y, p.z);
 
@@ -182,7 +199,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
         const position = Cesium.Cartesian3.fromDegrees(ship.lon, ship.lat, 0);
         const isTracked = trackedList?.has(id);
         const color    = isTracked ? '#FFD700' : getShipColor(ship.flag);
-        const iconUri  = SHIP_SVG(ship.heading || 0, color);
+        const iconUri  = getCachedShipIcon(ship.heading || 0, color);
 
         // Build label: [FLAG_ISO] NAME
         const rawFlag    = ship.flag || ship.country || '';
