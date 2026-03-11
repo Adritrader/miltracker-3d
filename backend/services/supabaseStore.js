@@ -115,6 +115,8 @@ export async function snapshotPositions(aircraft, ships) {
     const rows = [];
 
     // Aircraft — only those with valid positions
+    // Every row MUST have the same set of columns — PostgREST requires
+    // uniform keys in bulk inserts. Include ship-specific fields as null.
     for (const a of (aircraft || [])) {
       if (a.lat == null || a.lon == null) continue;
       rows.push({
@@ -126,44 +128,54 @@ export async function snapshotPositions(aircraft, ships) {
         lat:           a.lat,
         lon:           a.lon,
         altitude:      a.altitude ?? null,
-        heading:       a.heading ?? a.track ?? null,
+        heading:       a.heading ?? null,
         speed:         a.velocity ?? null,
         registration:  a.registration || null,
-        aircraft_type: a.aircraftType || a.typeName || null,
+        aircraft_type: a.aircraftType || null,
         squawk:        a.squawk || null,
         on_ground:     a.on_ground ?? null,
         vertical_rate: a.vertical_rate ?? null,
         carrier_name:  a.carrierName || null,
         carrier_ops:   a.carrierOps || null,
         source:        a.source || null,
+        ship_type:     null,
+        destination:   null,
+        imo:           null,
       });
     }
 
-    // Ships
+    // Ships — include aircraft-specific fields as null for uniform columns
     for (const s of (ships || [])) {
       if (s.lat == null || s.lon == null) continue;
       rows.push({
-        entity_type: 'ship',
-        entity_id:   s.id || s.mmsi,
-        callsign:    null,
-        name:        s.name || null,
-        flag:        s.flag || null,
-        lat:         s.lat,
-        lon:         s.lon,
-        altitude:    null,
-        heading:     s.heading ?? null,
-        speed:       s.velocity ?? null,
-        ship_type:   s.shipType || s.type_name || null,
-        destination: s.destination || null,
-        imo:         s.imo || null,
-        source:      s.source || null,
+        entity_type:   'ship',
+        entity_id:     s.id || s.mmsi,
+        callsign:      null,
+        name:          s.name || null,
+        flag:          s.flag || null,
+        lat:           s.lat,
+        lon:           s.lon,
+        altitude:      null,
+        heading:       s.heading ?? null,
+        speed:         s.velocity ?? null,
+        registration:  null,
+        aircraft_type: null,
+        squawk:        null,
+        on_ground:     null,
+        vertical_rate: null,
+        carrier_name:  null,
+        carrier_ops:   null,
+        source:        s.source || null,
+        ship_type:     s.shipType || s.type_name || null,
+        destination:   s.destination || null,
+        imo:           s.imo || null,
       });
     }
 
     if (rows.length === 0) return;
 
     // Strip extended columns that require migration 002
-    const BASIC_KEYS = ['entity_type','entity_id','callsign','name','flag','lat','lon','altitude','heading','speed','sampled_at'];
+    const BASIC_KEYS = ['entity_type','entity_id','callsign','name','flag','lat','lon','altitude','heading','speed'];
     const stripExtended = (row) => Object.fromEntries(BASIC_KEYS.filter(k => k in row).map(k => [k, row[k]]));
 
     // Supabase has a max payload size — batch in chunks of 500
@@ -176,6 +188,7 @@ export async function snapshotPositions(aircraft, ships) {
           const basic = chunk.map(stripExtended);
           const { error: e2 } = await supabase.from('position_snapshots').insert(basic);
           if (e2) throw e2;
+          console.warn('[Supabase] Snapshot fallback to basic columns — run migration 002 + 004');
         } else {
           throw error;
         }
