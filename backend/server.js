@@ -15,7 +15,7 @@ import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './service
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities } from './services/supabaseStore.js';
 
 dotenv.config();
 
@@ -197,6 +197,63 @@ app.get('/api/alerts',   (req, res) => res.json(cache.alerts));
 app.get('/api/hotspots', (req, res) => res.json(cache.hotspots));
 app.get('/api/conflicts',(req, res) => res.json(cache.conflicts));
 app.get('/api/cameras',  (req, res) => res.json(getCameras()));
+
+// ─── History endpoints (Supabase) ────────────────────────────────────────────
+
+// Entity trail — e.g. /api/history/trail/a4b7c2?hours=24
+app.get('/api/history/trail/:entityId', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const hours = Math.min(Math.max(parseInt(req.query.hours) || 24, 1), 336); // max 14 days
+    const data = await getEntityTrail(req.params.entityId, hours);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] trail error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch trail history' });
+  }
+});
+
+// Recent alerts — e.g. /api/history/alerts?hours=48&severity=critical
+app.get('/api/history/alerts', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const hours = Math.min(Math.max(parseInt(req.query.hours) || 48, 1), 336);
+    const severity = ['critical','high','medium','low'].includes(req.query.severity) ? req.query.severity : null;
+    const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
+    const data = await getRecentAlerts(hours, severity, limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] alerts error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch alert history' });
+  }
+});
+
+// Daily stats — e.g. /api/history/stats?days=14
+app.get('/api/history/stats', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days) || 14, 1), 90);
+    const data = await getDailyStats(days);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] stats error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch daily stats' });
+  }
+});
+
+// Active entities — e.g. /api/history/entities?type=aircraft&hours=24
+app.get('/api/history/entities', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const type = ['aircraft','ship'].includes(req.query.type) ? req.query.type : 'aircraft';
+    const hours = Math.min(Math.max(parseInt(req.query.hours) || 24, 1), 336);
+    const data = await getActiveEntities(type, hours);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] entities error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch entity list' });
+  }
+});
 
 // ─── Admin: manual tweet trigger ─────────────────────────────────────────────
 app.post('/api/admin/tweet', async (req, res) => {

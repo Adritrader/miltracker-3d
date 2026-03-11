@@ -60,7 +60,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, speedUnit = 'kt', onToggleSpeedUnit, altUnit = 'ft', onToggleAltUnit }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, onLoadTrail, speedUnit = 'kt', onToggleSpeedUnit, altUnit = 'ft', onToggleAltUnit }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -546,6 +546,17 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               onClick={() => onSatellite({ lat: entity.lat, lon: entity.lon, title: entity.callsign || entity.name || entity.title || entity.type })}
             >
               &#x1F6F0; SAT IMG
+            </button>
+          )}
+
+          {/* TRAIL — load historical trajectory from Supabase */}
+          {(isAircraft || isShip) && trackableId && onLoadTrail && (
+            <button
+              className="hud-btn text-center text-xs"
+              title="Load historical trajectory from database"
+              onClick={() => onLoadTrail(trackableId)}
+            >
+              &#x1F4CD; TRAIL
             </button>
           )}
         </div>

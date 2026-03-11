@@ -26,6 +26,7 @@ import TimelinePanel from './components/TimelinePanel.jsx';
 import FIRMSLayer from './components/FIRMSLayer.jsx';
 import SentinelPortalModal from './components/SentinelPortalModal.jsx';
 import SitrepCapture from './components/SitrepCapture.jsx';
+import HistoryPanel from './components/HistoryPanel.jsx';
 import CameraLayer from './components/CameraLayer.jsx';
 import CameraModal from './components/CameraModal.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
@@ -87,6 +88,7 @@ function App() {
   const [selectedCamera, setSelectedCamera] = useState(null);
   const [cameras, setCameras] = useState([]);
   const [legalPage, setLegalPage] = useState(null); // 'privacy' | 'cookies' | 'terms'
+  const [historyTrailId, setHistoryTrailId] = useState(null); // { id, ts } for HistoryPanel trail auto-load
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
@@ -426,6 +428,7 @@ function App() {
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLegend isMobile={isMobile} />
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
+        <HistoryPanel viewer={viewer} isMobile={isMobile} externalTrailId={historyTrailId} />
         <SitrepCapture
           viewer={viewer}
           onUiHide={() => setUiHidden(true)}
@@ -453,6 +456,7 @@ function App() {
         onTrack={handleTrack}
         onUntrack={handleUntrack}
         onSatellite={setSatellitePortal}
+        onLoadTrail={(id) => setHistoryTrailId({ id, ts: Date.now() })}
         speedUnit={speedUnit}
         onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
         altUnit={altUnit}
