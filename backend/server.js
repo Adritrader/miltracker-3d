@@ -54,10 +54,11 @@ app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
-// Rate limit REST endpoints — 30 req/min per IP (S4)
+// Rate limit REST endpoints — 120 req/min per IP
+// Dashboard opens ≈13 analytics calls at once + live data polling ≈ 20 req burst
 const apiLimiter = rateLimit({
   windowMs: 60_000,
-  max: 30,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -115,8 +116,9 @@ const newsStore     = buildStore(loadCache('news',      []), NEWS_TTL);
 
 // Load persisted AI insight (served immediately on connect, refreshed every ~30min)
 let cachedAiInsight = loadCache('ai_insight', null);
-const GEMINI_COOLDOWN_MS = 60 * 60_000; // 60 minutes — conserve free-tier quota
+const GEMINI_COOLDOWN_MS = 30 * 60_000; // 30 minutes — free tier allows ~1500 req/day
 let lastGeminiCallAt = 0; // epoch ms of last successful Gemini request
+let geminiHasRun = false; // first run bypasses 'changed' requirement
 
 // Merge fresh events into a store; returns { changed, items[] }
 function mergeIntoStore(store, freshEvents, ttl, maxSize = Infinity) {
@@ -616,11 +618,12 @@ async function pollNews() {
       archiveNews(cache.news).catch(() => {});
     }
 
-    // AI analysis — only when news changed AND 30-min cooldown has elapsed
+    // AI analysis — first run doesn't require 'changed'; subsequent runs need changed news + cooldown
+    const cooldownOk = (Date.now() - lastGeminiCallAt) >= GEMINI_COOLDOWN_MS;
     const geminiReady = process.env.GEMINI_API_KEY
       && cache.news.length > 0
-      && changed
-      && (Date.now() - lastGeminiCallAt) >= GEMINI_COOLDOWN_MS;
+      && (changed || !geminiHasRun)
+      && cooldownOk;
 
     if (geminiReady) {
       try {
@@ -629,17 +632,20 @@ async function pollNews() {
         if (aiInsights) {
           cachedAiInsight = aiInsights;
           lastGeminiCallAt = Date.now();
+          geminiHasRun = true;
           saveCache('ai_insight', aiInsights);
           io.emit('ai_insight', aiInsights);
           // Supabase: archive AI insight
           archiveAIInsight(aiInsights).catch(() => {});
-          console.log('[AI] Analysis emitted.');
+          console.log('[AI] Analysis complete — threat:', aiInsights.threatLevel);
         }
       } catch (e) {
         console.error('[AI] Gemini error:', e.message);
         io.emit('ai_insight', { error: e.message, source: 'gemini_error', timestamp: new Date().toISOString() });
+        // Don't block retries — allow next poll to try again
+        if (!geminiHasRun) lastGeminiCallAt = 0;
       }
-    } else if (process.env.GEMINI_API_KEY && !geminiReady) {
+    } else if (process.env.GEMINI_API_KEY && !cooldownOk) {
       const waitMin = Math.ceil((GEMINI_COOLDOWN_MS - (Date.now() - lastGeminiCallAt)) / 60000);
       if (lastGeminiCallAt > 0) console.log(`[AI] Cooldown active — next call in ~${waitMin}m`);
     }
@@ -743,9 +749,11 @@ httpServer.listen(PORT, () => {
   // Probe Gemini on startup — logs which model is available (or why it failed)
   // Note: only calls listModels (no generateContent) — does NOT consume quota
   if (process.env.GEMINI_API_KEY) probeGeminiModel(process.env.GEMINI_API_KEY);
-  // Stagger first Gemini analysis by one full cooldown so a rapid redeploy
-  // cycle doesn't burn quota — first real call will happen after first changed poll
-  lastGeminiCallAt = Date.now() - GEMINI_COOLDOWN_MS + 5 * 60_000; // allow after 5 min
+  // If no cached insight, allow Gemini on the very first news poll (no stagger).
+  // If an insight already exists from disk cache, stagger by 5 min to avoid quota burn on rapid redeploys.
+  lastGeminiCallAt = cachedAiInsight
+    ? Date.now() - GEMINI_COOLDOWN_MS + 5 * 60_000  // allow after 5 min
+    : 0;                                              // allow immediately
 
   // Intervals — use recursive setTimeout for pollShips to prevent overlap
   // if a fetch takes longer than the interval (B4)

@@ -84,7 +84,7 @@ const HudTooltip = ({ active, payload, label }) => {
 };
 
 // ── OVERVIEW TAB — KPI cards + charts ───────────────────────────────────────
-const OverviewTab = ({ hours, onFlyTo }) => {
+const OverviewTab = ({ hours, onFlyTo, liveCounts }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -111,12 +111,13 @@ const OverviewTab = ({ hours, onFlyTo }) => {
   if (error) return <ErrorBanner msg={error} />;
   if (!data) return <EmptyState icon="📊" msg="No analytics data yet" />;
 
-  // Compute KPIs — coerce count to number (Supabase RPC returns BIGINT as string)
-  const totalAircraft = data.fleet.filter(f => f.entity_type === 'aircraft').reduce((s, f) => s + Number(f.count || 0), 0);
-  const totalShips = data.fleet.filter(f => f.entity_type === 'ship').reduce((s, f) => s + Number(f.count || 0), 0);
-  const totalAlerts = data.alertSev.reduce((s, a) => s + Number(a.count || 0), 0);
-  const totalConflicts = data.conflictTypes.reduce((s, c) => s + Number(c.count || 0), 0);
-  const countries = new Set(data.fleet.map(f => f.flag)).size;
+  // KPIs — use live counts from the 3D map (military-filtered, matches globe exactly)
+  const lc = liveCounts || {};
+  const totalAircraft = lc.aircraft ?? 0;
+  const totalShips = lc.ships ?? 0;
+  const totalAlerts = lc.alerts ?? data.alertSev.reduce((s, a) => s + Number(a.count || 0), 0);
+  const totalConflicts = lc.conflicts ?? data.conflictTypes.reduce((s, c) => s + Number(c.count || 0), 0);
+  const countries = new Set(data.fleet.filter(f => f.flag && f.flag !== 'Unknown').map(f => f.flag)).size;
 
   // Format hourly for area chart
   const hourlyChart = (data.hourly || []).map(h => ({
@@ -710,7 +711,7 @@ const TrailTab = ({ onShowTrail, viewer, pendingTrailId, onPendingConsumed }) =>
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN PANEL — centered modal with minimize to widget
 // ════════════════════════════════════════════════════════════════════════════
-const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = null }) => {
+const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = null, liveCounts = null }) => {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(true); // true = bottom-right widget, false = full modal
   const [tab, setTab] = useState('overview');
@@ -808,7 +809,7 @@ const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = nul
             ))}
           </div>
           <div className="max-h-[50vh] overflow-y-auto px-3 py-2.5 scrollbar-thin">
-            {tab === 'overview' && <OverviewTab hours={hours} onFlyTo={handleFlyTo} />}
+            {tab === 'overview' && <OverviewTab hours={hours} onFlyTo={handleFlyTo} liveCounts={liveCounts} />}
             {tab === 'alerts' && <AlertsTab onFlyTo={handleFlyTo} />}
             {tab === 'events' && <EventsTab onFlyTo={handleFlyTo} />}
             {tab === 'news' && <NewsTab onFlyTo={handleFlyTo} />}
@@ -858,7 +859,7 @@ const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = nul
 
         {/* Content — scrollable */}
         <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
-          {tab === 'overview' && <OverviewTab hours={hours} onFlyTo={handleFlyTo} />}
+          {tab === 'overview' && <OverviewTab hours={hours} onFlyTo={handleFlyTo} liveCounts={liveCounts} />}
           {tab === 'alerts' && <AlertsTab onFlyTo={handleFlyTo} />}
           {tab === 'events' && <EventsTab onFlyTo={handleFlyTo} />}
           {tab === 'news' && <NewsTab onFlyTo={handleFlyTo} />}

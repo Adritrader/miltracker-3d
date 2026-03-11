@@ -428,7 +428,8 @@ function App() {
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLegend isMobile={isMobile} />
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
-        <HistoryPanel viewer={viewer} isMobile={isMobile} externalTrailId={historyTrailId} />
+        <HistoryPanel viewer={viewer} isMobile={isMobile} externalTrailId={historyTrailId}
+          liveCounts={{ aircraft: filteredAircraft.length, ships: filteredShips.length, alerts: alerts.length, conflicts: filteredConflicts.length, news: filteredNews.filter(n => n.lat).length }} />
         <SitrepCapture
           viewer={viewer}
           onUiHide={() => setUiHidden(true)}

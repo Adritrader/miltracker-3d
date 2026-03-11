@@ -9,10 +9,9 @@ CREATE OR REPLACE FUNCTION analytics_fleet_composition(p_hours INT DEFAULT 24)
 RETURNS TABLE(flag TEXT, entity_type TEXT, count BIGINT) LANGUAGE sql STABLE AS $$
   SELECT flag, entity_type, COUNT(*) as count
   FROM (
-    SELECT DISTINCT ON (entity_id) flag, entity_type
+    SELECT DISTINCT ON (entity_id) COALESCE(NULLIF(flag, ''), 'Unknown') AS flag, entity_type
     FROM position_snapshots
     WHERE sampled_at >= NOW() - (p_hours || ' hours')::INTERVAL
-      AND flag IS NOT NULL AND flag != ''
     ORDER BY entity_id, sampled_at DESC
   ) sub
   GROUP BY flag, entity_type
