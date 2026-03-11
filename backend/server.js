@@ -518,11 +518,9 @@ async function pollAircraft() {
     recordSnapshot(aircraft, cache.ships);
 
     // Supabase: sample positions every 10 min + daily stats
-    // Only snapshot aircraft visible on the 3D map (operational zones)
-    const opZoneAircraft = aircraft.filter(a => isInOpZone(a.lat, a.lon));
-    snapshotPositions(opZoneAircraft, cache.ships).catch(() => {});
+    snapshotPositions(aircraft, cache.ships).catch(() => {});
     upsertDailyStats({
-      aircraftCount:  opZoneAircraft.length,
+      aircraftCount:  aircraft.length,
       shipCount:      cache.ships.length,
       alertCount:     cache.alerts.length,
       conflictCount:  cache.conflicts.length,

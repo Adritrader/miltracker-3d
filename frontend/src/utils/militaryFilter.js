@@ -479,7 +479,6 @@ export function isInOperationalZone(lat, lon) {
 }
 
 export function filterAircraft(aircraft, filters) {
-  const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
   return aircraft.filter(ac => {
     if (!filters.showAircraft) return false;
     // Resolve operator/origin string → full country name for consistent matching.
@@ -499,8 +498,6 @@ export function filterAircraft(aircraft, filters) {
     const likelyOnGround = ac.on_ground
       || (ac.altitudeFt != null ? ac.altitudeFt < 100 : (ac.altitude != null ? ac.altitude < 30 : false));
     if (likelyOnGround && !filters.showOnGround) return false;
-    // When no country/alliance is selected, hide aircraft far from conflict zones
-    if (geoFilter && !isInOperationalZone(ac.lat, ac.lon)) return false;
     if (filters.missionType && filters.missionType !== 'ALL') {
       const cat = categorizeAircraft(ac);
       const mt = filters.missionType;
@@ -517,7 +514,6 @@ export function filterAircraft(aircraft, filters) {
 }
 
 export function filterShips(ships, filters) {
-  const geoFilter = filters.country === 'ALL' && filters.alliance === 'ALL';
   // Map ISO-2 flag code back to country name for alliance lookup
   const FLAG_TO_NAME = {
     'US':'United States','RU':'Russia','CN':'China','GB':'United Kingdom',
@@ -533,8 +529,6 @@ export function filterShips(ships, filters) {
   };
   return ships.filter(sh => {
     if (!filters.showShips) return false;
-    // When no country/alliance is selected, hide ships far from conflict zones
-    if (geoFilter && !isInOperationalZone(sh.lat, sh.lon)) return false;
     if (filters.alliance !== 'ALL') {
       const countryName = FLAG_TO_NAME[sh.flag] || sh.flag;
       if (getAlliance(countryName) !== filters.alliance) return false;
