@@ -13,6 +13,11 @@ import { loadCache, saveCache } from './diskCache.js';
 
 const GEMINI_HOST = 'https://generativelanguage.googleapis.com';
 
+// B-C8: strip query-param API keys before logging error messages
+function sanitizeErr(msg = '') {
+  return String(msg).replace(/([?&]key=)[^&\s"']*/gi, '$1[REDACTED]');
+}
+
 // ── In-memory LRU cache ─────────────────────────────────────────────────────
 const MAX_CACHE = 2000;
 let intelCache = new Map(); // callsign/icao → result
@@ -170,7 +175,7 @@ RULES:
     if (!res.ok) {
       const errTxt = await res.text();
       resolvedModel = null;
-      throw new Error(`Gemini ${model} HTTP ${res.status}: ${errTxt.slice(0, 200)}`);
+      throw new Error(`Gemini ${model} HTTP ${res.status}: ${sanitizeErr(errTxt.slice(0, 200))}`);
     }
 
     const data = await res.json();

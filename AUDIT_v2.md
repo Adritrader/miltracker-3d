@@ -23,10 +23,10 @@
 
 ### 🔴 CRÍTICOS — Arreglar antes de cualquier escalado
 
-- [ ] **B-C1 · Auth Bypass condicional** — `server.js` ~L99: Si `REST_API_KEY` no está seteada, `next()` se ejecuta y TODA la API REST queda abierta. En Railway si `NODE_ENV` no está definido, la variable `secret` es undefined → bypass total.
+- [x] **B-C1 · Auth Bypass condicional** ✅ *fix: startup warning + 401 guard añadido* — `server.js` ~L99: Si `REST_API_KEY` no está seteada, `next()` se ejecuta y TODA la API REST queda abierta. En Railway si `NODE_ENV` no está definido, la variable `secret` es undefined → bypass total.
   - **Fix:** Si `!secret` y `NODE_ENV !== 'development'`, devolver `401`.
 
-- [ ] **B-C2 · Failures silenciosos en archivado Supabase** — `server.js` ~L563-618: `archiveConflicts().catch(() => {})`, `archiveAlerts().catch(() => {})`, `archiveNews().catch(() => {})`. Si Supabase falla, la base de datos queda desincronizada y nunca te enteras.
+- [x] **B-C2 · Failures silenciosos en archivado Supabase** ✅ *fix: todos los .catch(()=>{}) reemplazados con console.error* — `server.js` ~L563-618: `archiveConflicts().catch(() => {})`, `archiveAlerts().catch(() => {})`, `archiveNews().catch(() => {})`. Si Supabase falla, la base de datos queda desincronizada y nunca te enteras.
   - **Fix:** Logear error con contexto, incrementar un counter de errores.
 
 - [ ] **B-C3 · Race condition cache → alertas** — `server.js`: `pollAircraft()` y `pollNews()` actualizan cache en timestamps distintos. Las alertas se generan con datos stale de 1-2 min.
@@ -35,16 +35,16 @@
 - [ ] **B-C4 · WebSocket sin rate limiting** — `server.js` ~L545-557: REST tiene rate limiter (120/min) pero WebSocket no tiene ningún límite. 5 tipos de evento × 30s × N clientes = broadcast storm.
   - **Fix:** Añadir rate limiting por socket (ej: máx 10 emits/min por socket, throttle broadcasts).
 
-- [ ] **B-C5 · Input validation inexistente en endpoints** — `server.js` ~L221-253: `entityId` no sanitizado (riesgo SQL injection vía Supabase RPC), `hours` acepta valores negativos, `limit` acepta 999999.
+- [x] **B-C5 · Input validation inexistente en endpoints** ✅ *fix: regex para callsign/icao24/reg en intel endpoint y entityId en trail* — `server.js` ~L221-253: `entityId` no sanitizado (riesgo SQL injection vía Supabase RPC), `hours` acepta valores negativos, `limit` acepta 999999.
   - **Fix:** Validar entityId con regex `/^[a-zA-Z0-9_-]{1,32}$/`, hours 1-168, limit 1-500.
 
-- [ ] **B-C6 · No graceful shutdown** — `server.js`: No hay handler SIGTERM/SIGINT. Railway al hacer redeploy mata el container mid-write.
+- [x] **B-C6 · No graceful shutdown** ✅ *fix: SIGTERM/SIGINT handler con io.close + httpServer.close + 5s force exit* — `server.js`: No hay handler SIGTERM/SIGINT. Railway al hacer redeploy mata el container mid-write.
   - **Fix:** `process.on('SIGTERM', async () => { await flushCaches(); server.close(); })`.
 
-- [ ] **B-C7 · Disk cache corrupta al crash** — `diskCache.js` ~L54: `writeFile()` async sin rename atómico. Si el proceso muere durante la escritura → JSON corrupto → crash al reiniciar.
+- [x] **B-C7 · Disk cache corrupta al crash** ✅ *fix: atomic write — tmp + rename en diskCache.js* — `diskCache.js` ~L54: `writeFile()` async sin rename atómico. Si el proceso muere durante la escritura → JSON corrupto → crash al reiniciar.
   - **Fix:** Escribir a `.tmp` y luego `rename()` (operación atómica en POSIX).
 
-- [ ] **B-C8 · API Keys expuestas en logs de error** — `aiDanger.js`, `server.js`: Los bloques `catch(err)` logean el objeto error completo que puede contener la URL con `?key=GEMINI_API_KEY`.
+- [x] **B-C8 · API Keys expuestas en logs de error** ✅ *fix: sanitizeErr() helper en aiDanger.js y aiAircraftIntel.js — borra `?key=` de mensajes de error* — `aiDanger.js`, `server.js`: Los bloques `catch(err)` logean el objeto error completo que puede contener la URL con `?key=GEMINI_API_KEY`.
   - **Fix:** Sanitizar err.message eliminando query params antes de logear.
 
 - [ ] **B-C9 · CSV Injection vía FIRMS** — `firmsService.js` ~L245: CSV de FIRMS parseado con split por coma sin validación. Datos maliciosos podrían contener metacaracteres shell.
@@ -57,13 +57,13 @@
 
 ### 🟠 ALTOS — Arreglar antes de 1000 usuarios
 
-- [ ] **B-H1 · Memory leak en Sets de deduplicación** — `supabaseStore.js` ~L35-62: `archivedAlertIds`, `archivedConflictIds`, `archivedNewsIds` crecen indefinidamente (potencialmente 100k+ entries).
+- [x] **B-H1 · Memory leak en Sets de deduplicación** ✅ *ya OK: cap 10k → trim a 5k en supabaseStore.js* — `supabaseStore.js` ~L35-62: `archivedAlertIds`, `archivedConflictIds`, `archivedNewsIds` crecen indefinidamente (potencialmente 100k+ entries).
   - **Fix:** Limitar a últimas 10k entradas o usar TTL Map.
 
-- [ ] **B-H2 · Memory leak en tweetedIds** — `twitterService.js` ~L96: Set sin límite.
+- [x] **B-H2 · Memory leak en tweetedIds** ✅ *ya OK: cap 500 en twitterService.js* — `twitterService.js` ~L96: Set sin límite.
   - **Fix:** Mismo que H1, implementar cap o LRU.
 
-- [ ] **B-H3 · seedArchivedIds() carga 50k+ en memoria al startup** — `supabaseStore.js` ~L41: Query sin límite al iniciar.
+- [x] **B-H3 · seedArchivedIds() carga 50k+ en memoria al startup** ✅ *ya OK: query limitada a últimas 48h + LIMIT 5000* — `supabaseStore.js` ~L41: Query sin límite al iniciar.
   - **Fix:** Cargar solo últimas 24h o limitar a 5000 IDs.
 
 - [ ] **B-H4 · Sin paginación en endpoints de historial** — `server.js` ~L303-318: `/api/alerts/history` puede devolver 500+ alertas (50MB JSON).
@@ -142,28 +142,28 @@
 
 ### 🔴 CRÍTICOS — Memory leaks y crashes
 
-- [ ] **F-C1 · Cesium Viewer nunca se destruye** — `Globe3D.jsx`: `viewerRef.current` se asigna pero no hay cleanup en `useEffect`. Cada recarga fuga viewer + terrainProvider + todas las entidades.
+- [x] **F-C1 · Cesium Viewer nunca se destruye** ✅ *fix: viewer.destroy() en useEffect cleanup de Globe3D.jsx* — `Globe3D.jsx`: `viewerRef.current` se asigna pero no hay cleanup en `useEffect`. Cada recarga fuga viewer + terrainProvider + todas las entidades.
   - **Fix:** `return () => { if (viewerRef.current && !viewerRef.current.isDestroyed()) viewerRef.current.destroy(); }`
 
-- [ ] **F-C2 · ScreenSpaceEventHandler nunca se destruyen** — `Globe3D.jsx` ~L185-220, `CoordinateHUD.jsx` ~L78-105: Se crean handlers de click/mousemove pero nunca se llama `handler.destroy()` en cleanup.
+- [x] **F-C2 · ScreenSpaceEventHandler nunca se destruyen** ✅ *ya OK: CoordinateHUD destruye su handler; Globe3D usa el built-in del viewer que se destruye con viewer.destroy() (F-C1)* — `Globe3D.jsx` ~L185-220, `CoordinateHUD.jsx` ~L78-105: Se crean handlers de click/mousemove pero nunca se llama `handler.destroy()` en cleanup.
   - **Fix:** Guardar refs de handlers y destruir en useEffect cleanup.
 
-- [ ] **F-C3 · CustomDataSources nunca se eliminan** — `AircraftLayer`, `ShipLayer`, `NewsLayer`, `FIRMSLayer`, `ConflictLayer`, `DangerZoneLayer`, `MilitaryBasesLayer`: Todas usan `viewer.dataSources.add()` sin `viewer.dataSources.remove()` en unmount.
+- [x] **F-C3 · CustomDataSources nunca se eliminan** ✅ *fix: dataSources.remove() en unmount en 6 layer components* — `AircraftLayer`, `ShipLayer`, `NewsLayer`, `FIRMSLayer`, `ConflictLayer`, `DangerZoneLayer`, `MilitaryBasesLayer`: Todas usan `viewer.dataSources.add()` sin `viewer.dataSources.remove()` en unmount.
   - **Fix:** Cleanup: `return () => viewer.dataSources.remove(dsCache.current[name])`.
 
-- [ ] **F-C4 · Camera event listeners no se limpian** — `NewsLayer.jsx` ~L205-214, `FIRMSLayer.jsx` ~L140-152: `viewer.camera.moveEnd.addEventListener()` sin `removeEventListener()` fiable al desmontar.
+- [x] **F-C4 · Camera event listeners no se limpian** ✅ *ya OK: NewsLayer y FIRMSLayer ya llaman removeEventListener en cleanup* — `NewsLayer.jsx` ~L205-214, `FIRMSLayer.jsx` ~L140-152: `viewer.camera.moveEnd.addEventListener()` sin `removeEventListener()` fiable al desmontar.
   - **Fix:** Guardar referencia del listener y removerlo explícitamente.
 
-- [ ] **F-C5 · Socket listeners se acumulan** — `useRealTimeData.js` ~L107-175: `socket.on('...')` se registra 10+ veces pero solo se hace `socket.disconnect()` al cleanup. Si el componente se remonta, se duplican listeners.
+- [x] **F-C5 · Socket listeners se acumulan** ✅ *fix: socket.removeAllListeners() antes de disconnect en useRealTimeData.js* — `useRealTimeData.js` ~L107-175: `socket.on('...')` se registra 10+ veces pero solo se hace `socket.disconnect()` al cleanup. Si el componente se remonta, se duplican listeners.
   - **Fix:** Usar `socket.off('event', handler)` explícitamente antes de disconnect.
 
 - [ ] **F-C6 · Race condition en Timeline replay** — `useTimeline.js` ~L45-65: `replayMode` se actualiza async pero se lee en closures. Seek durante playback = desync de estado.
   - **Fix:** Leer siempre de refs en los handlers, no de closure variables.
 
-- [ ] **F-C7 · Inyección vía datos de entidad** — `EntityPopup.jsx` ~L76-92: callsign, ICAO24 sin validar pasan directo a URL de fetch. Si backend no sanitiza → XSS.
+- [x] **F-C7 · Inyección vía datos de entidad** ✅ *fix: regex validators RE_CS/RE_ICAO/RE_REG/RE_TYPE en EntityPopup antes de fetch* — `EntityPopup.jsx` ~L76-92: callsign, ICAO24 sin validar pasan directo a URL de fetch. Si backend no sanitiza → XSS.
   - **Fix:** Validar: `/^[A-Z0-9]{2,8}$/` para callsign, `/^[0-9a-fA-F]{6}$/` para ICAO24.
 
-- [ ] **F-C8 · URLs de imagen sin validar** — `EntityPopup.jsx` ~L109-130: `<img src={imageUrl}>` donde imageUrl viene de backend sin whitelist de dominios.
+- [x] **F-C8 · URLs de imagen sin validar** ✅ *fix: SAFE_IMG regex — only https?:// and / allowed in EntityPopup* — `EntityPopup.jsx` ~L109-130: `<img src={imageUrl}>` donde imageUrl viene de backend sin whitelist de dominios.
   - **Fix:** Validar dominio de imagen contra whitelist permitida.
 
 ---
@@ -382,15 +382,15 @@
 
 | # | Item | ID |
 |---|------|----|
-| 1 | Auth bypass fix | B-C1 |
-| 2 | Error logging en archivado | B-C2 |
-| 3 | Graceful shutdown | B-C6 |
-| 4 | Atomic disk writes | B-C7 |
-| 5 | Input validation endpoints | B-C5 |
-| 6 | Destroy Cesium viewer on unmount | F-C1 |
+| 1 | ✅ Auth bypass fix | B-C1 |
+| 2 | ✅ Error logging en archivado | B-C2 |
+| 3 | ✅ Graceful shutdown | B-C6 |
+| 4 | ✅ Atomic disk writes | B-C7 |
+| 5 | ✅ Input validation endpoints | B-C5 |
+| 6 | ✅ Destroy Cesium viewer on unmount | F-C1 |
 | 7 | Destroy ScreenSpaceEventHandlers | F-C2 |
-| 8 | Cleanup CustomDataSources | F-C3 |
-| 9 | Socket listener cleanup | F-C5 |
+| 8 | ✅ Cleanup CustomDataSources | F-C3 |
+| 9 | ✅ Socket listener cleanup | F-C5 |
 | 10 | Tests mínimos (10 backend + 5 frontend) | I-C1 |
 
 ### Fase 2 — Seguridad y Performance (semanas 3-4)
@@ -401,12 +401,12 @@
 | 11 | WebSocket rate limiting | B-C4 |
 | 12 | Memory leak fixes (Sets con cap) | B-H1, B-H2 |
 | 13 | Delta updates en broadcasts | B-H9 |
-| 14 | Entity count limits en Cesium | F-H1 |
-| 15 | Input validation frontend | F-C7 |
+| 14 | ✅ Entity count limits en Cesium | F-H1 |
+| 15 | ✅ Input validation frontend | F-C7 |
 | 16 | CI/CD pipeline (GitHub Actions) | I-C2 |
 | 17 | Sentry integration | I-H1 |  
-| 18 | Sanitizar API keys en logs | B-C8 |
-| 19 | Rate limiting por IP | I-H3 |
+| 18 | ✅ Sanitizar API keys en logs | B-C8 |
+| 19 | ✅ Rate limiting por IP | I-H3 |
 | 20 | Load testing (k6) | I-H5 |
 
 ### Fase 3 — Monetización (semanas 5-8)

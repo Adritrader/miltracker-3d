@@ -57,7 +57,7 @@ async function resolveGeminiModel(key) {
         return resolvedGeminiModel;
       }
     } catch (e) {
-      console.warn(`[AI] listModels (${apiVer}) failed:`, e.message);
+      console.warn(`[AI] listModels (${apiVer}) failed:`, sanitizeErr(e.message));
     }
   }
   throw new Error('No Gemini models available for this API key — check Google AI Studio');
@@ -509,7 +509,7 @@ Be factual, concise, and analytical. Do not speculate beyond available data.`;
     const errTxt = await res.text();
     // Reset so next call re-discovers (model may have been removed)
     resolvedGeminiModel = null;
-    throw new Error(`Gemini ${model} HTTP ${res.status}: ${errTxt.slice(0, 300)}`);
+    throw new Error(`Gemini ${model} HTTP ${res.status}: ${sanitizeErr(errTxt.slice(0, 300))}`);
   }
 
   const data = await res.json();

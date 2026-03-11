@@ -79,12 +79,17 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
       setAiIntel(null);
       setAiIntelLoading(true);
       const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      // F-C7: validate entity fields before sending to backend
+      const RE_CS   = /^[A-Z0-9 _-]{2,10}$/i;
+      const RE_ICAO = /^[0-9a-f]{6}$/i;
+      const RE_REG  = /^[A-Z0-9-]{2,12}$/i;
+      const RE_TYPE = /^[A-Z0-9/-]{1,10}$/i;
       const params = new URLSearchParams();
-      if (entity.callsign)     params.set('callsign', entity.callsign);
-      if (entity.icao24)       params.set('icao24', entity.icao24);
-      if (entity.registration) params.set('registration', entity.registration);
-      if (entity.aircraftType) params.set('type', entity.aircraftType);
-      if (entity.country)      params.set('country', entity.country);
+      if (entity.callsign     && RE_CS.test(entity.callsign))     params.set('callsign', entity.callsign);
+      if (entity.icao24       && RE_ICAO.test(entity.icao24))     params.set('icao24', entity.icao24);
+      if (entity.registration && RE_REG.test(entity.registration)) params.set('registration', entity.registration);
+      if (entity.aircraftType && RE_TYPE.test(entity.aircraftType)) params.set('type', entity.aircraftType);
+      if (entity.country)      params.set('country', String(entity.country).slice(0, 50));
       fetch(`${BACKEND}/api/aircraft/intel?${params}`)
         .then(r => r.json())
         .then(data => {
@@ -176,9 +181,12 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   const isTracking = !!trackableId && (trackedList?.has(trackableId) ?? false);
 
   // ── Image URL ─────────────────────────────────────────────────────────────
+  // F-C8: only allow safe URL schemes for images that come from external data
+  const SAFE_IMG = /^(https?:\/\/|\/)/;
   let imageUrl = null;
   if (isNews) {
-    imageUrl = entity.imageUrl || entity.urlToImage || null;
+    const rawImg = entity.imageUrl || entity.urlToImage || null;
+    imageUrl = rawImg && SAFE_IMG.test(rawImg) ? rawImg : null;
   } else if (isAircraft) {
     imageUrl = getAircraftImageUrl(entity.aircraftType);
     if (!imageUrl) {
