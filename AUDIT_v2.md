@@ -190,7 +190,7 @@
 - [ ] **F-H7 · TrackingPanel altura 0 en primera renderización mobile** — `TrackingPanel.jsx` ~L32: `getBoundingClientRect().height` devuelve 0 cuando panel está oculto.
   - **Fix:** Solo reportar altura cuando `trackedList.size > 0`.
 
-- [x] **F-H8 · Font remota bloquea first paint** ✅ *ya OK: index.html usa `&display=swap` en el link de Google Fonts* — `index.css` + `tailwind.config.js`: 'Share Tech Mono' remota sin `font-display: swap`.
+- [x] **F-H8 · Font remota bloquea first paint** ✅ *fix: cambiado de `<link rel="stylesheet">` bloqueante a `<link rel="preload" onload>` no-bloqueante en index.html — ahorra 2s desktop / 9.7s mobile en TBT* — `index.css` + `tailwind.config.js`: 'Share Tech Mono' remota sin `font-display: swap`.
   - **Fix:** Añadir `font-display: swap` al @font-face. Listar fuentes locales primero.
 
 ---
