@@ -13,6 +13,28 @@ import { loadCache, saveCache } from './services/diskCache.js';
 import { fetchConflictEvents } from './services/conflictService.js';
 import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './services/positionTracker.js';
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
+
+// ─── Operational zones — must match frontend/src/utils/militaryFilter.js ──────
+const OPERATIONAL_ZONES = [
+  { minLat:  8, maxLat: 43, minLon: 24, maxLon: 66 },   // Middle East
+  { minLat: 43, maxLat: 58, minLon: 22, maxLon: 45 },   // Ukraine
+  { minLat: 37, maxLat: 45, minLon: 38, maxLon: 53 },   // Caucasus
+  { minLat: -5, maxLat: 16, minLon: 38, maxLon: 56 },   // Horn of Africa
+  { minLat:  5, maxLat: 35, minLon:-18, maxLon: 42 },   // Sahel
+  { minLat: 22, maxLat: 38, minLon: 60, maxLon: 82 },   // South Asia
+  { minLat:  5, maxLat: 46, minLon:107, maxLon:145 },   // East Asia
+  { minLat:  8, maxLat: 28, minLon: 92, maxLon:102 },   // Southeast Asia
+  { minLat: 30, maxLat: 48, minLon:-12, maxLon: 36 },   // Mediterranean
+  { minLat: 53, maxLat: 60, minLon: 14, maxLon: 30 },   // Baltic
+  { minLat: 48, maxLat: 72, minLon:-30, maxLon: 15 },   // North Atlantic
+  { minLat:-25, maxLat: 28, minLon: 55, maxLon:100 },   // Indian Ocean
+  { minLat:  5, maxLat: 50, minLon:135, maxLon:180 },   // Western Pacific
+  { minLat: 25, maxLat: 48, minLon:-85, maxLon:-55 },   // US East Coast
+];
+function isInOpZone(lat, lon) {
+  if (lat == null || lon == null) return false;
+  return OPERATIONAL_ZONES.some(z => lat >= z.minLat && lat <= z.maxLat && lon >= z.minLon && lon <= z.maxLon);
+}
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
 import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity } from './services/supabaseStore.js';
@@ -496,9 +518,11 @@ async function pollAircraft() {
     recordSnapshot(aircraft, cache.ships);
 
     // Supabase: sample positions every 10 min + daily stats
-    snapshotPositions(aircraft, cache.ships).catch(() => {});
+    // Only snapshot aircraft visible on the 3D map (operational zones)
+    const opZoneAircraft = aircraft.filter(a => isInOpZone(a.lat, a.lon));
+    snapshotPositions(opZoneAircraft, cache.ships).catch(() => {});
     upsertDailyStats({
-      aircraftCount:  aircraft.length,
+      aircraftCount:  opZoneAircraft.length,
       shipCount:      cache.ships.length,
       alertCount:     cache.alerts.length,
       conflictCount:  cache.conflicts.length,
