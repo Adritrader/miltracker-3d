@@ -72,6 +72,11 @@ ALTER TABLE conflict_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE news_archive ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_insights ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "allow_all_conflict_events" ON conflict_events FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "allow_all_news_archive" ON news_archive FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "allow_all_ai_insights" ON ai_insights FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "allow_all_conflict_events" ON conflict_events;
+CREATE POLICY "allow_all_conflict_events" ON conflict_events FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "allow_all_news_archive" ON news_archive;
+CREATE POLICY "allow_all_news_archive" ON news_archive FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "allow_all_ai_insights" ON ai_insights;
+CREATE POLICY "allow_all_ai_insights" ON ai_insights FOR ALL USING (true) WITH CHECK (true);
