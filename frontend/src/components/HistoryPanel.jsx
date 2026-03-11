@@ -1,9 +1,11 @@
 /**
- * HistoryPanel — Query Supabase historical data (alerts, entity trails, daily stats)
- * Bottom-right button + slide-up panel with tabs: ALERTS | STATS | TRAIL
+ * HistoryPanel — Query Supabase historical data
+ * Tabs: ALERTS | CONFLICTS | NEWS | INTEL | STATS | TRAIL
+ * Uses createPortal so the expanded panel escapes parent stacking context.
  */
 
 import React, { useState, useCallback, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
@@ -345,6 +347,198 @@ const TrailTab = ({ onShowTrail, viewer, pendingTrailId, onPendingConsumed }) =>
   );
 };
 
+// ── Conflicts tab ───────────────────────────────────────────────────────────
+const ConflictsTab = ({ onFlyTo }) => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [hours, setHours] = useState(48);
+  const [source, setSource] = useState('all');
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      const p = new URLSearchParams({ hours });
+      if (source !== 'all') p.set('source', source);
+      const r = await fetch(`${BACKEND}/api/history/conflicts?${p}`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
+      const data = await r.json();
+      if (data?.error) throw new Error(data.error);
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) { setError(err.message); setItems([]); }
+    setLoading(false);
+  }, [hours, source]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const TYPE_EMOJI = { airstrike: '💥', missile: '🚀', explosion: '💣', fire: '🔥', drone: '🛸', artillery: '🎯', naval: '⚓', troops: '🪖', unrest: '✊', conflict: '⚔' };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex gap-2 items-center flex-wrap">
+        <HudSelect value={hours} onChange={e => setHours(+e.target.value)}>
+          <option value={24}>Last 24h</option>
+          <option value={48}>Last 48h</option>
+          <option value={168}>Last 7d</option>
+          <option value={336}>Last 14d</option>
+        </HudSelect>
+        <HudSelect value={source} onChange={e => setSource(e.target.value)}>
+          <option value="all">All sources</option>
+          <option value="NASA FIRMS">🛰 NASA FIRMS</option>
+          <option value="GDELT-GEO">GDELT GEO</option>
+          <option value="GDELT-DOC">GDELT DOC</option>
+          <option value="ACLED">ACLED</option>
+          <option value="ReliefWeb">ReliefWeb</option>
+        </HudSelect>
+        <span className="text-hud-text/50 text-[10px] font-mono ml-auto">{items.length}</span>
+      </div>
+      <ErrorBanner message={error} />
+      {loading && <div className="text-hud-green text-xs font-mono animate-pulse text-center py-2">Loading…</div>}
+      <div className="space-y-1 max-h-[42vh] overflow-y-auto pr-0.5 scrollbar-thin">
+        {items.map((c, i) => (
+          <div key={c.event_id || i}
+            className="group p-2 rounded-md border border-hud-border/30 hover:border-orange-500/50 bg-black/20 hover:bg-black/40 transition-all cursor-pointer"
+            onClick={() => c.lat && c.lon && onFlyTo?.({ lat: c.lat, lon: c.lon })}
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-sm shrink-0">{TYPE_EMOJI[c.event_type] || '◆'}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-[11px] font-mono leading-snug truncate group-hover:text-orange-300 transition-colors">{c.title}</div>
+                <div className="flex gap-2 mt-1 items-center flex-wrap">
+                  {c.severity && <span className={`text-[9px] font-mono font-bold ${SEV_COLOR[c.severity] || ''}`}>{c.severity.toUpperCase()}</span>}
+                  {c.frp != null && <span className="text-[9px] font-mono text-red-400">{c.frp.toFixed(1)} MW</span>}
+                  {c.zone && <span className="text-[9px] font-mono text-hud-cyan/70 truncate max-w-[80px]">{c.zone}</span>}
+                  <span className="text-[9px] font-mono text-hud-text/30">{c.source}</span>
+                  <span className="text-[9px] font-mono text-hud-text/40 ml-auto">{timeAgo(c.published_at)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {!loading && !error && items.length === 0 && <EmptyState icon="⚔" message="No conflict events found — data populates after migration 004" />}
+      </div>
+    </div>
+  );
+};
+
+// ── News tab ────────────────────────────────────────────────────────────────
+const NewsTab = ({ onFlyTo }) => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [hours, setHours] = useState(48);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      const r = await fetch(`${BACKEND}/api/history/news?hours=${hours}`);
+      if (!r.ok) throw new Error(`Server error (${r.status})`);
+      const data = await r.json();
+      if (data?.error) throw new Error(data.error);
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) { setError(err.message); setItems([]); }
+    setLoading(false);
+  }, [hours]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex gap-2 items-center">
+        <HudSelect value={hours} onChange={e => setHours(+e.target.value)}>
+          <option value={24}>Last 24h</option>
+          <option value={48}>Last 48h</option>
+          <option value={168}>Last 7d</option>
+          <option value={336}>Last 14d</option>
+        </HudSelect>
+        <span className="text-hud-text/50 text-[10px] font-mono ml-auto">{items.length} articles</span>
+      </div>
+      <ErrorBanner message={error} />
+      {loading && <div className="text-hud-green text-xs font-mono animate-pulse text-center py-2">Loading…</div>}
+      <div className="space-y-1 max-h-[42vh] overflow-y-auto pr-0.5 scrollbar-thin">
+        {items.map((n, i) => (
+          <div key={n.news_id || i}
+            className="group p-2 rounded-md border border-hud-border/30 hover:border-hud-cyan/50 bg-black/20 hover:bg-black/40 transition-all cursor-pointer"
+            onClick={() => n.url ? window.open(n.url, '_blank', 'noopener') : (n.lat && n.lon && onFlyTo?.({ lat: n.lat, lon: n.lon }))}
+          >
+            <div className="flex gap-2">
+              {n.image_url && (
+                <img src={n.image_url} alt="" className="w-12 h-12 rounded object-cover shrink-0 opacity-80 group-hover:opacity-100" loading="lazy" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-white text-[11px] font-mono leading-snug line-clamp-2 group-hover:text-hud-cyan transition-colors">{n.title}</div>
+                <div className="flex gap-2 mt-1 items-center">
+                  <span className="text-[9px] font-mono text-hud-cyan/70 truncate max-w-[100px]">{n.source}</span>
+                  <span className="text-[9px] font-mono text-hud-text/40 ml-auto">{timeAgo(n.published_at)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {!loading && !error && items.length === 0 && <EmptyState icon="📰" message="No archived news — data populates after migration 004" />}
+      </div>
+    </div>
+  );
+};
+
+// ── AI Intel tab ────────────────────────────────────────────────────────────
+const IntelTab = () => {
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setLoading(true); setError('');
+    fetch(`${BACKEND}/api/history/insights?limit=10`)
+      .then(r => { if (!r.ok) throw new Error(`Server error (${r.status})`); return r.json(); })
+      .then(data => { if (data?.error) throw new Error(data.error); setInsights(Array.isArray(data) ? data : []); })
+      .catch(err => { setError(err.message); setInsights([]); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const THREAT_COLOR = { LOW: 'text-green-400', MEDIUM: 'text-amber-400', HIGH: 'text-orange-400', CRITICAL: 'text-red-400' };
+  const THREAT_BG = { LOW: 'bg-green-500/20 border-green-500/40', MEDIUM: 'bg-amber-500/20 border-amber-500/40', HIGH: 'bg-orange-500/20 border-orange-500/40', CRITICAL: 'bg-red-500/20 border-red-500/40' };
+
+  if (loading) return <div className="text-hud-green text-xs font-mono animate-pulse text-center py-4">Loading AI insights…</div>;
+  if (error) return <ErrorBanner message={error} />;
+  if (insights.length === 0) return <EmptyState icon="🤖" message="No AI insights archived yet — Gemini analyses are stored after migration 004" />;
+
+  return (
+    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-0.5 scrollbar-thin">
+      {insights.map((ins, i) => (
+        <div key={i} className={`p-3 rounded-md border ${THREAT_BG[ins.threat_level] || 'bg-black/20 border-hud-border/30'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-xs font-mono font-bold ${THREAT_COLOR[ins.threat_level] || 'text-hud-text'}`}>
+              🤖 THREAT: {ins.threat_level || '?'}
+            </span>
+            <span className="text-[9px] font-mono text-hud-text/40">{timeAgo(ins.analyzed_at)}</span>
+          </div>
+          {ins.summary && <p className="text-[11px] font-mono text-hud-text/80 leading-relaxed mb-2">{ins.summary}</p>}
+          {ins.hotspots?.length > 0 && (
+            <div className="mb-2">
+              <span className="text-[9px] font-mono text-hud-text/50 font-bold">HOTSPOTS:</span>
+              {ins.hotspots.map((h, j) => (
+                <div key={j} className="text-[10px] font-mono text-orange-300/80 ml-2">
+                  📍 {h.location} — {h.reason}
+                </div>
+              ))}
+            </div>
+          )}
+          {ins.recommendations?.length > 0 && (
+            <div>
+              <span className="text-[9px] font-mono text-hud-text/50 font-bold">WATCH:</span>
+              {ins.recommendations.map((r, j) => (
+                <div key={j} className="text-[10px] font-mono text-hud-cyan/70 ml-2">▸ {r}</div>
+              ))}
+            </div>
+          )}
+          {ins.model && <div className="text-[8px] font-mono text-hud-text/25 mt-1.5">model: {ins.model}</div>}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ── Main panel ──────────────────────────────────────────────────────────────
 const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = null }) => {
   const [open, setOpen] = useState(false);
@@ -430,15 +624,25 @@ const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = nul
   }
 
   const tabs = [
-    { id: 'alerts', label: 'ALERTS', icon: '⚠' },
-    { id: 'stats',  label: 'STATS',  icon: '📈' },
-    { id: 'trail',  label: 'TRAIL',  icon: '📍' },
+    { id: 'alerts',    label: 'ALERTS',    icon: '⚠' },
+    { id: 'conflicts', label: 'EVENTS',    icon: '⚔' },
+    { id: 'news',      label: 'NEWS',      icon: '📰' },
+    { id: 'intel',     label: 'AI INTEL',  icon: '🤖' },
+    { id: 'stats',     label: 'STATS',     icon: '📈' },
+    { id: 'trail',     label: 'TRAIL',     icon: '📍' },
   ];
 
-  return (
+  // Render expanded panel via portal so it escapes the parent z-[35] stacking context
+  const panel = (
     <div
-      className="bg-[rgba(5,8,16,0.94)] border border-hud-border/60 rounded-lg shadow-2xl pointer-events-auto backdrop-blur-lg"
-      style={{ width: isMobile ? 'calc(100vw - 24px)' : 360, maxHeight: isMobile ? '70vh' : '60vh', display: 'flex', flexDirection: 'column' }}
+      className="fixed z-[52] bg-[rgba(5,8,16,0.96)] border border-hud-border/60 rounded-lg shadow-2xl pointer-events-auto backdrop-blur-lg"
+      style={{
+        width: isMobile ? 'calc(100vw - 16px)' : 420,
+        maxHeight: isMobile ? '80vh' : '70vh',
+        display: 'flex', flexDirection: 'column',
+        bottom: isMobile ? 8 : 16,
+        right: isMobile ? 8 : 16,
+      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-hud-border/40 bg-[rgba(5,8,16,0.98)] rounded-t-lg shrink-0">
@@ -449,13 +653,13 @@ const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = nul
         >✕</button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-hud-border/30 shrink-0">
+      {/* Tabs — horizontally scrollable for 6 tabs */}
+      <div className="flex border-b border-hud-border/30 shrink-0 overflow-x-auto scrollbar-none">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 py-2 text-[10px] sm:text-[11px] font-mono font-bold transition-all select-none
+            className={`shrink-0 px-2.5 py-2 text-[9px] sm:text-[10px] font-mono font-bold transition-all select-none whitespace-nowrap
               ${tab === t.id
                 ? 'text-hud-green border-b-2 border-hud-green bg-hud-green/5'
                 : 'text-hud-text/50 hover:text-hud-text border-b-2 border-transparent hover:bg-white/3'}`}
@@ -468,11 +672,16 @@ const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = nul
       {/* Content — scrollable */}
       <div className="flex-1 overflow-y-auto px-3 py-2.5 scrollbar-thin">
         {tab === 'alerts' && <AlertsTab onFlyTo={handleFlyTo} />}
+        {tab === 'conflicts' && <ConflictsTab onFlyTo={handleFlyTo} />}
+        {tab === 'news' && <NewsTab onFlyTo={handleFlyTo} />}
+        {tab === 'intel' && <IntelTab />}
         {tab === 'stats' && <StatsTab />}
         {tab === 'trail' && <TrailTab onShowTrail={handleShowTrail} viewer={viewer} pendingTrailId={pendingTrailId} onPendingConsumed={() => setPendingTrailId(null)} />}
       </div>
     </div>
   );
+
+  return createPortal(panel, document.body);
 };
 
 export default memo(HistoryPanel);

@@ -15,7 +15,7 @@ import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './service
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 
 dotenv.config();
@@ -283,6 +283,47 @@ app.get('/api/history/entities', async (req, res) => {
   }
 });
 
+// Conflict events — e.g. /api/history/conflicts?hours=48&source=NASA%20FIRMS
+app.get('/api/history/conflicts', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const hours = Math.min(Math.max(parseInt(req.query.hours) || 48, 1), 336);
+    const source = req.query.source || null;
+    const data = await getRecentConflicts(hours, source, 500);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] conflicts error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch conflict history' });
+  }
+});
+
+// News archive — e.g. /api/history/news?hours=48&source=BBC%20World
+app.get('/api/history/news', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const hours = Math.min(Math.max(parseInt(req.query.hours) || 48, 1), 336);
+    const source = req.query.source || null;
+    const data = await getRecentNews(hours, source, 200);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] news error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch news history' });
+  }
+});
+
+// AI Insights — e.g. /api/history/insights?limit=10
+app.get('/api/history/insights', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+    const data = await getRecentInsights(limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[History] insights error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch AI insights' });
+  }
+});
+
 // ─── Admin: manual tweet trigger ─────────────────────────────────────────────
 app.post('/api/admin/tweet', async (req, res) => {
   const secret = req.headers['x-admin-secret'];
@@ -385,6 +426,8 @@ async function pollConflicts() {
       cache.lastConflictUpdate = new Date().toISOString();
       io.emit('conflict_update', { conflicts, timestamp: cache.lastConflictUpdate });
       saveCache('conflicts', conflicts);
+      // Supabase: archive conflict events
+      archiveConflicts(conflicts).catch(() => {});
       console.log(`[Conflicts] Store updated: ${conflicts.length} events total (${freshEvents.length} fetched)`);
     } else {
       console.log(`[Conflicts] No new events (${freshEvents.length} fetched, ${conflictStore.size} in store)`);
@@ -442,8 +485,9 @@ async function pollNews() {
       console.log(`[CrossRef] Credibility range: ${Math.min(...cache.alerts.map(a=>a.credibility||0))}%–${Math.max(...cache.alerts.map(a=>a.credibility||0))}%`);
       // Auto-tweet new critical alerts
       maybeTweetAlert(cache.alerts).catch(() => {});
-      // Supabase: archive new alerts
+      // Supabase: archive new alerts + news
       archiveAlerts(cache.alerts).catch(() => {});
+      archiveNews(cache.news).catch(() => {});
     }
 
     // AI analysis — only when news changed AND 30-min cooldown has elapsed
@@ -461,6 +505,8 @@ async function pollNews() {
           lastGeminiCallAt = Date.now();
           saveCache('ai_insight', aiInsights);
           io.emit('ai_insight', aiInsights);
+          // Supabase: archive AI insight
+          archiveAIInsight(aiInsights).catch(() => {});
           console.log('[AI] Analysis emitted.');
         }
       } catch (e) {

@@ -135,6 +135,7 @@ export async function snapshotPositions(aircraft, ships) {
         vertical_rate: a.vertical_rate ?? null,
         carrier_name:  a.carrierName || null,
         carrier_ops:   a.carrierOps || null,
+        source:        a.source || null,
       });
     }
 
@@ -155,6 +156,7 @@ export async function snapshotPositions(aircraft, ships) {
         ship_type:   s.shipType || s.type_name || null,
         destination: s.destination || null,
         imo:         s.imo || null,
+        source:      s.source || null,
       });
     }
 
@@ -347,4 +349,189 @@ export async function getActiveEntities(entityType = 'aircraft', hours = 24, lim
     return [...seen.values()].slice(0, limit);
   }
   return data;
+}
+
+// ─── Conflict Events Archive ────────────────────────────────────────────────
+
+const archivedConflictIds = new Set();
+let conflictDeduplicateSeeded = false;
+
+async function seedConflictIds() {
+  if (conflictDeduplicateSeeded || !supabase) return;
+  conflictDeduplicateSeeded = true;
+  try {
+    const cutoff = new Date(Date.now() - 72 * 3600_000).toISOString();
+    const { data } = await supabase
+      .from('conflict_events')
+      .select('event_id')
+      .gte('created_at', cutoff)
+      .limit(5000);
+    for (const r of (data || [])) if (r.event_id) archivedConflictIds.add(r.event_id);
+    console.log(`[Supabase] Seeded ${archivedConflictIds.size} conflict IDs from DB`);
+  } catch (err) {
+    console.warn('[Supabase] seedConflictIds error:', err.message);
+    conflictDeduplicateSeeded = false;
+  }
+}
+
+export async function archiveConflicts(conflicts) {
+  if (!supabase || !conflicts?.length) return;
+  await seedConflictIds();
+  try {
+    const fresh = conflicts.filter(c => c.id && !archivedConflictIds.has(c.id));
+    if (fresh.length === 0) return;
+
+    const rows = fresh.map(c => ({
+      event_id:      c.id,
+      event_type:    c.type || null,
+      title:         (c.title || '').slice(0, 500),
+      url:           c.url || null,
+      lat:           c.lat ?? null,
+      lon:           c.lon ?? null,
+      country:       c.country || null,
+      source:        c.source || null,
+      severity:      c.severity || null,
+      tone:          c.tone ?? null,
+      frp:           c.frp ?? null,
+      zone:          c.zone || null,
+      published_at:  c.publishedAt || null,
+      first_seen_at: c.firstSeenAt || null,
+    }));
+
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await supabase.from('conflict_events').insert(rows.slice(i, i + 500));
+      if (error && !error.message?.includes('duplicate')) throw error;
+    }
+    for (const c of fresh) archivedConflictIds.add(c.id);
+    if (archivedConflictIds.size > 10000) {
+      const arr = [...archivedConflictIds];
+      archivedConflictIds.clear();
+      for (const id of arr.slice(-5000)) archivedConflictIds.add(id);
+    }
+    console.log(`[Supabase] Archived ${fresh.length} conflict events`);
+  } catch (err) {
+    console.error('[Supabase] archiveConflicts error:', err.message);
+  }
+}
+
+export async function getRecentConflicts(hours = 48, source = null, limit = 500) {
+  if (!supabase) return [];
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  let q = supabase
+    .from('conflict_events')
+    .select('event_id, event_type, title, url, lat, lon, country, source, severity, tone, frp, zone, published_at')
+    .gte('published_at', cutoff)
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  if (source) q = q.eq('source', source);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+// ─── News Archive ───────────────────────────────────────────────────────────
+
+const archivedNewsIds = new Set();
+let newsDeduplicateSeeded = false;
+
+async function seedNewsIds() {
+  if (newsDeduplicateSeeded || !supabase) return;
+  newsDeduplicateSeeded = true;
+  try {
+    const cutoff = new Date(Date.now() - 72 * 3600_000).toISOString();
+    const { data } = await supabase
+      .from('news_archive')
+      .select('news_id')
+      .gte('created_at', cutoff)
+      .limit(5000);
+    for (const r of (data || [])) if (r.news_id) archivedNewsIds.add(r.news_id);
+    console.log(`[Supabase] Seeded ${archivedNewsIds.size} news IDs from DB`);
+  } catch (err) {
+    console.warn('[Supabase] seedNewsIds error:', err.message);
+    newsDeduplicateSeeded = false;
+  }
+}
+
+export async function archiveNews(newsItems) {
+  if (!supabase || !newsItems?.length) return;
+  await seedNewsIds();
+  try {
+    const fresh = newsItems.filter(n => n.id && !archivedNewsIds.has(n.id));
+    if (fresh.length === 0) return;
+
+    const rows = fresh.map(n => ({
+      news_id:       n.id,
+      source:        n.source || null,
+      title:         (n.title || '').slice(0, 500),
+      url:           n.url || null,
+      description:   (n.description || '').slice(0, 1000),
+      image_url:     n.imageUrl || null,
+      lat:           n.lat ?? null,
+      lon:           n.lon ?? null,
+      tone:          n.tone ?? null,
+      news_type:     n.type || 'news',
+      published_at:  n.publishedAt || null,
+      first_seen_at: n.firstSeenAt || null,
+    }));
+
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await supabase.from('news_archive').insert(rows.slice(i, i + 500));
+      if (error && !error.message?.includes('duplicate')) throw error;
+    }
+    for (const n of fresh) archivedNewsIds.add(n.id);
+    if (archivedNewsIds.size > 10000) {
+      const arr = [...archivedNewsIds];
+      archivedNewsIds.clear();
+      for (const id of arr.slice(-5000)) archivedNewsIds.add(id);
+    }
+    console.log(`[Supabase] Archived ${fresh.length} news items`);
+  } catch (err) {
+    console.error('[Supabase] archiveNews error:', err.message);
+  }
+}
+
+export async function getRecentNews(hours = 48, source = null, limit = 200) {
+  if (!supabase) return [];
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  let q = supabase
+    .from('news_archive')
+    .select('news_id, source, title, url, description, image_url, lat, lon, tone, news_type, published_at')
+    .gte('published_at', cutoff)
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  if (source) q = q.eq('source', source);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+// ─── AI Insights Archive ────────────────────────────────────────────────────
+
+export async function archiveAIInsight(insight) {
+  if (!supabase || !insight) return;
+  try {
+    const { error } = await supabase.from('ai_insights').insert({
+      threat_level:    insight.threatLevel || null,
+      summary:         (insight.summary || '').slice(0, 2000),
+      hotspots:        insight.hotspots || null,
+      recommendations: insight.recommendations || null,
+      model:           insight.model || null,
+      analyzed_at:     insight.timestamp || new Date().toISOString(),
+    });
+    if (error) throw error;
+    console.log(`[Supabase] Archived AI insight: ${insight.threatLevel}`);
+  } catch (err) {
+    console.error('[Supabase] archiveAIInsight error:', err.message);
+  }
+}
+
+export async function getRecentInsights(limit = 20) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('ai_insights')
+    .select('threat_level, summary, hotspots, recommendations, model, analyzed_at')
+    .order('analyzed_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
 }

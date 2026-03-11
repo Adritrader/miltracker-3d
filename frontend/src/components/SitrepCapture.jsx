@@ -1,32 +1,33 @@
-﻿/**
- * SitrepCapture — Screenshot and 10-second cinematic video capture
+/**
+ * SitrepCapture � Screenshot and 10-second cinematic video capture
  * - Screenshot: uses scene.postRender event to grab canvas right after Cesium renders
- * - Video: cinematic zoom-in â†’ MP4 (iOS) or WebM (desktop) via MediaRecorder
+ * - Video: cinematic zoom-in → MP4 (iOS) or WebM (desktop) via MediaRecorder
  * - Done modal: Download + social share grid (Twitter, WhatsApp, Telegram, Reddit, native)
  */
 
 import React, { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import * as Cesium from 'cesium';
 
 const RECORD_SEC = 10;
 const PAGE_URL   = () => window.location.href;
 const SHARE_TEXTS = [
-  '🌐 LiveWar3D — track military aircraft, warships & active conflict zones on a live 3D globe.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #OSINT #War #Defense',
-  '🚨 Real-time conflict zones, warships & military aircraft all in one place.\nOpen-source intel, updated live.\nhttps://livewar3d.com\n#LiveWar3D #BreakingNews #OSINT #MilAviation #NavalOps',
-  '📡 Monitoring active war zones worldwide — NATO movements, naval ops, airstrikes & more.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #War #Geopolitics #Defense',
-  '🛰️ Live OSINT: military flights, naval movements & conflict alerts on a 3D globe.\nSee what\'s happening before the news does.\nhttps://livewar3d.com\n#OSINT #LiveWar3D #MilAviation #NavalOps #Intelligence',
-  '⚔️ Track the world\'s conflicts in real time — Ukraine, Middle East, Taiwan Strait & more.\nhttps://livewar3d.com\n#LiveWar3D #War #Ukraine #MiddleEast #Taiwan #Defense',
-  '🌍 Live military intel — aircraft carriers, fighter jets, warships & breaking conflict news.\nAll on a 3D globe.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #OSINT #Geopolitics',
-  '📍 Active conflict monitor — see what\'s happening worldwide right now.\nPowered by ADS-B, AIS & open-source intelligence.\nhttps://livewar3d.com\n#LiveWar3D #OSINT #War #LiveTracking #Defense',
-  '🔴 SITREP: Live military tracking powered by LiveWar3D.\nAircraft, warships, conflict zones & more — updated in real time.\nhttps://livewar3d.com\n#LiveWar3D #SITREP #MilitaryTracking #War #OSINT',
-  '🗺️ 3D globe with live wars, naval ops & air patrols.\nTrack carriers, F-35 flights & active frontlines in real time.\nhttps://livewar3d.com\n#LiveWar3D #NavalOps #MilAviation #War #Defense',
-  '⚡ Real-time alerts: missile launches, naval intercepts & airstrike reports.\nLiveWar3D — the pulse of global conflict.\nhttps://livewar3d.com\n#LiveWar3D #BreakingNews #MilitaryTracking #OSINT #War',
-  '🛩️ Military aircraft live on your screen — tankers, bombers, ISR & fighters tracked in real time.\nhttps://livewar3d.com\n#LiveWar3D #MilAviation #AirForce #OSINT #Defense',
-  '🚢 Warships, aircraft carriers & submarines tracked live.\nSee where the fleets are right now.\nhttps://livewar3d.com\n#LiveWar3D #NavalOps #USNavy #OSINT #MilitaryTracking',
+  '?? LiveWar3D � track military aircraft, warships & active conflict zones on a live 3D globe.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #OSINT #War #Defense',
+  '?? Real-time conflict zones, warships & military aircraft all in one place.\nOpen-source intel, updated live.\nhttps://livewar3d.com\n#LiveWar3D #BreakingNews #OSINT #MilAviation #NavalOps',
+  '?? Monitoring active war zones worldwide � NATO movements, naval ops, airstrikes & more.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #War #Geopolitics #Defense',
+  '??? Live OSINT: military flights, naval movements & conflict alerts on a 3D globe.\nSee what\'s happening before the news does.\nhttps://livewar3d.com\n#OSINT #LiveWar3D #MilAviation #NavalOps #Intelligence',
+  '?? Track the world\'s conflicts in real time � Ukraine, Middle East, Taiwan Strait & more.\nhttps://livewar3d.com\n#LiveWar3D #War #Ukraine #MiddleEast #Taiwan #Defense',
+  '?? Live military intel � aircraft carriers, fighter jets, warships & breaking conflict news.\nAll on a 3D globe.\nhttps://livewar3d.com\n#LiveWar3D #MilitaryTracking #OSINT #Geopolitics',
+  '?? Active conflict monitor � see what\'s happening worldwide right now.\nPowered by ADS-B, AIS & open-source intelligence.\nhttps://livewar3d.com\n#LiveWar3D #OSINT #War #LiveTracking #Defense',
+  '?? SITREP: Live military tracking powered by LiveWar3D.\nAircraft, warships, conflict zones & more � updated in real time.\nhttps://livewar3d.com\n#LiveWar3D #SITREP #MilitaryTracking #War #OSINT',
+  '??? 3D globe with live wars, naval ops & air patrols.\nTrack carriers, F-35 flights & active frontlines in real time.\nhttps://livewar3d.com\n#LiveWar3D #NavalOps #MilAviation #War #Defense',
+  '? Real-time alerts: missile launches, naval intercepts & airstrike reports.\nLiveWar3D � the pulse of global conflict.\nhttps://livewar3d.com\n#LiveWar3D #BreakingNews #MilitaryTracking #OSINT #War',
+  '??? Military aircraft live on your screen � tankers, bombers, ISR & fighters tracked in real time.\nhttps://livewar3d.com\n#LiveWar3D #MilAviation #AirForce #OSINT #Defense',
+  '?? Warships, aircraft carriers & submarines tracked live.\nSee where the fleets are right now.\nhttps://livewar3d.com\n#LiveWar3D #NavalOps #USNavy #OSINT #MilitaryTracking',
 ];
 const getShareText = () => SHARE_TEXTS[Math.floor(Math.random() * SHARE_TEXTS.length)];
 
-// Pick best supported video mime — try every candidate and use the first that works
+// Pick best supported video mime � try every candidate and use the first that works
 const MIME_CANDIDATES = [
   { mime: 'video/mp4;codecs=avc1.42E01E', ext: 'mp4'  },
   { mime: 'video/mp4;codecs=avc1',        ext: 'mp4'  },
@@ -42,7 +43,7 @@ function bestMime() {
   return { mime: '', ext: 'webm' }; // browser picks codec
 }
 
-// ── Watermark helpers ───────────────────────────────────────────────────────────────
+// -- Watermark helpers ---------------------------------------------------------------
 const LOGO_URL = '/icon-192.png';
 
 function drawWatermarkOnCtx(ctx, w, h, logoImg) {
@@ -93,7 +94,7 @@ function addWatermark(dataUrl) {
   });
 }
 
-// â”€â”€ Social share URL builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Social share URL builders ────────────────────────────────────────────────
 const NETWORKS = [
   {
     id: 'whatsapp',
@@ -115,8 +116,8 @@ const NETWORKS = [
   },
 ];
 
-// â”€â”€ Centered overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const ModalOverlay = ({ children, onClose }) => (
+// ── Centered overlay ─────────────────────────────────────────────────────────
+const ModalOverlay = ({ children, onClose }) => createPortal(
   <div
     className="fixed inset-0 z-[55] flex items-center justify-center"
     style={{ background: 'rgba(0,0,0,0.70)' }}
@@ -125,7 +126,8 @@ const ModalOverlay = ({ children, onClose }) => (
     <div onClick={(e) => e.stopPropagation()}>
       {children}
     </div>
-  </div>
+  </div>,
+  document.body
 );
 
 export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = false }) {
@@ -144,7 +146,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
 
   const mkTs = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
-  // â”€â”€ Screenshot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Screenshot ──────────────────────────────────────────────────────────────
   const takeScreenshot = useCallback(() => {
     if (!viewer) return;
     setCaptType('screenshot');
@@ -183,7 +185,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     viewer.scene.requestRender();
   }, [viewer, onUiHide, onUiShow]);
 
-  // â”€â”€ Video (cinematic zoom-in) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Video (cinematic zoom-in) ───────────────────────────────────────────────
   const recordVideo = useCallback(() => {
     if (!viewer) return;
     if (typeof MediaRecorder === 'undefined' || !viewer.canvas.captureStream) {
@@ -239,9 +241,9 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
       const recExt  = recMime.includes('mp4') ? 'mp4' : 'webm';
       const blob = new Blob(chunksRef.current, { type: recMime });
       if (blob.size === 0) {
-        console.warn('[SITREP] Video blob empty — nothing was recorded');
+        console.warn('[SITREP] Video blob empty � nothing was recorded');
         onUiShow?.(); setMode(null);
-        alert('Video was empty — make sure the canvas is visible and try again.');
+        alert('Video was empty � make sure the canvas is visible and try again.');
         return;
       }
       const url  = URL.createObjectURL(blob);
@@ -261,7 +263,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
 
     recorder.start(200);
 
-    // Safety net — force-stop if onstop hasn't fired within RECORD_SEC + 5s
+    // Safety net � force-stop if onstop hasn't fired within RECORD_SEC + 5s
     safetyTimerRef.current = setTimeout(() => {
       if (recorder.state !== 'inactive') recorder.stop();
     }, (RECORD_SEC + 5) * 1000);
@@ -295,7 +297,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     rafRef.current = requestAnimationFrame(frame);
   }, [viewer, onUiHide, onUiShow]);
 
-  // â”€â”€ Native share (file) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Native share (file) ─────────────────────────────────────────────────────
   const handleNativeShare = useCallback(async () => {
     setShareMsg('');
     if (!dlUrl) return;
@@ -320,7 +322,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     // Fallback: copy URL
     try {
       await navigator.clipboard.writeText(PAGE_URL());
-      setShareMsg('✔ URL copied');
+      setShareMsg('? URL copied');
     } catch (_) {
       setShareMsg(PAGE_URL().slice(0, 70));
     }
@@ -348,7 +350,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     setCountdown(RECORD_SEC);
   }, [dlUrl]);
 
-  // â”€â”€ Capturing indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Capturing indicator ─────────────────────────────────────────────────────
   if (mode === 'capturing') {
     return (
       <div
@@ -366,7 +368,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     );
   }
 
-  // â”€â”€ Done modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Done modal ──────────────────────────────────────────────────────────────
   if (mode === 'done') {
     const isVideo = captureType === 'video';
     return (
@@ -402,24 +404,24 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
           <div>
             <div className="hud-title text-[10px] mb-2 opacity-70">SHARE</div>
             <div className="grid grid-cols-2 gap-2">
-              {/* Native share â€” always first, shows WhatsApp/Telegram/etc sheet on mobile */}
+              {/* Native share — always first, shows WhatsApp/Telegram/etc sheet on mobile */}
               <button
                 onClick={handleNativeShare}
                 className="hud-btn text-xs py-2 text-center col-span-2"
               >
                 &#x2197; Share file {isVideo ? '(video)' : '(image)'}
               </button>
-              {/* Twitter — for video: also triggers download so user can attach the file */}
+              {/* Twitter � for video: also triggers download so user can attach the file */}
               <button
                 onClick={handleTwitterShare}
                 className="hud-btn text-xs py-2 text-center block"
                 style={{ borderColor: '#1d9bf060', color: '#1d9bf0' }}
               >
-                Twitter / X{isVideo ? ' ↓' : ''}
+                Twitter / X{isVideo ? ' ?' : ''}
               </button>
               {isVideo && (
                 <div className="col-span-2 text-[9px] font-mono text-amber-300/80 text-center -mt-1">
-                  ↑ downloading video — attach it to your tweet
+                  ? downloading video � attach it to your tweet
                 </div>
               )}
               {NETWORKS.map(n => (
@@ -448,7 +450,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     );
   }
 
-  // â”€â”€ Menu modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Menu modal ──────────────────────────────────────────────────────────────
   if (mode === 'menu') {
     return (
       <ModalOverlay onClose={() => setMode(null)}>
@@ -471,7 +473,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
     );
   }
 
-  // â”€â”€ Default: trigger button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Default: trigger button ─────────────────────────────────────────────────
   return (
     <button
       onClick={() => setMode('menu')}
@@ -479,7 +481,7 @@ export default function SitrepCapture({ viewer, onUiHide, onUiShow, inline = fal
         ? 'hud-btn text-xs px-3 py-2 font-bold select-none bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
         : 'fixed bottom-[172px] right-4 z-[51] hud-btn text-xs px-3 py-1.5 font-bold select-none bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)]'
       }
-      title="Generate SITREP — screenshot or video"
+      title="Generate SITREP � screenshot or video"
     >
       <span className="pointer-events-none">&#x1F4F7; SITREP</span>
     </button>
