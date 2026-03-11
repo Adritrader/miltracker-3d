@@ -213,6 +213,17 @@ const DangerZoneLayer = ({ viewer, dangerZones, alerts, visible }) => {
     return dsRef.current;
   }, [viewer]);
 
+  // F-C3: Remove DataSource on unmount
+  useEffect(() => {
+    return () => {
+      if (!viewer || viewer.isDestroyed()) return;
+      if (dsRef.current) {
+        try { viewer.dataSources.remove(dsRef.current, true); } catch (_) {}
+        dsRef.current = null;
+      }
+    };
+  }, [viewer]);
+
   // ── Single unified effect for zones + alerts ─────────────────────────
   // Two separate effects sharing one datasource caused race conditions:
   // each effect could overwrite ds.show set by the other. One effect = no race.

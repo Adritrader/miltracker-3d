@@ -89,6 +89,7 @@ app.use('/api/', apiLimiter);
 
 // Optional REST API key check — set REST_API_KEY env var to enforce. (S3)
 // If not set the check is a no-op so existing deployments keep working.
+// B-C1: warn on startup if running in production without a key set
 app.use('/api/', (req, res, next) => {
   const secret = process.env.REST_API_KEY;
   if (!secret) return next();
@@ -225,11 +226,28 @@ app.get('/api/cameras',  (req, res) => res.json(getCameras()));
 
 // ─── AI Aircraft Intel endpoint ──────────────────────────────────────────────
 // On-demand identification: /api/aircraft/intel?callsign=CONDR31&icao24=ae1234&type=B2
+// B-C5: validate all user-supplied query params before passing to Gemini
+const RE_CALLSIGN = /^[A-Z0-9 _-]{2,10}$/i;
+const RE_ICAO24   = /^[0-9a-f]{6}$/i;
+const RE_REG      = /^[A-Z0-9-]{2,12}$/i;
+const RE_TYPE     = /^[A-Z0-9/-]{2,10}$/i;
+const RE_COUNTRY  = /^[A-Za-z ]{2,50}$/;
+
 app.get('/api/aircraft/intel', async (req, res) => {
-  const { callsign, icao24, registration, type: aircraftType, country } = req.query;
+  let { callsign, icao24, registration, type: aircraftType, country } = req.query;
   if (!callsign && !icao24 && !registration) {
     return res.status(400).json({ error: 'Provide at least one of: callsign, icao24, registration' });
   }
+  // Sanitize — reject anything that doesn't match expected patterns
+  if (callsign     && !RE_CALLSIGN.test(callsign))     return res.status(400).json({ error: 'Invalid callsign format' });
+  if (icao24       && !RE_ICAO24.test(icao24))         return res.status(400).json({ error: 'Invalid icao24 format (6 hex chars)' });
+  if (registration && !RE_REG.test(registration))      return res.status(400).json({ error: 'Invalid registration format' });
+  if (aircraftType && !RE_TYPE.test(aircraftType))     aircraftType = undefined; // silently drop unknown type
+  if (country      && !RE_COUNTRY.test(country))       country = undefined;
+  // Normalize to uppercase where applicable
+  if (callsign)     callsign     = callsign.toUpperCase().trim();
+  if (icao24)       icao24       = icao24.toLowerCase().trim();
+  if (registration) registration = registration.toUpperCase().trim();
   try {
     const intel = await identifyAircraft({ callsign, icao24, registration, aircraftType, country });
     res.json(intel || { confidence: 'UNAVAILABLE', reason: 'Gemini API key not set or rate limited' });
@@ -255,6 +273,11 @@ app.get('/api/aircraft/intel/stats', (req, res) => {
 // Entity trail — e.g. /api/history/trail/a4b7c2?hours=24
 app.get('/api/history/trail/:entityId', async (req, res) => {
   if (!supabaseEnabled()) return res.json([]);
+  // B-C5: validate entityId to prevent injection via Supabase RPC
+  const entityId = req.params.entityId;
+  if (!entityId || !/^[a-zA-Z0-9_:.-]{1,64}$/.test(entityId)) {
+    return res.status(400).json({ error: 'Invalid entityId' });
+  }
   try {
     const hours = Math.min(Math.max(parseInt(req.query.hours) || 24, 1), 336); // max 14 days
     const data = await getEntityTrail(req.params.entityId, hours);
@@ -518,7 +541,7 @@ async function pollAircraft() {
     recordSnapshot(aircraft, cache.ships);
 
     // Supabase: sample positions every 10 min + daily stats
-    snapshotPositions(aircraft, cache.ships).catch(() => {});
+    snapshotPositions(aircraft, cache.ships).catch(err => console.error('[Supabase] snapshot failed:', err.message));
     upsertDailyStats({
       aircraftCount:  aircraft.length,
       shipCount:      cache.ships.length,
@@ -526,7 +549,7 @@ async function pollAircraft() {
       conflictCount:  cache.conflicts.length,
       newsCount:      cache.news.length,
       criticalAlerts: cache.alerts.filter(a => a.severity === 'critical').length,
-    }).catch(() => {});
+    }).catch(err => console.error('[Supabase] upsertDailyStats failed:', err.message));
 
     const acHash = hashArr(aircraft);
     if (acHash !== prevHash.aircraft) {
@@ -577,7 +600,7 @@ async function pollConflicts() {
       io.emit('conflict_update', { conflicts, timestamp: cache.lastConflictUpdate });
       saveCache('conflicts', conflicts);
       // Supabase: archive conflict events
-      archiveConflicts(conflicts).catch(() => {});
+      archiveConflicts(conflicts).catch(err => console.error('[Archive] conflicts failed:', err.message));
       console.log(`[Conflicts] Store updated: ${conflicts.length} events total (${freshEvents.length} fetched)`);
     } else {
       console.log(`[Conflicts] No new events (${freshEvents.length} fetched, ${conflictStore.size} in store)`);
@@ -634,10 +657,10 @@ async function pollNews() {
       console.log(`[Alerts] ${cache.alerts.length} alerts (critical:${cache.alerts.filter(a=>a.severity==='critical').length}) | ${cache.hotspots.length} hotspots`);
       console.log(`[CrossRef] Credibility range: ${Math.min(...cache.alerts.map(a=>a.credibility||0))}%–${Math.max(...cache.alerts.map(a=>a.credibility||0))}%`);
       // Auto-tweet new critical alerts
-      maybeTweetAlert(cache.alerts).catch(() => {});
+      maybeTweetAlert(cache.alerts).catch(err => console.error('[Tweet] failed:', err.message));
       // Supabase: archive new alerts + news
-      archiveAlerts(cache.alerts).catch(() => {});
-      archiveNews(cache.news).catch(() => {});
+      archiveAlerts(cache.alerts).catch(err => console.error('[Archive] alerts failed:', err.message));
+      archiveNews(cache.news).catch(err => console.error('[Archive] news failed:', err.message));
     }
 
     // AI analysis — first run doesn't require 'changed'; subsequent runs need changed news + cooldown
@@ -658,7 +681,7 @@ async function pollNews() {
           saveCache('ai_insight', aiInsights);
           io.emit('ai_insight', aiInsights);
           // Supabase: archive AI insight
-          archiveAIInsight(aiInsights).catch(() => {});
+          archiveAIInsight(aiInsights).catch(err => console.error('[Archive] ai_insight failed:', err.message));
           console.log('[AI] Analysis complete — threat:', aiInsights.threatLevel);
         }
       } catch (e) {
@@ -761,6 +784,9 @@ httpServer.listen(PORT, () => {
   console.log(`   Aircraft polling: every 30 seconds (adsb.lol / adsb.fi / airplanes.live)`);
   console.log(`   Ships polling:    every 60 seconds`);
   console.log(`   News polling:     every 5 minutes\n`);
+  if (!process.env.REST_API_KEY && process.env.NODE_ENV === 'production') {
+    console.warn('[Security] REST_API_KEY not set — REST endpoints are publicly accessible. Set this env var to restrict access.');
+  }
 
   // Initial fetch
   pollAircraft();
@@ -794,3 +820,22 @@ httpServer.listen(PORT, () => {
     setInterval(purgeOldSnapshots, 24 * 60 * 60_000);
   }
 });
+
+// ─── Graceful shutdown (SIGTERM from Railway redeploy, SIGINT from Ctrl-C) ──
+// Without this, Railway kills the process mid-write corrupting disk caches.
+async function shutdown(signal) {
+  console.log(`[Server] ${signal} received — shutting down gracefully`);
+  // Stop accepting new HTTP/WebSocket connections
+  io.close(() => console.log('[Server] Socket.io closed'));
+  httpServer.close(() => {
+    console.log('[Server] HTTP server closed — exiting');
+    process.exit(0);
+  });
+  // Force exit after 5 seconds in case open connections stall the close
+  setTimeout(() => {
+    console.warn('[Server] Force-exiting after 5s timeout');
+    process.exit(1);
+  }, 5000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));

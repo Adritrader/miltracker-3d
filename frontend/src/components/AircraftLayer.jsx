@@ -140,6 +140,23 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     return dsCache.current[name];
   }, [viewer]);
 
+  // F-C3: Remove all owned DataSources from the viewer on unmount to prevent
+  // entity + GPU memory leaks. The viewer is destroyed by Globe3D (F-C1),
+  // but doing it here as well guards against partial unmounts.
+  useEffect(() => {
+    return () => {
+      if (!viewer || viewer.isDestroyed()) return;
+      const names = ['aircraft', 'aircraft-trails', 'aircraft-replay-trails'];
+      for (const name of names) {
+        const ds = dsCache.current[name];
+        if (ds) {
+          try { viewer.dataSources.remove(ds, true); } catch (_) {}
+          dsCache.current[name] = null;
+        }
+      }
+    };
+  }, [viewer]);
+
   // visibility is managed inside the main render loop below
 
   // ── Replay trail overlay ──────────────────────────────────────────────

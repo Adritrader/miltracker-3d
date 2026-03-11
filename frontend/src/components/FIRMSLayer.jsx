@@ -86,7 +86,16 @@ export default function FIRMSLayer({ viewer, firms = [], visible = true, onSelec
     return dsRef.current;
   }, [viewer]);
 
-  const buildEntities = useCallback((deg) => {
+  // F-C3: Remove DataSource on unmount
+  useEffect(() => {
+    return () => {
+      if (!viewer || viewer.isDestroyed()) return;
+      if (dsRef.current) {
+        try { viewer.dataSources.remove(dsRef.current, true); } catch (_) {}
+        dsRef.current = null;
+      }
+    };
+  }, [viewer]);
     if (!viewer) return;
     const ds = getDS();
     if (!ds) return;

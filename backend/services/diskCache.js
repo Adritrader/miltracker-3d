@@ -7,7 +7,7 @@
  * They are loaded synchronously at startup (tiny files, safe to block once).
  */
 
-import { readFileSync, writeFile, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFile, rename, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -61,9 +61,17 @@ export function loadCache(key, fallback = []) {
  */
 export function saveCache(key, data) {
   const file = cachePath(key);
+  const tmp  = file + '.tmp';
   const payload = JSON.stringify({ savedAt: new Date().toISOString(), data }, null, 0);
-  // writeFile is fully async — never blocks the event loop
-  writeFile(file, payload, 'utf8', (e) => {
-    if (e) console.warn(`[Cache] Could not write ${key} cache:`, e.message);
+  // Write to .tmp first, then atomically rename — prevents JSON corruption if
+  // the process is killed mid-write (B-C7 audit fix).
+  writeFile(tmp, payload, 'utf8', (writeErr) => {
+    if (writeErr) {
+      console.warn(`[Cache] Could not write ${key} cache:`, writeErr.message);
+      return;
+    }
+    rename(tmp, file, (renameErr) => {
+      if (renameErr) console.warn(`[Cache] Could not rename ${key} cache:`, renameErr.message);
+    });
   });
 }

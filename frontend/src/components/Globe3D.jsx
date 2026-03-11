@@ -298,6 +298,19 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
 
   useEffect(() => { applyBasemap(basemap); }, [basemap, globeReady, applyBasemap]);
 
+  // F-C1: Destroy the Cesium viewer when the component unmounts to prevent
+  // memory leaks — frees GPU memory, terrain tiles, imagery providers, and
+  // all screen space event handlers in one call.
+  useEffect(() => {
+    return () => {
+      const viewer = viewerRef.current;
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.destroy();
+      }
+      viewerRef.current = null;
+    };
+  }, []);
+
   // D3: GIBS uses a date-stamped URL. If the page stays open past midnight the
   // imagery becomes stale. Check every hour and rebuild if the date changed.
   useEffect(() => {

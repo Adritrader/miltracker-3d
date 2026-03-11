@@ -136,6 +136,17 @@ const NewsLayer = ({ viewer, news, visible, onSelect, onClusterSelect, isMobile 
     return dsRef.current;
   }, [viewer]);
 
+  // F-C3: Remove DataSource on unmount
+  useEffect(() => {
+    return () => {
+      if (!viewer || viewer.isDestroyed()) return;
+      if (dsRef.current) {
+        try { viewer.dataSources.remove(dsRef.current, true); } catch (_) {}
+        dsRef.current = null;
+      }
+    };
+  }, [viewer]);
+
   // â”€â”€ Build / rebuild all news entities for a given clusterDeg â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const buildEntities = useCallback((deg) => {
     if (!viewer) return;

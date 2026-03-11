@@ -159,7 +159,10 @@ export function useRealTimeData() {
       setGeminiEnabled(!!ge);
     });
 
-    return () => socket.disconnect();
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
   }, []);
 
   return { connected, aircraft, aircraftSource, ships, news, conflicts, alerts, hotspots, dangerZones, aiInsight, aiError, geminiEnabled, lastUpdate, isInitialLoad, hasCachedData, socketRef };

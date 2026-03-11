@@ -78,6 +78,21 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
     return dsCache.current[name];
   }, [viewer]);
 
+  // F-C3: Remove all owned DataSources on unmount
+  useEffect(() => {
+    return () => {
+      if (!viewer || viewer.isDestroyed()) return;
+      const names = ['ships', 'ship-trails', 'ship-replay-trails'];
+      for (const name of names) {
+        const ds = dsCache.current[name];
+        if (ds) {
+          try { viewer.dataSources.remove(ds, true); } catch (_) {}
+          dsCache.current[name] = null;
+        }
+      }
+    };
+  }, [viewer]);
+
   // visibility is managed inside the main render loop below
 
   // ── Replay trail overlay ───────────────────────────────────────────────────

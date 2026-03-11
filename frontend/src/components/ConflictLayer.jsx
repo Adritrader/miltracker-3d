@@ -467,6 +467,17 @@ const ConflictLayer = ({ viewer, conflicts, visible, onSelect }) => {
     return dsRef.current;
   }, [viewer]);
 
+  // F-C3: Remove DataSource on unmount
+  useEffect(() => {
+    return () => {
+      if (!viewer || viewer.isDestroyed()) return;
+      if (dsRef.current) {
+        try { viewer.dataSources.remove(dsRef.current, true); } catch (_) {}
+        dsRef.current = null;
+      }
+    };
+  }, [viewer]);
+
   // render / update entities — visibility handled here (removeAll + ds.show)
   useEffect(() => {
     if (!viewer) return;
