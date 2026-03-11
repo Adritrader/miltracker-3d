@@ -160,11 +160,24 @@ export async function snapshotPositions(aircraft, ships) {
 
     if (rows.length === 0) return;
 
+    // Strip extended columns that require migration 002
+    const BASIC_KEYS = ['entity_type','entity_id','callsign','name','flag','lat','lon','altitude','heading','speed','sampled_at'];
+    const stripExtended = (row) => Object.fromEntries(BASIC_KEYS.filter(k => k in row).map(k => [k, row[k]]));
+
     // Supabase has a max payload size — batch in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase.from('position_snapshots').insert(chunk);
-      if (error) throw error;
+      if (error) {
+        // If columns don't exist (migration 002 not applied), retry with basic columns
+        if (error.message?.includes('column')) {
+          const basic = chunk.map(stripExtended);
+          const { error: e2 } = await supabase.from('position_snapshots').insert(basic);
+          if (e2) throw e2;
+        } else {
+          throw error;
+        }
+      }
     }
 
     console.log(`[Supabase] Snapshot: ${rows.length} positions (${aircraft?.length || 0} ac + ${ships?.length || 0} ships)`);
@@ -240,17 +253,27 @@ export async function purgeOldSnapshots() {
 export async function getEntityTrail(entityId, hours = 24) {
   if (!supabase) return [];
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
-  // Case-insensitive match: ICAO hexes stored lowercase, callsigns uppercase
   const idLower = entityId.toLowerCase();
-  const { data, error } = await supabase
-    .from('position_snapshots')
-    .select('lat, lon, altitude, heading, speed, callsign, registration, aircraft_type, squawk, on_ground, vertical_rate, carrier_ops, sampled_at')
-    .or(`entity_id.eq.${entityId},entity_id.eq.${idLower}`)
-    .gte('sampled_at', cutoff)
-    .order('sampled_at', { ascending: true })
-    .limit(2000);
-  if (error) throw error;
-  return data || [];
+  const ids = idLower === entityId ? [entityId] : [entityId, idLower];
+
+  // Try full select first (requires migration 002), fall back to basic columns
+  const FULL_COLS = 'lat, lon, altitude, heading, speed, callsign, registration, aircraft_type, squawk, on_ground, vertical_rate, carrier_ops, sampled_at';
+  const BASIC_COLS = 'lat, lon, altitude, heading, speed, sampled_at';
+
+  for (const cols of [FULL_COLS, BASIC_COLS]) {
+    const { data, error } = await supabase
+      .from('position_snapshots')
+      .select(cols)
+      .in('entity_id', ids)
+      .gte('sampled_at', cutoff)
+      .order('sampled_at', { ascending: true })
+      .limit(2000);
+    if (!error) return data || [];
+    // If it's a column-not-found error, try basic cols; otherwise throw
+    if (cols === FULL_COLS && error.message?.includes('column')) continue;
+    throw error;
+  }
+  return [];
 }
 
 // ─── Query: Recent alerts ───────────────────────────────────────────────────
