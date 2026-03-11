@@ -67,14 +67,14 @@ const Loader = ({ text = 'Loading…' }) => (
 );
 
 const SectionTitle = ({ children }) => (
-  <div className="text-[10px] font-mono font-bold text-[#88a0a8]/60 tracking-wider uppercase mb-2">{children}</div>
+  <div className="text-[11px] font-mono font-bold text-[#88a0a8]/70 tracking-wider uppercase mb-2">{children}</div>
 );
 
 // Custom tooltip for recharts
 const HudTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[rgba(5,8,16,0.95)] border border-white/15 rounded px-2.5 py-1.5 text-[10px] font-mono shadow-xl">
+    <div className="bg-[rgba(5,8,16,0.95)] border border-white/15 rounded px-2.5 py-1.5 text-[11px] font-mono shadow-xl">
       {label && <div className="text-white/60 mb-1">{label}</div>}
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.color || C.green }}>{p.name}: <span className="text-white">{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</span></div>
@@ -111,11 +111,11 @@ const OverviewTab = ({ hours, onFlyTo }) => {
   if (error) return <ErrorBanner msg={error} />;
   if (!data) return <EmptyState icon="📊" msg="No analytics data yet" />;
 
-  // Compute KPIs
-  const totalAircraft = data.fleet.filter(f => f.entity_type === 'aircraft').reduce((s, f) => s + (f.count || 0), 0);
-  const totalShips = data.fleet.filter(f => f.entity_type === 'ship').reduce((s, f) => s + (f.count || 0), 0);
-  const totalAlerts = data.alertSev.reduce((s, a) => s + (a.count || 0), 0);
-  const totalConflicts = data.conflictTypes.reduce((s, c) => s + (c.count || 0), 0);
+  // Compute KPIs — coerce count to number (Supabase RPC returns BIGINT as string)
+  const totalAircraft = data.fleet.filter(f => f.entity_type === 'aircraft').reduce((s, f) => s + Number(f.count || 0), 0);
+  const totalShips = data.fleet.filter(f => f.entity_type === 'ship').reduce((s, f) => s + Number(f.count || 0), 0);
+  const totalAlerts = data.alertSev.reduce((s, a) => s + Number(a.count || 0), 0);
+  const totalConflicts = data.conflictTypes.reduce((s, c) => s + Number(c.count || 0), 0);
   const countries = new Set(data.fleet.map(f => f.flag)).size;
 
   // Format hourly for area chart
@@ -125,20 +125,21 @@ const OverviewTab = ({ hours, onFlyTo }) => {
     Ships: h.ship_count || 0,
   }));
 
-  // Top fleet countries (aircraft)
+  // Top fleet countries (aircraft) — coerce count
   const topCountries = data.fleet
     .filter(f => f.entity_type === 'aircraft' && f.flag)
+    .map(f => ({ ...f, count: Number(f.count) }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
-  // Aircraft types for pie
-  const acTypePie = (data.acTypes || []).slice(0, 8).map(t => ({ name: t.aircraft_type, value: t.count }));
+  // Aircraft types for pie — coerce count
+  const acTypePie = (data.acTypes || []).slice(0, 8).map(t => ({ name: t.aircraft_type, value: Number(t.count) }));
 
-  // Altitude for bar chart
-  const altChart = (data.alt || []).filter(a => a.bucket !== 'Unknown').map(a => ({ name: a.bucket?.replace(/[()]/g, '') || '?', count: a.count }));
+  // Altitude for bar chart — coerce count
+  const altChart = (data.alt || []).filter(a => a.bucket !== 'Unknown').map(a => ({ name: a.bucket?.replace(/[()]/g, '') || '?', count: Number(a.count) }));
 
-  // Alert severity for pie
-  const alertPie = (data.alertSev || []).map(a => ({ name: a.severity, value: a.count, color: SEV_COLOR_MAP[a.severity] || C.text }));
+  // Alert severity for pie — coerce count
+  const alertPie = (data.alertSev || []).map(a => ({ name: a.severity, value: Number(a.count), color: SEV_COLOR_MAP[a.severity] || C.text }));
 
   return (
     <div className="space-y-5">
@@ -153,8 +154,8 @@ const OverviewTab = ({ hours, onFlyTo }) => {
         ].map(kpi => (
           <div key={kpi.label} className="rounded-lg border border-white/10 bg-black/30 p-3 text-center">
             <div className="text-lg mb-0.5">{kpi.icon}</div>
-            <div className="text-xl font-bold font-mono" style={{ color: kpi.color }}>{kpi.value}</div>
-            <div className="text-[9px] font-mono text-white/40 tracking-wider">{kpi.label}</div>
+            <div className="text-2xl font-bold font-mono" style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className="text-[10px] font-mono text-white/40 tracking-wider">{kpi.label}</div>
           </div>
         ))}
       </div>
@@ -167,8 +168,8 @@ const OverviewTab = ({ hours, onFlyTo }) => {
             <ResponsiveContainer width="100%" height={160}>
               <AreaChart data={hourlyChart}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="time" tick={{ fill: '#88a0a8', fontSize: 9 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fill: '#88a0a8', fontSize: 9 }} width={35} />
+                <XAxis dataKey="time" tick={{ fill: '#88a0a8', fontSize: 10 }} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: '#88a0a8', fontSize: 10 }} width={35} />
                 <Tooltip content={<HudTooltip />} />
                 <Area type="monotone" dataKey="Aircraft" stroke={C.cyan} fill={C.cyan} fillOpacity={0.15} strokeWidth={2} />
                 <Area type="monotone" dataKey="Ships" stroke={C.blue} fill={C.blue} fillOpacity={0.1} strokeWidth={2} />
@@ -187,8 +188,8 @@ const OverviewTab = ({ hours, onFlyTo }) => {
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={topCountries} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis type="number" tick={{ fill: '#88a0a8', fontSize: 9 }} />
-                  <YAxis type="category" dataKey="flag" tick={{ fill: '#88a0a8', fontSize: 9 }} width={40} />
+                  <XAxis type="number" tick={{ fill: '#88a0a8', fontSize: 10 }} />
+                  <YAxis type="category" dataKey="flag" tick={{ fill: '#88a0a8', fontSize: 10 }} width={40} />
                   <Tooltip content={<HudTooltip />} />
                   <Bar dataKey="count" name="Aircraft" fill={C.cyan} radius={[0,4,4,0]} />
                 </BarChart>
@@ -203,7 +204,7 @@ const OverviewTab = ({ hours, onFlyTo }) => {
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie data={acTypePie} cx="50%" cy="50%" outerRadius={65} dataKey="value" label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}
-                    style={{ fontSize: 8, fontFamily: 'monospace' }}>
+                    style={{ fontSize: 10, fontFamily: 'monospace' }}>
                     {acTypePie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
                   <Tooltip content={<HudTooltip />} />
@@ -223,8 +224,8 @@ const OverviewTab = ({ hours, onFlyTo }) => {
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={altChart}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" tick={{ fill: '#88a0a8', fontSize: 8 }} interval={0} angle={-15} textAnchor="end" height={40} />
-                  <YAxis tick={{ fill: '#88a0a8', fontSize: 9 }} width={35} />
+                  <XAxis dataKey="name" tick={{ fill: '#88a0a8', fontSize: 10 }} interval={0} angle={-15} textAnchor="end" height={40} />
+                  <YAxis tick={{ fill: '#88a0a8', fontSize: 10 }} width={35} />
                   <Tooltip content={<HudTooltip />} />
                   <Bar dataKey="count" name="Positions" fill={C.amber} radius={[4,4,0,0]} />
                 </BarChart>
@@ -239,7 +240,7 @@ const OverviewTab = ({ hours, onFlyTo }) => {
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie data={alertPie} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" paddingAngle={3}
-                    label={({ name, value }) => `${name}: ${value}`} style={{ fontSize: 9, fontFamily: 'monospace' }}>
+                    label={({ name, value }) => `${name}: ${value}`} style={{ fontSize: 10, fontFamily: 'monospace' }}>
                     {alertPie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                   <Tooltip content={<HudTooltip />} />
@@ -256,7 +257,7 @@ const OverviewTab = ({ hours, onFlyTo }) => {
           <SectionTitle>DAILY STATS (LAST 14 DAYS)</SectionTitle>
           <div className="rounded-lg border border-white/10 bg-black/20 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px] font-mono">
+              <table className="w-full text-[11px] font-mono">
                 <thead>
                   <tr className="text-white/40 border-b border-white/10">
                     <th className="text-left px-2 py-1.5">DATE</th>
@@ -293,7 +294,7 @@ const OverviewTab = ({ hours, onFlyTo }) => {
           <SectionTitle>TOP TRACKED ENTITIES</SectionTitle>
           <div className="rounded-lg border border-white/10 bg-black/20 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-[10px] font-mono">
+              <table className="w-full text-[11px] font-mono">
                 <thead>
                   <tr className="text-white/40 border-b border-white/10">
                     <th className="text-left px-2 py-1.5">ID</th>
@@ -328,8 +329,8 @@ const OverviewTab = ({ hours, onFlyTo }) => {
             <ResponsiveContainer width="100%" height={140}>
               <BarChart data={data.conflictTypes.slice(0, 10)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="event_type" tick={{ fill: '#88a0a8', fontSize: 8 }} interval={0} angle={-20} textAnchor="end" height={40} />
-                <YAxis tick={{ fill: '#88a0a8', fontSize: 9 }} width={30} />
+                <XAxis dataKey="event_type" tick={{ fill: '#88a0a8', fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={40} />
+                <YAxis tick={{ fill: '#88a0a8', fontSize: 10 }} width={30} />
                 <Tooltip content={<HudTooltip />} />
                 <Bar dataKey="count" name="Events" fill={C.orange} radius={[4,4,0,0]} />
               </BarChart>
@@ -346,8 +347,8 @@ const OverviewTab = ({ hours, onFlyTo }) => {
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={data.newsSrc.slice(0, 10)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis type="number" tick={{ fill: '#88a0a8', fontSize: 9 }} />
-                <YAxis type="category" dataKey="source" tick={{ fill: '#88a0a8', fontSize: 8 }} width={90} />
+                <XAxis type="number" tick={{ fill: '#88a0a8', fontSize: 10 }} />
+                <YAxis type="category" dataKey="source" tick={{ fill: '#88a0a8', fontSize: 10 }} width={90} />
                 <Tooltip content={<HudTooltip />} />
                 <Bar dataKey="count" name="Articles" fill={C.purple} radius={[0,4,4,0]} />
               </BarChart>
@@ -556,7 +557,7 @@ const IntelTab = () => {
 
   if (loading) return <Loader text="Loading AI insights…" />;
   if (error) return <ErrorBanner msg={error} />;
-  if (insights.length === 0) return <EmptyState icon="🤖" msg="No AI insights yet — Gemini analyses are archived after migration 004+005" />;
+  if (insights.length === 0) return <EmptyState icon="🤖" msg="No AI insights yet — Gemini analysis runs every 30 min when GEMINI_API_KEY is set" />;
 
   return (
     <div className="space-y-3">
@@ -825,7 +826,7 @@ const HistoryPanel = ({ viewer, onFlyTo, isMobile = false, externalTrailId = nul
     <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-auto" style={{ background: 'rgba(0,0,0,0.6)' }}
       onClick={e => { if (e.target === e.currentTarget) setMinimized(true); }}>
       <div className="bg-[rgba(5,8,16,0.98)] border border-white/15 rounded-xl shadow-2xl backdrop-blur-xl flex flex-col"
-        style={{ width: isMobile ? 'calc(100vw - 16px)' : 'min(95vw, 1100px)', height: isMobile ? 'calc(100vh - 32px)' : 'min(90vh, 800px)' }}
+        style={{ width: isMobile ? 'calc(100vw - 16px)' : 'min(96vw, 1280px)', height: isMobile ? 'calc(100vh - 32px)' : 'min(92vh, 900px)' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}

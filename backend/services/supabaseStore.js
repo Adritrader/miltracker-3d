@@ -550,19 +550,22 @@ export async function analyticsFleetComposition(hours = 24) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_fleet_composition', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
-  // Fallback: fetch raw and aggregate in JS
+  // Fallback: fetch raw and aggregate in JS (distinct entities per flag)
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
   const { data: raw, error } = await supabase
     .from('position_snapshots')
-    .select('entity_type, flag')
+    .select('entity_id, entity_type, flag')
     .gte('sampled_at', cutoff)
     .limit(50000);
   if (error) throw error;
+  // Deduplicate: one entry per entity_id (last seen wins)
+  const entities = {};
+  for (const r of (raw || [])) entities[r.entity_id] = r;
   const counts = {};
-  for (const r of (raw || [])) {
+  for (const r of Object.values(entities)) {
     const key = `${r.entity_type}||${r.flag || 'Unknown'}`;
     counts[key] = (counts[key] || 0) + 1;
   }
@@ -580,19 +583,22 @@ export async function analyticsAircraftTypes(hours = 24) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_aircraft_types', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
+  // Fallback: distinct entities per aircraft_type
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
   const { data: raw, error } = await supabase
     .from('position_snapshots')
-    .select('aircraft_type')
+    .select('entity_id, aircraft_type')
     .eq('entity_type', 'aircraft')
     .gte('sampled_at', cutoff)
     .limit(50000);
   if (error) throw error;
+  const entities = {};
+  for (const r of (raw || [])) entities[r.entity_id] = r;
   const counts = {};
-  for (const r of (raw || [])) {
+  for (const r of Object.values(entities)) {
     const t = r.aircraft_type || 'Unknown';
     counts[t] = (counts[t] || 0) + 1;
   }
@@ -610,7 +616,7 @@ export async function analyticsHourlyActivity(hours = 48) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_hourly_activity', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, aircraft_count: Number(r.aircraft_count), ship_count: Number(r.ship_count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -641,7 +647,7 @@ export async function analyticsTopEntities(hours = 24, limit = 50) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_top_entities', { p_hours: hours, p_limit: limit });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, snapshots: Number(r.snapshots), snapshot_count: Number(r.snapshots) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -670,7 +676,7 @@ export async function analyticsAltitudeDistribution(hours = 24) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_altitude_distribution', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -704,7 +710,7 @@ export async function analyticsSpeedDistribution(hours = 24) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_speed_distribution', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -743,7 +749,7 @@ export async function analyticsConflictsByZone(hours = 72) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_conflicts_by_zone', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -772,7 +778,7 @@ export async function analyticsConflictsByType(hours = 72) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_conflicts_by_type', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -801,7 +807,7 @@ export async function analyticsNewsBySource(hours = 72) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_news_by_source', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
@@ -830,7 +836,7 @@ export async function analyticsAlertsBySeverity(hours = 72) {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.rpc('analytics_alerts_by_severity', { p_hours: hours });
-    if (!error && data) return data;
+    if (!error && data) return data.map(r => ({ ...r, count: Number(r.count) }));
   } catch {}
 
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();

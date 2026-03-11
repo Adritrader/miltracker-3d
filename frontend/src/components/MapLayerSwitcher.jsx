@@ -76,7 +76,7 @@ const MapLayerSwitcher = ({ basemap, onBasemapChange, isMobile = false }) => {
       {/* Toggle button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="hud-panel px-3 py-2 flex items-center gap-1.5 text-xs font-mono font-bold hover:text-white transition-colors"
+        className="hud-btn px-3 py-2 min-h-[36px] flex items-center gap-1.5 text-xs font-mono font-bold select-none bg-[rgba(5,8,16,0.82)] backdrop-blur-sm hover:bg-[rgba(5,8,16,0.95)] hover:text-white transition-colors"
         title="Switch map layer"
       >
         <span className="text-sm">{current.icon}</span>
