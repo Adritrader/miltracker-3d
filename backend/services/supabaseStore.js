@@ -29,15 +29,38 @@ export function isEnabled() {
 
 // ─── Alert Archive ──────────────────────────────────────────────────────────
 
-// Track already-archived alert IDs to avoid re-inserting on every poll cycle
+// Track already-archived alert IDs — seeded from DB on first call to survive restarts
 const archivedAlertIds = new Set();
+let alertDeduplicateSeeded = false;
+
+async function seedArchivedIds() {
+  if (alertDeduplicateSeeded || !supabase) return;
+  alertDeduplicateSeeded = true;
+  try {
+    // Fetch last 48h of alert_ids from DB to pre-fill the in-memory Set
+    const cutoff = new Date(Date.now() - 48 * 3600_000).toISOString();
+    const { data } = await supabase
+      .from('alert_archive')
+      .select('alert_id')
+      .gte('created_at', cutoff)
+      .limit(5000);
+    for (const row of (data || [])) {
+      if (row.alert_id) archivedAlertIds.add(row.alert_id);
+    }
+    console.log(`[Supabase] Seeded ${archivedAlertIds.size} known alert IDs from DB`);
+  } catch (err) {
+    console.warn('[Supabase] seedArchivedIds error:', err.message);
+    alertDeduplicateSeeded = false; // retry next call
+  }
+}
 
 /**
- * Archive new alerts. Deduplicates by alert_id so only genuinely new alerts
- * are inserted, even if alertsFromNews() re-generates the same set.
+ * Archive new alerts. Deduplicates by alert_id using an in-memory Set seeded
+ * from the DB on startup, so restarts don't cause re-inserts.
  */
 export async function archiveAlerts(alerts) {
   if (!supabase || !alerts?.length) return;
+  await seedArchivedIds();
   try {
     const newAlerts = alerts.filter(a => a.id && !archivedAlertIds.has(a.id));
     if (newAlerts.length === 0) return;
@@ -61,6 +84,12 @@ export async function archiveAlerts(alerts) {
     if (error) throw error;
 
     for (const a of newAlerts) archivedAlertIds.add(a.id);
+    // Prevent unbounded growth — trim if over 10k entries
+    if (archivedAlertIds.size > 10000) {
+      const arr = [...archivedAlertIds];
+      archivedAlertIds.clear();
+      for (const id of arr.slice(-5000)) archivedAlertIds.add(id);
+    }
     console.log(`[Supabase] Archived ${newAlerts.length} new alerts`);
   } catch (err) {
     console.error('[Supabase] archiveAlerts error:', err.message);
@@ -146,18 +175,20 @@ export async function snapshotPositions(aircraft, ships) {
 
 // ─── Daily Stats ────────────────────────────────────────────────────────────
 
-let lastStatsSave = '';
+let lastStatsSave = 0;
+const STATS_INTERVAL_MS = 10 * 60_000; // update stats every 10 minutes
 
 /**
- * Upsert today's aggregate stats. Called from pollAircraft (most frequent).
- * Only writes once per UTC date change to avoid excessive writes.
+ * Upsert today's aggregate stats. Writes at most every 10 minutes
+ * with the LATEST counts, so the row reflects peak/end-of-day values.
  */
 export async function upsertDailyStats({ aircraftCount, shipCount, alertCount, conflictCount, newsCount, criticalAlerts }) {
   if (!supabase) return;
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  if (today === lastStatsSave) return;
-  lastStatsSave = today;
+  const now = Date.now();
+  if (now - lastStatsSave < STATS_INTERVAL_MS) return;
+  lastStatsSave = now;
 
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   try {
     const { error } = await supabase.from('daily_stats').upsert({
       date:            today,
@@ -169,7 +200,7 @@ export async function upsertDailyStats({ aircraftCount, shipCount, alertCount, c
       critical_alerts: criticalAlerts || 0,
     }, { onConflict: 'date' });
     if (error) throw error;
-    console.log(`[Supabase] Daily stats for ${today} upserted`);
+    console.log(`[Supabase] Daily stats for ${today} upserted (ac:${aircraftCount} ships:${shipCount} alerts:${alertCount})`);
   } catch (err) {
     console.error('[Supabase] upsertDailyStats error:', err.message);
   }
@@ -189,10 +220,10 @@ export async function purgeOldSnapshots() {
     const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400_000).toISOString();
     const { error, count } = await supabase
       .from('position_snapshots')
-      .delete()
+      .delete({ count: 'exact' })
       .lt('sampled_at', cutoff);
     if (error) throw error;
-    if (count > 0) console.log(`[Supabase] Purged ${count} snapshots older than ${RETENTION_DAYS}d`);
+    console.log(`[Supabase] Purged ${count ?? '?'} snapshots older than ${RETENTION_DAYS}d`);
   } catch (err) {
     console.error('[Supabase] purgeOldSnapshots error:', err.message);
   }
@@ -209,10 +240,12 @@ export async function purgeOldSnapshots() {
 export async function getEntityTrail(entityId, hours = 24) {
   if (!supabase) return [];
   const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  // Case-insensitive match: ICAO hexes stored lowercase, callsigns uppercase
+  const idLower = entityId.toLowerCase();
   const { data, error } = await supabase
     .from('position_snapshots')
     .select('lat, lon, altitude, heading, speed, callsign, registration, aircraft_type, squawk, on_ground, vertical_rate, carrier_ops, sampled_at')
-    .eq('entity_id', entityId)
+    .or(`entity_id.eq.${entityId},entity_id.eq.${idLower}`)
     .gte('sampled_at', cutoff)
     .order('sampled_at', { ascending: true })
     .limit(2000);
