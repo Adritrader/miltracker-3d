@@ -17,7 +17,9 @@ function buildLabelText(ac, speedUnit = 'kt', altUnit = 'ft') {
   const rawCountry = ac.country || icaoToCountry(ac.icao24 || '');
   const resolved   = rawCountry ? resolveCountry(rawCountry) : null;
   const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
-  const line1      = [countryTag, ac.callsign || 'UNKNOWN'].filter(Boolean).join(' ');
+  // F-L7: strip non-printable and potentially dangerous chars from callsign before canvas render
+  const safeCallsign = (ac.callsign || 'UNKNOWN').replace(/[^\x20-\x7E]/g, '').slice(0, 12) || 'UNKNOWN';
+  const line1      = [countryTag, safeCallsign].filter(Boolean).join(' ');
 
   const typeName = getAircraftTypeName(ac.aircraftType || '');
   const altFt    = ac.altitudeFt != null

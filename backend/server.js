@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
@@ -75,6 +76,11 @@ const io = new Server(httpServer, {
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
+// F-L16: security headers — helmet with relaxed CSP compatible with Railway/Socket.io
+app.use(helmet({
+  contentSecurityPolicy: false,  // CSP managed on frontend (Vercel headers)
+  crossOriginEmbedderPolicy: false, // required for CesiumJS WebGL
+}));
 
 // Rate limit REST endpoints — 120 req/min per IP
 // Dashboard opens ≈13 analytics calls at once + live data polling ≈ 20 req burst

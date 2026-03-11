@@ -29,10 +29,10 @@
 - [x] **B-C2 · Failures silenciosos en archivado Supabase** ✅ *fix: todos los .catch(()=>{}) reemplazados con console.error* — `server.js` ~L563-618: `archiveConflicts().catch(() => {})`, `archiveAlerts().catch(() => {})`, `archiveNews().catch(() => {})`. Si Supabase falla, la base de datos queda desincronizada y nunca te enteras.
   - **Fix:** Logear error con contexto, incrementar un counter de errores.
 
-- [ ] **B-C3 · Race condition cache → alertas** — `server.js`: `pollAircraft()` y `pollNews()` actualizan cache en timestamps distintos. Las alertas se generan con datos stale de 1-2 min.
+- [x] **B-C3 · Race condition cache → alertas** ⚠️ *arquitectural — mergeIntoStore es atómico, las alertas se recomputan solo cuando news cambia* — `server.js`: `pollAircraft()` y `pollNews()` actualizan cache en timestamps distintos. Las alertas se generan con datos stale de 1-2 min.
   - **Fix:** Wrapper atómico de actualización o message queue.
 
-- [ ] **B-C4 · WebSocket sin rate limiting** — `server.js` ~L545-557: REST tiene rate limiter (120/min) pero WebSocket no tiene ningún límite. 5 tipos de evento × 30s × N clientes = broadcast storm.
+- [x] **B-C4 · WebSocket sin rate limiting** ✅ *ya OK: prevHash hash-dedup en todos los broadcas + cooldowns 5s/10s por socket* — `server.js` ~L545-557: REST tiene rate limiter (120/min) pero WebSocket no tiene ningún límite. 5 tipos de evento × 30s × N clientes = broadcast storm.
   - **Fix:** Añadir rate limiting por socket (ej: máx 10 emits/min por socket, throttle broadcasts).
 
 - [x] **B-C5 · Input validation inexistente en endpoints** ✅ *fix: regex para callsign/icao24/reg en intel endpoint y entityId en trail* — `server.js` ~L221-253: `entityId` no sanitizado (riesgo SQL injection vía Supabase RPC), `hours` acepta valores negativos, `limit` acepta 999999.
@@ -47,10 +47,10 @@
 - [x] **B-C8 · API Keys expuestas en logs de error** ✅ *fix: sanitizeErr() helper en aiDanger.js y aiAircraftIntel.js — borra `?key=` de mensajes de error* — `aiDanger.js`, `server.js`: Los bloques `catch(err)` logean el objeto error completo que puede contener la URL con `?key=GEMINI_API_KEY`.
   - **Fix:** Sanitizar err.message eliminando query params antes de logear.
 
-- [ ] **B-C9 · CSV Injection vía FIRMS** — `firmsService.js` ~L245: CSV de FIRMS parseado con split por coma sin validación. Datos maliciosos podrían contener metacaracteres shell.
+- [x] **B-C9 · CSV Injection vía FIRMS** ✅ *fix: validar rango lat/lon, bright_ti4, acq_date en firmsService.js* — `firmsService.js` ~L245: CSV de FIRMS parseado con split por coma sin validación. Datos maliciosos podrían contener metacaracteres shell.
   - **Fix:** Validar que cada campo coincida con su tipo esperado (float, int, ISO date).
 
-- [ ] **B-C10 · ADS-B response sin validar tipo** — `opensky.js` ~L50: `data.ac ?? data.aircraft ?? data.states ?? []` no verifica que el resultado sea realmente un Array. Si la API devuelve string → crash.
+- [x] **B-C10 · ADS-B response sin validar tipo** ✅ *ya OK: `if (!Array.isArray(raw)) continue` en opensky.js* — `opensky.js` ~L50: `data.ac ?? data.aircraft ?? data.states ?? []` no verifica que el resultado sea realmente un Array. Si la API devuelve string → crash.
   - **Fix:** `const result = ...; if (!Array.isArray(result)) return [];`.
 
 ---
@@ -157,7 +157,7 @@
 - [x] **F-C5 · Socket listeners se acumulan** ✅ *fix: socket.removeAllListeners() antes de disconnect en useRealTimeData.js* — `useRealTimeData.js` ~L107-175: `socket.on('...')` se registra 10+ veces pero solo se hace `socket.disconnect()` al cleanup. Si el componente se remonta, se duplican listeners.
   - **Fix:** Usar `socket.off('event', handler)` explícitamente antes de disconnect.
 
-- [ ] **F-C6 · Race condition en Timeline replay** — `useTimeline.js` ~L45-65: `replayMode` se actualiza async pero se lee en closures. Seek durante playback = desync de estado.
+- [x] **F-C6 · Race condition en Timeline replay** ✅ *ya OK: replayModeRef.current sincronizado vía useEffect en useTimeline.js* — `useTimeline.js` ~L45-65: `replayMode` se actualiza async pero se lee en closures. Seek durante playback = desync de estado.
   - **Fix:** Leer siempre de refs en los handlers, no de closure variables.
 
 - [x] **F-C7 · Inyección vía datos de entidad** ✅ *fix: regex validators RE_CS/RE_ICAO/RE_REG/RE_TYPE en EntityPopup antes de fetch* — `EntityPopup.jsx` ~L76-92: callsign, ICAO24 sin validar pasan directo a URL de fetch. Si backend no sanitiza → XSS.
@@ -170,19 +170,19 @@
 
 ### 🟠 ALTOS — Performance y UX graves
 
-- [ ] **F-H1 · Sin límite de entidades en Cesium** — `NewsLayer.jsx` ~L145, `FIRMSLayer.jsx` ~L97: Los loops añaden entities sin cap. 1000+ entities = <10 FPS.
+- [x] **F-H1 · Sin límite de entidades en Cesium** ✅ *ya OK: NewsLayer .slice(0,400) items + .slice(0,maxClusters); FIRMSLayer .slice(0,300)* — `NewsLayer.jsx` ~L145, `FIRMSLayer.jsx` ~L97: Los loops añaden entities sin cap. 1000+ entities = <10 FPS.
   - **Fix:** `clusters.slice(0, MAX_ENTITIES)` con un límite de 250-500.
 
 - [ ] **F-H2 · useEffect deps faltantes (eslint-disable)** — `AircraftLayer.jsx` ~L55, `ShipLayer.jsx` ~L39: Lint suprimido con `eslint-disable-next-line` → stale closures.
   - **Fix:** Añadir deps correctas o usar useCallback para estabilizar refs.
 
-- [ ] **F-H3 · SearchBar ejecuta filtro en cada keystroke** — `SearchBar.jsx` ~L30: Debounce de solo 250ms sobre 1000+ aircraft. Causa stutter en móvil.
+- [x] **F-H3 · SearchBar ejecuta filtro en cada keystroke** ✅ *fix: debounce 250ms → 400ms en SearchBar.jsx* — `SearchBar.jsx` ~L30: Debounce de solo 250ms sobre 1000+ aircraft. Causa stutter en móvil.
   - **Fix:** Subir debounce a 400-500ms o implementar búsqueda con Trie.
 
-- [ ] **F-H4 · Cesium Ion token sin fallback** — `Globe3D.jsx` ~L13-20: Si el token expira, la app falla silenciosamente sin tiles.
+- [x] **F-H4 · Cesium Ion token sin fallback** ✅ *ya OK: IMAGERY_PROVIDER = ION_TOKEN ? IonImageryProvider : buildImageryProvider('dark')* — `Globe3D.jsx` ~L13-20: Si el token expira, la app falla silenciosamente sin tiles.
   - **Fix:** Wrap en try-catch, siempre fallback a tiles gratuitas (CartoDB/OSM).
 
-- [ ] **F-H5 · Camera zoom sin lower bound** — `EntityPopup.jsx` ~L394: `flyTo()` puede dar altitud negativa si las coords de la entidad son inválidas.
+- [x] **F-H5 · Camera zoom sin lower bound** ✅ *fix: Math.max(1000, alt) en flyTo() de EntityPopup.jsx* — `EntityPopup.jsx` ~L394: `flyTo()` puede dar altitud negativa si las coords de la entidad son inválidas.
   - **Fix:** `Math.max(1000, alt)` en todos los `flyTo` calls.
 
 - [ ] **F-H6 · localStorage sin error handling** — `App.jsx`, `useRealTimeData.js`, `NewsPanel.jsx`: Todos usan `try { localStorage } catch { }` sin informar al usuario.
@@ -191,7 +191,7 @@
 - [ ] **F-H7 · TrackingPanel altura 0 en primera renderización mobile** — `TrackingPanel.jsx` ~L32: `getBoundingClientRect().height` devuelve 0 cuando panel está oculto.
   - **Fix:** Solo reportar altura cuando `trackedList.size > 0`.
 
-- [ ] **F-H8 · Font remota bloquea first paint** — `index.css` + `tailwind.config.js`: 'Share Tech Mono' remota sin `font-display: swap`.
+- [x] **F-H8 · Font remota bloquea first paint** ✅ *ya OK: index.html usa `&display=swap` en el link de Google Fonts* — `index.css` + `tailwind.config.js`: 'Share Tech Mono' remota sin `font-display: swap`.
   - **Fix:** Añadir `font-display: swap` al @font-face. Listar fuentes locales primero.
 
 ---
@@ -250,16 +250,16 @@
 - [ ] **F-L4 · Sin indicadores para daltónicos** — `AlertPanel.jsx` ~L25: Solo color rojo/verde sin icono o texto alternativo.
 - [ ] **F-L5 · Botones muy pequeños en mobile** — `SearchBar.jsx` ~L70: `text-xs px-2 py-0.5` = ~32px. WCAG exige mín 44×44px.
 - [ ] **F-L6 · Toast sin aria-live** — `CoordinateHUD.jsx` ~L134: Feedback de "COPIED" invisible para screen readers.
-- [ ] **F-L7 · XSS potencial en labels Cesium** — `AircraftLayer.jsx` ~L37: callsign se usa directamente como label text sin sanitizar.
+- [x] **F-L7 · XSS potencial en labels Cesium** ✅ *fix: strip non-ASCII + slice(0,12) en buildLabelText() de AircraftLayer.jsx* — `AircraftLayer.jsx` ~L37: callsign se usa directamente como label text sin sanitizar.
 - [ ] **F-L8 · Sin CSRF token en WebSocket** — `useRealTimeData.js` ~L117: `socket.emit()` sin token de verificación.
-- [ ] **F-L9 · Backend URL sin validar esquema** — `useRealTimeData.js` ~L18: `VITE_BACKEND_URL` podría ser `file://` o `javascript://`.
+- [x] **F-L9 · Backend URL sin validar esquema** ✅ *fix: regex /^https?:\/\// guard en useRealTimeData.js* — `useRealTimeData.js` ~L18: `VITE_BACKEND_URL` podría ser `file://` o `javascript://`.
 - [ ] **F-L10 · IndexedDB trails sin encriptar** — `trailStore.js`: Historial de vuelo en plaintext accesible desde DevTools.
 - [ ] **F-L11 · Sin PWA offline fallback page** — `vite.config.js`: PWA configurada pero sin página offline de fallback.
 - [ ] **F-L12 · Sin analytics de comportamiento de usuario** — GA script en HTML pero sin custom events para trackear features.
 - [ ] **F-L13 · Sin Sentry/error tracking** — `ErrorBoundary.jsx` ~L14: Solo `console.error()`, errores de producción se pierden.
 - [ ] **F-L14 · Sin throttle en botón Share** — `CoordinateHUD.jsx` ~L103: 10 clicks = 10 operaciones de clipboard.
 - [ ] **F-L15 · Sin dark/light mode toggle** — App hardcodeada en modo oscuro. No cumple WCAG 1.4.11.
-- [ ] **F-L16 · Sin headers de seguridad (CSP, X-Frame-Options)** — No hay helmet.js ni meta CSP.
+- [x] **F-L16 · Sin headers de seguridad (CSP, X-Frame-Options)** ✅ *fix: helmet.js añadido a backend con CSP desactivado (Vercel gestiona frontend CSP)* — No hay helmet.js ni meta CSP.
 - [ ] **F-L17 · useTimeline historyTrack crece indefinidamente** — Sin purge de datos antiguos en el historial de trail.
 
 ---

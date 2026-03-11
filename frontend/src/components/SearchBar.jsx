@@ -23,7 +23,7 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
 
   // Debounce query changes by 250ms to avoid O(n) filter on every keystroke (O2)
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(query), 250);
+    const id = setTimeout(() => setDebouncedQuery(query), 400);
     return () => clearTimeout(id);
   }, [query]);
 

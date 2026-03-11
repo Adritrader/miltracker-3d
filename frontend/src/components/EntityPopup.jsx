@@ -215,7 +215,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
     };
     const alt = FLY_ALT[entity.type] ?? FLY_ALT[entity.type_entity] ?? 600_000;
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(entity.lon, entity.lat, alt),
+      destination: Cesium.Cartesian3.fromDegrees(entity.lon, entity.lat, Math.max(1000, alt)),
       duration: 2,
     });
   };

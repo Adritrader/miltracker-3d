@@ -5,7 +5,9 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const _RAW_BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// F-L9: reject non-http(s) schemes to prevent file:// or javascript:// injection
+const BACKEND_URL = /^https?:\/\//i.test(_RAW_BACKEND) ? _RAW_BACKEND : 'http://localhost:3001';
 
 // ── LocalStorage cache helpers ───────────────────────────────────────────────
 const CACHE = {

@@ -135,6 +135,10 @@ async function fetchZone({ name, bbox, minFRP = 5 }) {
     const conf = r.confidence || '';
 
     if (isNaN(lat) || isNaN(lon)) continue;
+    // B-C9: validate coordinate ranges and brightness temp to reject malformed/injected rows
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+    if (r.bright_ti4 !== undefined && (isNaN(+r.bright_ti4) || +r.bright_ti4 < 200 || +r.bright_ti4 > 500)) continue;
+    if (r.acq_date && !/^\d{4}-\d{2}-\d{2}$/.test(r.acq_date)) continue;
     // Per-zone minimum FRP threshold
     if (frp < minFRP) continue;
     // Confidence check: VIIRS uses 'l','n','h' (low/nominal/high)
