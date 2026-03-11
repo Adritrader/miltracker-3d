@@ -535,3 +535,318 @@ export async function getRecentInsights(limit = 20) {
   if (error) throw error;
   return data || [];
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Advanced Analytics — RPC-backed aggregations with JS fallbacks
+// Migration: backend/migrations/005_analytics_functions.sql
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * A) Fleet Composition — count entities by flag, split by aircraft/ship.
+ * @param {number} hours — look-back window (default 24)
+ * @returns {Array<{entity_type, flag, count}>}
+ */
+export async function analyticsFleetComposition(hours = 24) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_fleet_composition', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  // Fallback: fetch raw and aggregate in JS
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('position_snapshots')
+    .select('entity_type, flag')
+    .gte('sampled_at', cutoff)
+    .limit(50000);
+  if (error) throw error;
+  const counts = {};
+  for (const r of (raw || [])) {
+    const key = `${r.entity_type}||${r.flag || 'Unknown'}`;
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([k, count]) => { const [entity_type, flag] = k.split('||'); return { entity_type, flag, count }; })
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * B) Aircraft Type Breakdown — count snapshots by aircraft_type.
+ * @param {number} hours — look-back window (default 24)
+ * @returns {Array<{aircraft_type, count}>}
+ */
+export async function analyticsAircraftTypes(hours = 24) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_aircraft_types', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('position_snapshots')
+    .select('aircraft_type')
+    .eq('entity_type', 'aircraft')
+    .gte('sampled_at', cutoff)
+    .limit(50000);
+  if (error) throw error;
+  const counts = {};
+  for (const r of (raw || [])) {
+    const t = r.aircraft_type || 'Unknown';
+    counts[t] = (counts[t] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([aircraft_type, count]) => ({ aircraft_type, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * C) Hourly Activity — position count per hour for area charts.
+ * @param {number} hours — look-back window (default 48)
+ * @returns {Array<{hour, aircraft_count, ship_count}>}
+ */
+export async function analyticsHourlyActivity(hours = 48) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_hourly_activity', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('position_snapshots')
+    .select('entity_type, sampled_at')
+    .gte('sampled_at', cutoff)
+    .order('sampled_at', { ascending: true })
+    .limit(100000);
+  if (error) throw error;
+  const buckets = {};
+  for (const r of (raw || [])) {
+    const h = r.sampled_at.slice(0, 13) + ':00:00Z'; // truncate to hour
+    if (!buckets[h]) buckets[h] = { hour: h, aircraft_count: 0, ship_count: 0 };
+    if (r.entity_type === 'aircraft') buckets[h].aircraft_count++;
+    else buckets[h].ship_count++;
+  }
+  return Object.values(buckets).sort((a, b) => a.hour.localeCompare(b.hour));
+}
+
+/**
+ * D) Top Tracked Entities — most frequently appearing entity_ids.
+ * @param {number} hours — look-back window (default 24)
+ * @param {number} limit — max results (default 50)
+ * @returns {Array<{entity_type, entity_id, callsign, name, flag, snapshot_count}>}
+ */
+export async function analyticsTopEntities(hours = 24, limit = 50) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_top_entities', { p_hours: hours, p_limit: limit });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('position_snapshots')
+    .select('entity_type, entity_id, callsign, name, flag')
+    .gte('sampled_at', cutoff)
+    .limit(50000);
+  if (error) throw error;
+  const map = {};
+  for (const r of (raw || [])) {
+    if (!map[r.entity_id]) map[r.entity_id] = { entity_type: r.entity_type, entity_id: r.entity_id, callsign: r.callsign, name: r.name, flag: r.flag, snapshot_count: 0 };
+    map[r.entity_id].snapshot_count++;
+    if (r.callsign) map[r.entity_id].callsign = r.callsign;
+    if (r.name) map[r.entity_id].name = r.name;
+  }
+  return Object.values(map).sort((a, b) => b.snapshot_count - a.snapshot_count).slice(0, limit);
+}
+
+/**
+ * E) Altitude Distribution — bucket aircraft altitudes (meters).
+ * @param {number} hours — look-back window (default 24)
+ * @returns {Array<{bucket, count}>}
+ */
+export async function analyticsAltitudeDistribution(hours = 24) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_altitude_distribution', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('position_snapshots')
+    .select('altitude, on_ground')
+    .eq('entity_type', 'aircraft')
+    .gte('sampled_at', cutoff)
+    .limit(50000);
+  if (error) throw error;
+  const BUCKETS = ['ground', '0-1000', '1000-5000', '5000-10000', '10000-15000', '15000+'];
+  const counts = Object.fromEntries(BUCKETS.map(b => [b, 0]));
+  for (const r of (raw || [])) {
+    const alt = r.altitude;
+    if (alt == null || r.on_ground) counts['ground']++;
+    else if (alt < 1000)  counts['0-1000']++;
+    else if (alt < 5000)  counts['1000-5000']++;
+    else if (alt < 10000) counts['5000-10000']++;
+    else if (alt < 15000) counts['10000-15000']++;
+    else counts['15000+']++;
+  }
+  return BUCKETS.map(bucket => ({ bucket, count: counts[bucket] }));
+}
+
+/**
+ * F) Speed Distribution — bucket speeds by entity type.
+ * @param {number} hours — look-back window (default 24)
+ * @returns {Array<{bucket, entity_type, count}>}
+ */
+export async function analyticsSpeedDistribution(hours = 24) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_speed_distribution', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('position_snapshots')
+    .select('speed, entity_type')
+    .gte('sampled_at', cutoff)
+    .limit(50000);
+  if (error) throw error;
+  const SPEED_BUCKETS = ['unknown', '0-50', '50-150', '150-300', '300-500', '500-800', '800+'];
+  const counts = {};
+  for (const r of (raw || [])) {
+    const spd = r.speed;
+    let bucket;
+    if (spd == null) bucket = 'unknown';
+    else if (spd < 50)  bucket = '0-50';
+    else if (spd < 150) bucket = '50-150';
+    else if (spd < 300) bucket = '150-300';
+    else if (spd < 500) bucket = '300-500';
+    else if (spd < 800) bucket = '500-800';
+    else bucket = '800+';
+    const key = `${bucket}||${r.entity_type}`;
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([k, count]) => { const [bucket, entity_type] = k.split('||'); return { bucket, entity_type, count }; })
+    .sort((a, b) => SPEED_BUCKETS.indexOf(a.bucket) - SPEED_BUCKETS.indexOf(b.bucket) || a.entity_type.localeCompare(b.entity_type));
+}
+
+/**
+ * G) Conflict by Zone — count events grouped by zone.
+ * @param {number} hours — look-back window (default 72)
+ * @returns {Array<{zone, count}>}
+ */
+export async function analyticsConflictsByZone(hours = 72) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_conflicts_by_zone', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('conflict_events')
+    .select('zone')
+    .gte('published_at', cutoff)
+    .limit(10000);
+  if (error) throw error;
+  const counts = {};
+  for (const r of (raw || [])) {
+    const z = r.zone || 'unclassified';
+    counts[z] = (counts[z] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([zone, count]) => ({ zone, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * H) Conflict by Type — count events grouped by event_type.
+ * @param {number} hours — look-back window (default 72)
+ * @returns {Array<{event_type, count}>}
+ */
+export async function analyticsConflictsByType(hours = 72) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_conflicts_by_type', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('conflict_events')
+    .select('event_type')
+    .gte('published_at', cutoff)
+    .limit(10000);
+  if (error) throw error;
+  const counts = {};
+  for (const r of (raw || [])) {
+    const t = r.event_type || 'unknown';
+    counts[t] = (counts[t] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([event_type, count]) => ({ event_type, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * I) News by Source — count news grouped by source.
+ * @param {number} hours — look-back window (default 72)
+ * @returns {Array<{source, count}>}
+ */
+export async function analyticsNewsBySource(hours = 72) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_news_by_source', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('news_archive')
+    .select('source')
+    .gte('published_at', cutoff)
+    .limit(10000);
+  if (error) throw error;
+  const counts = {};
+  for (const r of (raw || [])) {
+    const s = r.source || 'unknown';
+    counts[s] = (counts[s] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([source, count]) => ({ source, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * J) Alert Severity Breakdown — count alerts by severity.
+ * @param {number} hours — look-back window (default 72)
+ * @returns {Array<{severity, count}>}
+ */
+export async function analyticsAlertsBySeverity(hours = 72) {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.rpc('analytics_alerts_by_severity', { p_hours: hours });
+    if (!error && data) return data;
+  } catch {}
+
+  const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { data: raw, error } = await supabase
+    .from('alert_archive')
+    .select('severity')
+    .gte('timestamp', cutoff)
+    .limit(10000);
+  if (error) throw error;
+  const ORDER = ['critical', 'high', 'medium', 'low'];
+  const counts = {};
+  for (const r of (raw || [])) {
+    const s = r.severity || 'unknown';
+    counts[s] = (counts[s] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([severity, count]) => ({ severity, count }))
+    .sort((a, b) => (ORDER.indexOf(a.severity) === -1 ? 99 : ORDER.indexOf(a.severity)) - (ORDER.indexOf(b.severity) === -1 ? 99 : ORDER.indexOf(b.severity)));
+}

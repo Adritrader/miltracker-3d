@@ -15,7 +15,7 @@ import { recordSnapshot, getHistory, getTimeRange, saveHistory } from './service
 import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 
 dotenv.config();
@@ -321,6 +321,132 @@ app.get('/api/history/insights', async (req, res) => {
   } catch (err) {
     console.error('[History] insights error:', err.message);
     res.status(500).json({ error: 'Failed to fetch AI insights' });
+  }
+});
+
+// ─── Analytics endpoints (Supabase RPC) ──────────────────────────────────────
+
+const parseHours = (val, def, max = 336) => Math.min(Math.max(parseInt(val) || def, 1), max);
+
+// A) Fleet composition — /api/analytics/fleet?hours=24
+app.get('/api/analytics/fleet', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsFleetComposition(parseHours(req.query.hours, 24));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] fleet error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch fleet composition' });
+  }
+});
+
+// B) Aircraft types — /api/analytics/aircraft-types?hours=24
+app.get('/api/analytics/aircraft-types', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsAircraftTypes(parseHours(req.query.hours, 24));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] aircraft-types error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch aircraft types' });
+  }
+});
+
+// C) Hourly activity — /api/analytics/hourly-activity?hours=48
+app.get('/api/analytics/hourly-activity', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsHourlyActivity(parseHours(req.query.hours, 48));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] hourly-activity error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch hourly activity' });
+  }
+});
+
+// D) Top entities — /api/analytics/top-entities?hours=24&limit=50
+app.get('/api/analytics/top-entities', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const hours = parseHours(req.query.hours, 24);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+    const data = await analyticsTopEntities(hours, limit);
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] top-entities error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch top entities' });
+  }
+});
+
+// E) Altitude distribution — /api/analytics/altitude?hours=24
+app.get('/api/analytics/altitude', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsAltitudeDistribution(parseHours(req.query.hours, 24));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] altitude error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch altitude distribution' });
+  }
+});
+
+// F) Speed distribution — /api/analytics/speed?hours=24
+app.get('/api/analytics/speed', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsSpeedDistribution(parseHours(req.query.hours, 24));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] speed error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch speed distribution' });
+  }
+});
+
+// G) Conflicts by zone — /api/analytics/conflicts-by-zone?hours=72
+app.get('/api/analytics/conflicts-by-zone', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsConflictsByZone(parseHours(req.query.hours, 72));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] conflicts-by-zone error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch conflicts by zone' });
+  }
+});
+
+// H) Conflicts by type — /api/analytics/conflicts-by-type?hours=72
+app.get('/api/analytics/conflicts-by-type', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsConflictsByType(parseHours(req.query.hours, 72));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] conflicts-by-type error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch conflicts by type' });
+  }
+});
+
+// I) News by source — /api/analytics/news-by-source?hours=72
+app.get('/api/analytics/news-by-source', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsNewsBySource(parseHours(req.query.hours, 72));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] news-by-source error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch news by source' });
+  }
+});
+
+// J) Alerts by severity — /api/analytics/alerts-by-severity?hours=72
+app.get('/api/analytics/alerts-by-severity', async (req, res) => {
+  if (!supabaseEnabled()) return res.json([]);
+  try {
+    const data = await analyticsAlertsBySeverity(parseHours(req.query.hours, 72));
+    res.json(data);
+  } catch (err) {
+    console.error('[Analytics] alerts-by-severity error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch alerts by severity' });
   }
 });
 
