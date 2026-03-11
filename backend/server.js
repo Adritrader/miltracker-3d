@@ -16,6 +16,7 @@ import { enrichWithCarrierOps } from './services/carrierAirWing.js';
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
 import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities } from './services/supabaseStore.js';
+import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 
 dotenv.config();
 
@@ -198,6 +199,33 @@ app.get('/api/hotspots', (req, res) => res.json(cache.hotspots));
 app.get('/api/conflicts',(req, res) => res.json(cache.conflicts));
 app.get('/api/cameras',  (req, res) => res.json(getCameras()));
 
+// ─── AI Aircraft Intel endpoint ──────────────────────────────────────────────
+// On-demand identification: /api/aircraft/intel?callsign=CONDR31&icao24=ae1234&type=B2
+app.get('/api/aircraft/intel', async (req, res) => {
+  const { callsign, icao24, registration, type: aircraftType, country } = req.query;
+  if (!callsign && !icao24 && !registration) {
+    return res.status(400).json({ error: 'Provide at least one of: callsign, icao24, registration' });
+  }
+  try {
+    const intel = await identifyAircraft({ callsign, icao24, registration, aircraftType, country });
+    res.json(intel || { confidence: 'UNAVAILABLE', reason: 'Gemini API key not set or rate limited' });
+  } catch (err) {
+    console.error('[AircraftIntel] REST error:', err.message);
+    res.status(500).json({ error: 'Failed to identify aircraft' });
+  }
+});
+
+// Cached intel lookup (no API call): /api/aircraft/intel/cached/:id
+app.get('/api/aircraft/intel/cached/:id', (req, res) => {
+  const intel = getCachedIntel(req.params.id);
+  res.json(intel || { confidence: 'NOT_CACHED' });
+});
+
+// Intel cache stats
+app.get('/api/aircraft/intel/stats', (req, res) => {
+  res.json(getIntelCacheStats());
+});
+
 // ─── History endpoints (Supabase) ────────────────────────────────────────────
 
 // Entity trail — e.g. /api/history/trail/a4b7c2?hours=24
@@ -276,9 +304,17 @@ async function pollAircraft() {
   try {
     const raw = await fetchAircraft();
     // Enrich with carrier air wing detection
-    const aircraft = enrichWithCarrierOps(raw, cache.ships);
+    let aircraft = enrichWithCarrierOps(raw, cache.ships);
     const carrierCount = aircraft.filter(a => a.carrierOps).length;
     if (carrierCount > 0) console.log(`[Carrier] ${carrierCount} aircraft tagged with carrier ops`);
+
+    // Enrich with AI aircraft intel (throttled: max 5 new API calls per poll)
+    if (process.env.GEMINI_API_KEY) {
+      aircraft = await enrichBatchWithIntel(aircraft, 5).catch(err => {
+        console.error('[AircraftIntel] Batch error:', err.message);
+        return aircraft;
+      });
+    }
 
     cache.aircraft = aircraft;
     cache.lastAircraftUpdate = new Date().toISOString();

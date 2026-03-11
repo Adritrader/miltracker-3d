@@ -65,9 +65,42 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
   const [dragging, setDragging] = useState(false);
+  const [aiIntel, setAiIntel] = useState(null);      // AI aircraft identification
+  const [aiIntelLoading, setAiIntelLoading] = useState(false);
 
-  // Reset position when new entity is shown
-  useEffect(() => { setPos(null); }, [entity]);
+  // Reset position and AI intel when new entity is shown
+  useEffect(() => {
+    setPos(null);
+    // Load AI intel: first from entity data, then try backend
+    if (entity?.aiIntel) {
+      setAiIntel(entity.aiIntel);
+      setAiIntelLoading(false);
+    } else if (entity && (entity.type === 'aircraft' || entity.icao24)) {
+      setAiIntel(null);
+      setAiIntelLoading(true);
+      const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const params = new URLSearchParams();
+      if (entity.callsign)     params.set('callsign', entity.callsign);
+      if (entity.icao24)       params.set('icao24', entity.icao24);
+      if (entity.registration) params.set('registration', entity.registration);
+      if (entity.aircraftType) params.set('type', entity.aircraftType);
+      if (entity.country)      params.set('country', entity.country);
+      fetch(`${BACKEND}/api/aircraft/intel?${params}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.confidence && data.confidence !== 'UNAVAILABLE' && data.confidence !== 'NOT_CACHED' && data.confidence !== 'FAILED') {
+            setAiIntel(data);
+          } else {
+            setAiIntel(null);
+          }
+        })
+        .catch(() => setAiIntel(null))
+        .finally(() => setAiIntelLoading(false));
+    } else {
+      setAiIntel(null);
+      setAiIntelLoading(false);
+    }
+  }, [entity]);
 
   const onDragStart = useCallback((e) => {
     if (e.button !== 0) return;
@@ -369,6 +402,45 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                       <span>BBOX: {entity._trajAnalysis.metrics.bboxDiagKm} km</span>
                       <span>STRT: {entity._trajAnalysis.metrics.straightness}</span>
                       <span>{"\u0394"}ALT: {entity._trajAnalysis.metrics.altChangeM}m</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* AI Aircraft Intelligence */}
+              {aiIntelLoading && (
+                <div className="mt-1 rounded-lg border border-purple-400/30 bg-purple-950/30 p-1.5">
+                  <div className="text-[8px] sm:text-[9px] font-mono font-bold text-purple-300/80 tracking-widest uppercase animate-pulse">
+                    {"\u{1F916}"} AI IDENTIFYING…
+                  </div>
+                </div>
+              )}
+              {aiIntel && !aiIntelLoading && (
+                <div className="mt-1 rounded-lg border border-purple-400/40 bg-purple-950/40 p-1.5 space-y-0.5">
+                  <div className="text-[8px] sm:text-[9px] font-mono font-bold text-purple-300/80 tracking-widest uppercase mb-0.5">
+                    {"\u{1F916}"} AI AIRCRAFT INTEL
+                    <span className={`ml-2 text-[7px] sm:text-[8px] px-1 py-px rounded ${
+                      aiIntel.confidence === 'HIGH' ? 'bg-green-900/50 text-green-400' :
+                      aiIntel.confidence === 'MEDIUM' ? 'bg-amber-900/50 text-amber-400' :
+                      'bg-red-900/50 text-red-400'
+                    }`}>
+                      {aiIntel.confidence}
+                    </span>
+                  </div>
+                  {aiIntel.aircraftName && aiIntel.aircraftName !== 'Unknown' &&
+                    <Row label="AIRCRAFT" value={aiIntel.aircraftName} highlight="text-purple-300" />}
+                  {aiIntel.country && aiIntel.country !== 'Unknown' &&
+                    <Row label="OPERATOR" value={`${aiIntel.countryCode ? COUNTRY_FLAGS[aiIntel.countryCode] + ' ' : ''}${aiIntel.country}`} highlight="text-white" />}
+                  {aiIntel.airBase && aiIntel.airBase !== 'Unknown' &&
+                    <Row label="BASE" value={aiIntel.airBase} highlight="text-hud-green" />}
+                  {aiIntel.squadron && aiIntel.squadron !== 'Unknown' &&
+                    <Row label="UNIT" value={aiIntel.squadron} highlight="text-hud-amber" />}
+                  {aiIntel.unitInsignia && aiIntel.unitInsignia !== 'Unknown' &&
+                    <Row label="INSIGNIA" value={aiIntel.unitInsignia} highlight="text-hud-cyan" />}
+                  {aiIntel.role && aiIntel.role !== 'Unknown' &&
+                    <Row label="ROLE" value={aiIntel.role} highlight="text-hud-blue" />}
+                  {aiIntel.notes && aiIntel.notes !== 'Unknown' && (
+                    <div className="mt-0.5 text-[8px] sm:text-[9px] font-mono text-purple-200/70 leading-snug">
+                      {"\u{1F4CB}"} {aiIntel.notes}
                     </div>
                   )}
                 </div>
