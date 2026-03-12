@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
+import UserMenu from './UserMenu.jsx';
 
 const TYPE_ICON  = { aircraft: '▲', ship: '▬', conflict: '◆', news: '■' };
 const TYPE_COLOR = {
@@ -14,7 +15,7 @@ const TYPE_COLOR = {
   news:     'text-hud-amber',
 };
 
-const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false, onLoginClick }) => {
+const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false, onLoginClick, authUser, onLogout }) => {
   const [query, setQuery]   = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -140,7 +141,7 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
       }`}
       style={isMobile ? {} : { width: 'auto' }}
     >
-      {/* Collapsed state – search pill + login button side-by-side (desktop only) */}
+      {/* Collapsed state – search pill + login/user button side-by-side (desktop only) */}
       {!open && !isMobile && (
         <div className="flex items-center gap-1">
           <button
@@ -153,14 +154,18 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
             <span className="hud-label text-xs flex-1 text-left">SEARCH ENTITIES</span>
             <span className="text-hud-text text-xs font-mono opacity-40 shrink-0 select-none">CTRL+K</span>
           </button>
-          <button
-            onClick={onLoginClick}
-            className="hud-panel px-3 py-1.5 flex items-center gap-1.5
-                       hover:border-hud-amber transition-colors duration-150 group shrink-0"
-          >
-            <span className="text-hud-amber group-hover:text-white transition-colors text-sm select-none">⊙</span>
-            <span className="hud-label text-xs text-hud-amber group-hover:text-white transition-colors whitespace-nowrap">LOGIN</span>
-          </button>
+          {authUser ? (
+            <UserMenu user={authUser} onLogout={onLogout} />
+          ) : (
+            <button
+              onClick={onLoginClick}
+              className="hud-panel px-3 py-1.5 flex items-center gap-1.5
+                         hover:border-hud-amber transition-colors duration-150 group shrink-0"
+            >
+              <span className="text-hud-amber group-hover:text-white transition-colors text-sm select-none">⊙</span>
+              <span className="hud-label text-xs text-hud-amber group-hover:text-white transition-colors whitespace-nowrap">LOGIN</span>
+            </button>
+          )}
         </div>
       )}
 

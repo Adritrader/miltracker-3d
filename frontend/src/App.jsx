@@ -33,6 +33,7 @@ import CookieBanner from './components/CookieBanner.jsx';
 import LegalModal from './components/LegalModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
 import NewsletterModal from './components/NewsletterModal.jsx';
+import UserMenu from './components/UserMenu.jsx';
 import { supabase } from './utils/supabaseClient.js';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
@@ -93,12 +94,18 @@ function App() {
   const [legalPage, setLegalPage] = useState(null); // 'privacy' | 'cookies' | 'terms'
   const [authOpen, setAuthOpen] = useState(false);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+  const [authUser, setAuthUser] = useState(null);
 
   // Listen for Supabase auth state changes (handles Google OAuth redirect return)
   useEffect(() => {
     if (!supabase) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') setAuthOpen(false);
+    // Hydrate session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null);
+      if (session?.user) setAuthOpen(false);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -264,6 +271,7 @@ function App() {
   const handleToggleAltUnit     = useCallback(() => setAltUnit(u => u === 'ft' ? 'm' : 'ft'), []);
   const handleOpenNewsletter    = useCallback(() => setNewsletterOpen(true), []);
   const handleOpenAuth          = useCallback(() => setAuthOpen(true), []);
+  const handleLogout            = useCallback(() => setAuthUser(null), []);
 
   return (
     <div className="w-screen h-screen overflow-hidden" style={{ background: '#050810' }}>
@@ -365,6 +373,8 @@ function App() {
         onClose={() => setSearchOpen(false)}
         isMobile={isMobile}
         onLoginClick={handleOpenAuth}
+        authUser={authUser}
+        onLogout={handleLogout}
       />
 
       {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}
