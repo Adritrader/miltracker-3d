@@ -52,7 +52,7 @@ const GoogleBtn = ({ onClick, loading }) => (
   </button>
 );
 
-export default function AuthModal({ onClose }) {
+export default function AuthModal({ onClose, onOpenLegal }) {
   const [tab, setTab]             = useState('login');
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -360,9 +360,9 @@ export default function AuthModal({ onClose }) {
                 />
                 <span className="text-hud-text text-xs font-mono leading-relaxed">
                   I accept the{' '}
-                  <a href="#" onClick={e => e.preventDefault()} className="text-hud-amber hover:underline">Terms of Service</a>
+                  <a href="#" onClick={e => { e.preventDefault(); onOpenLegal?.('terms'); }} className="text-hud-amber hover:underline">Terms of Service</a>
                   {' '}and{' '}
-                  <a href="#" onClick={e => e.preventDefault()} className="text-hud-amber hover:underline">Privacy Policy</a>
+                  <a href="#" onClick={e => { e.preventDefault(); onOpenLegal?.('privacy'); }} className="text-hud-amber hover:underline">Privacy Policy</a>
                 </span>
               </label>
 

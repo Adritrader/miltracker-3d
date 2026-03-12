@@ -561,7 +561,7 @@ function App() {
 
       {/* Auth modal — login / register */}
       {authOpen && (
-        <AuthModal onClose={() => setAuthOpen(false)} />
+        <AuthModal onClose={() => setAuthOpen(false)} onOpenLegal={setLegalPage} />
       )}
 
       {/* Newsletter subscription modal */}

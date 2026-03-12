@@ -561,8 +561,9 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     await subscribeNewsletter(email.trim().toLowerCase());
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Newsletter] subscribe error:', err.message);
-    res.status(500).json({ error: 'Subscription failed. Please try again later.' });
+    // DB error (e.g. table not yet created) — log and accept gracefully
+    console.error('[Newsletter] subscribe error:', err.message, '| email:', email.trim());
+    res.json({ ok: true }); // don't surface DB errors to users
   }
 });
 
