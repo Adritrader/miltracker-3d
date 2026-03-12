@@ -139,16 +139,15 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
       className={`fixed top-4 z-50 ${
         isMobile ? 'left-2 right-2' : 'right-4'
       }`}
-      style={isMobile ? {} : { width: 'auto' }}
+      style={isMobile ? {} : { maxWidth: 320 }}
     >
       {/* Collapsed state – search pill + login/user button side-by-side (desktop only) */}
       {!open && !isMobile && (
         <div className="flex items-center gap-1">
           <button
             onClick={onOpen}
-            className="hud-panel px-3 py-1.5 flex items-center gap-2
+            className="hud-panel px-3 py-1.5 flex items-center gap-2 flex-1 min-w-0
                        hover:border-hud-green transition-colors duration-150 group"
-            style={{ width: '13rem' }}
           >
             <span className="text-hud-text group-hover:text-hud-green transition-colors text-sm select-none">⌕</span>
             <span className="hud-label text-xs flex-1 text-left">SEARCH ENTITIES</span>
