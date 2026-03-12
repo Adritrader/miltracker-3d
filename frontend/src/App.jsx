@@ -375,6 +375,8 @@ function App() {
         onLoginClick={handleOpenAuth}
         authUser={authUser}
         onLogout={handleLogout}
+        onOpenNewsletter={handleOpenNewsletter}
+        onOpenLegal={setLegalPage}
       />
 
       {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}

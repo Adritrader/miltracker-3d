@@ -15,7 +15,7 @@ const TYPE_COLOR = {
   news:     'text-hud-amber',
 };
 
-const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false, onLoginClick, authUser, onLogout }) => {
+const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false, onLoginClick, authUser, onLogout, onOpenNewsletter, onOpenLegal }) => {
   const [query, setQuery]   = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -154,7 +154,7 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
             <span className="text-hud-text text-xs font-mono opacity-40 shrink-0 select-none">CTRL+K</span>
           </button>
           {authUser ? (
-            <UserMenu user={authUser} onLogout={onLogout} />
+            <UserMenu user={authUser} onLogout={onLogout} onOpenNewsletter={onOpenNewsletter} onOpenLegal={onOpenLegal} />
           ) : (
             <button
               onClick={onLoginClick}
