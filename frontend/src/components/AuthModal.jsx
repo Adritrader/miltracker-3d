@@ -119,11 +119,28 @@ export default function AuthModal({ onClose, onOpenLegal }) {
       setSuccess('Signed in! Welcome back.');
       setTimeout(onClose, 1200);
     } catch (err) {
-      setError(err.message || 'Login failed. Check your credentials.');
+      if (err.message?.toLowerCase().includes('email not confirmed')) {
+        setError('__EMAIL_NOT_CONFIRMED__');
+      } else {
+        setError(err.message || 'Login failed. Check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
   }, [email, password, onClose]);
+
+  const handleResendConfirmation = useCallback(async () => {
+    if (!supabase || !email) return;
+    setLoading(true);
+    const { error: resendErr } = await supabase.auth.resend({ type: 'signup', email });
+    setLoading(false);
+    if (resendErr) {
+      setError(resendErr.message);
+    } else {
+      setError('');
+      setSuccess('Confirmation email resent! Check your inbox.');
+    }
+  }, [email]);
 
   // ── Email register ───────────────────────────────────────────────────────
   const handleRegister = useCallback(async (e) => {
@@ -256,7 +273,24 @@ export default function AuthModal({ onClose, onOpenLegal }) {
                            text-white text-sm font-mono placeholder-hud-text/50
                            focus:outline-none focus:border-hud-green transition-colors"
               />
-              {error   && <p className="text-red-400 text-xs font-mono">{error}</p>}
+              {error === '__EMAIL_NOT_CONFIRMED__' ? (
+                <div className="rounded border border-hud-amber/40 bg-hud-amber/5 px-3 py-2.5">
+                  <p className="text-hud-amber text-xs font-mono mb-1.5">
+                    ⚠ Email not confirmed yet. Check your inbox (and spam folder).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={loading}
+                    className="text-[10px] font-mono text-hud-amber/70 hover:text-hud-amber
+                               underline underline-offset-2 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Sending…' : 'Resend confirmation email'}
+                  </button>
+                </div>
+              ) : error ? (
+                <p className="text-red-400 text-xs font-mono">{error}</p>
+              ) : null}
               {success && <p className="text-hud-green text-xs font-mono">{success}</p>}
               <button
                 type="submit"
