@@ -162,6 +162,7 @@ export function useTimeline(socketRef) {
       prevSnapshotsRef.current = null;
       return {};
     }
+    const MAX_TRAIL_PTS = 60; // F-L17: cap trail to avoid unbounded memory growth
     // Full rebuild when seeking backwards or when the snapshots array grows/changes
     const needFullRebuild =
       currentIndex < prevTrackIndexRef.current ||
@@ -172,10 +173,12 @@ export function useTimeline(socketRef) {
         for (const ac of (snap.aircraft || [])) {
           if (!track[ac.id]) track[ac.id] = [];
           track[ac.id].push({ lat: ac.lat, lon: ac.lon, heading: ac.heading, ts: snap.ts });
+          if (track[ac.id].length > MAX_TRAIL_PTS) track[ac.id].splice(0, track[ac.id].length - MAX_TRAIL_PTS);
         }
         for (const sh of (snap.ships || [])) {
           if (!track[sh.id]) track[sh.id] = [];
           track[sh.id].push({ lat: sh.lat, lon: sh.lon, heading: sh.heading, ts: snap.ts });
+          if (track[sh.id].length > MAX_TRAIL_PTS) track[sh.id].splice(0, track[sh.id].length - MAX_TRAIL_PTS);
         }
       }
       historyTrackRef.current = track;
@@ -189,10 +192,12 @@ export function useTimeline(socketRef) {
         for (const ac of (snap.aircraft || [])) {
           if (!track[ac.id]) track[ac.id] = [];
           track[ac.id].push({ lat: ac.lat, lon: ac.lon, heading: ac.heading, ts: snap.ts });
+          if (track[ac.id].length > MAX_TRAIL_PTS) track[ac.id].splice(0, track[ac.id].length - MAX_TRAIL_PTS);
         }
         for (const sh of (snap.ships || [])) {
           if (!track[sh.id]) track[sh.id] = [];
           track[sh.id].push({ lat: sh.lat, lon: sh.lon, heading: sh.heading, ts: snap.ts });
+          if (track[sh.id].length > MAX_TRAIL_PTS) track[sh.id].splice(0, track[sh.id].length - MAX_TRAIL_PTS);
         }
       }
     }

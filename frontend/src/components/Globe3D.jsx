@@ -121,7 +121,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
 
     // ── Imagery layer (imageryProvider prop removed in Cesium 1.110) ─────────
     viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.add(new Cesium.ImageryLayer(IMAGERY_PROVIDER));
+    viewer.imageryLayers.add(new Cesium.ImageryLayer(IMAGERY_PROVIDER, { maximumRequestsPerServer: 4 }));
 
     // ── Visual settings ────────────────────────────────────────────────────
     viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#050810');
@@ -273,7 +273,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     const viewer = viewerRef.current;
     if (!viewer || !globeReady || viewer.isDestroyed()) return;
     viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(bm)));
+    viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(bm), { maximumRequestsPerServer: 4 }));
     // For dark/night basemaps add a high-contrast country borders + labels overlay
     if (bm === 'dark' || bm === 'night') {
       const bordersProvider = new Cesium.UrlTemplateImageryProvider({
@@ -282,7 +282,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
         maximumLevel: 8,
         credit: new Cesium.Credit('\u00a9 Esri'),
       });
-      viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65 }));
+      viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65, maximumRequestsPerServer: 4 }));
     }
     // For satellite basemap add the ESRI reference overlay (city/country labels, borders)
     if (bm === 'satellite') {
@@ -292,7 +292,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
         maximumLevel: 8,
         credit: new Cesium.Credit('\u00a9 Esri'),
       });
-      viewer.imageryLayers.add(new Cesium.ImageryLayer(labelsProvider, { alpha: 0.8 }));
+      viewer.imageryLayers.add(new Cesium.ImageryLayer(labelsProvider, { alpha: 0.8, maximumRequestsPerServer: 4 }));
     }
   }, [globeReady]);
 
