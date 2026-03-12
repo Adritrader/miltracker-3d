@@ -96,6 +96,8 @@ export default function FIRMSLayer({ viewer, firms = [], visible = true, onSelec
       }
     };
   }, [viewer]);
+
+  const buildEntities = useCallback((deg) => {
     if (!viewer) return;
     const ds = getDS();
     if (!ds) return;
