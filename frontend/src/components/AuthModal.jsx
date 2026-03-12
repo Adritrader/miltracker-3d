@@ -2,12 +2,12 @@
  * AuthModal — Login / Register modal
  * - Google OAuth via Supabase (real redirect flow)
  * - Email/password login & register via Supabase
- * - reCAPTCHA v2 on register (math CAPTCHA fallback when site key not set)
+ * - reCAPTCHA v3 invisible on register (math CAPTCHA fallback when site key not set)
  * - Honeypot anti-bot field, terms + newsletter opt-in
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import ReCAPTCHA from 'react-google-recaptcha';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { supabase } from '../utils/supabaseClient.js';
 
 const BACKEND     = import.meta.env.VITE_BACKEND_URL       || 'http://localhost:3001';
@@ -64,9 +64,8 @@ export default function AuthModal({ onClose, onOpenLegal }) {
   const [error, setError]         = useState('');
   const [success, setSuccess]     = useState('');
 
-  // reCAPTCHA v2 token (when RC_SITE_KEY is set) or math CAPTCHA fallback
-  const recaptchaRef              = useRef(null);
-  const [rcToken, setRcToken]     = useState(null);
+  // reCAPTCHA v3 (invisible) or math CAPTCHA fallback
+  const { executeRecaptcha }      = useGoogleReCaptcha() || {};
   const [captcha, setCaptcha]     = useState(() => generateCaptcha());
   const [captchaInput, setCaptchaInput] = useState('');
 
@@ -80,9 +79,8 @@ export default function AuthModal({ onClose, onOpenLegal }) {
     setEmail(''); setPassword(''); setPwConfirm('');
     setAcceptTerms(false); setNewsletter(true);
     setHoneypot(''); setError(''); setSuccess('');
-    setRcToken(null); setCaptchaInput('');
+    setCaptchaInput('');
     setCaptcha(generateCaptcha());
-    recaptchaRef.current?.reset();
   }, []);
 
   const handleTabSwitch = useCallback((t) => {
@@ -139,27 +137,26 @@ export default function AuthModal({ onClose, onOpenLegal }) {
     if (password.length < 8)               { setError('Password must be at least 8 characters.'); return; }
     if (!acceptTerms)                      { setError('You must accept the Terms & Privacy Policy.'); return; }
 
-    // CAPTCHA check
-    if (RC_SITE_KEY) {
-      if (!rcToken) { setError('Please complete the reCAPTCHA.'); return; }
+    // CAPTCHA check — v3 invisible when key is configured, math fallback otherwise
+    if (RC_SITE_KEY && executeRecaptcha) {
       try {
-        const res  = await fetch(`${BACKEND}/api/auth/verify-recaptcha`, {
+        const token = await executeRecaptcha('register');
+        const res   = await fetch(`${BACKEND}/api/auth/verify-recaptcha`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: rcToken }),
+          body: JSON.stringify({ token }),
         });
         const data = await res.json();
         if (!data.valid) {
           setError('reCAPTCHA verification failed. Please try again.');
-          recaptchaRef.current?.reset(); setRcToken(null);
           return;
         }
       } catch {
         setError('Could not verify reCAPTCHA. Please try again later.');
         return;
       }
-    } else {
-      // Math CAPTCHA fallback
+    } else if (!RC_SITE_KEY) {
+      // Math CAPTCHA fallback (dev / no key)
       if (captchaInput.trim() !== captcha.answer) {
         setError('Incorrect CAPTCHA answer. Please try again.');
         setCaptcha(generateCaptcha()); setCaptchaInput('');
@@ -187,7 +184,7 @@ export default function AuthModal({ onClose, onOpenLegal }) {
     } finally {
       setLoading(false);
     }
-  }, [honeypot, email, password, pwConfirm, acceptTerms, rcToken, captchaInput, captcha, newsletter, onClose]);
+  }, [honeypot, email, password, pwConfirm, acceptTerms, executeRecaptcha, captchaInput, captcha, newsletter, onClose]);
 
   return (
     <Overlay onClose={onClose}>
@@ -320,18 +317,8 @@ export default function AuthModal({ onClose, onOpenLegal }) {
                            focus:outline-none focus:border-hud-green transition-colors"
               />
 
-              {/* reCAPTCHA v2 when key is set, math CAPTCHA otherwise */}
-              {RC_SITE_KEY ? (
-                <div className="flex justify-center overflow-hidden rounded">
-                  <ReCAPTCHA
-                    ref={recaptchaRef}
-                    sitekey={RC_SITE_KEY}
-                    theme="dark"
-                    onChange={token => setRcToken(token)}
-                    onExpired={() => setRcToken(null)}
-                  />
-                </div>
-              ) : (
+              {/* reCAPTCHA v3 is invisible — no widget shown. Math CAPTCHA fallback when no key */}
+              {!RC_SITE_KEY && (
                 <div className="rounded border border-hud-border/40 bg-white/3 px-3 py-2.5">
                   <p className="text-hud-text text-xs font-mono mb-2">
                     ◈ Human verification:{' '}

@@ -30,11 +30,14 @@ import HistoryPanel from './components/HistoryPanel.jsx';
 import CameraLayer from './components/CameraLayer.jsx';
 import CameraModal from './components/CameraModal.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
+import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
 import LegalModal from './components/LegalModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
 import NewsletterModal from './components/NewsletterModal.jsx';
 import UserMenu from './components/UserMenu.jsx';
 import { supabase } from './utils/supabaseClient.js';
+
+const RC_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useTimeline } from './hooks/useTimeline.js';
@@ -273,7 +276,7 @@ function App() {
   const handleOpenAuth          = useCallback(() => setAuthOpen(true), []);
   const handleLogout            = useCallback(() => setAuthUser(null), []);
 
-  return (
+  const appContent = (
     <div className="w-screen h-screen overflow-hidden" style={{ background: '#050810' }}>
       {/* Scanlines overlay only */}
       <div className="scan-overlay" aria-hidden="true" />
@@ -583,6 +586,12 @@ function App() {
 
     </div>
   );
+
+  return RC_SITE_KEY ? (
+    <GoogleReCaptchaProvider reCaptchaKey={RC_SITE_KEY}>
+      {appContent}
+    </GoogleReCaptchaProvider>
+  ) : appContent;
 }
 
 export default App;
