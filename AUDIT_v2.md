@@ -311,9 +311,8 @@
 
 ### Tier 1: Funcionalidades críticas para cobrar
 
-- [ ] **M-1 · Sistema de autenticación de usuarios** — Actualmente no hay login. Sin auth no hay usuarios, sin usuarios no hay pagos.
+- [x] **M-1 · Sistema de autenticación de usuarios** ✅ *Supabase Auth completamente integrado — Google OAuth + email/password, reCAPTCHA v3 invisible, honeypot, UserMenu con perfil/newsletter/sign-out, sesión persistente con `onAuthStateChange` + `getSession()`. Tabla `newsletter_subscribers` creada en Supabase.* — Actualmente no hay login. Sin auth no hay usuarios, sin usuarios no hay pagos.
   - **Opción recomendada:** Supabase Auth (ya usas Supabase). Social login (Google/GitHub) + email.
-  - **UI implementada:** `AuthModal.jsx` ✅ — login por email + Google (stub), registro con CAPTCHA matemático, honeypot anti-bot, casilla de aceptación de T&C, casilla de newsletter. `NewsletterModal.jsx` ✅ — suscripción independiente desde el icono ✉ de CoordinateHUD. Backend endpoint `POST /api/newsletter/subscribe` ✅ con validación de email + upsert Supabase. Pendiente: conectar a `supabase.auth.signInWithPassword` / `signUp` real (M-1 Supabase wiring).
   - **Prioridad:** 🔴 MÁXIMA
 
 - [ ] **M-2 · Plan de precios y restricciones por tier** — Definir qué es gratis y qué es premium.
@@ -359,6 +358,15 @@
 - [ ] **M-12 · Programa de afiliados / referrals** — Código de referido que da 1 mes gratis.
   - **Prioridad:** 🟢 BAJA
 
+- [ ] **M-13 · Definir roles y permisos por usuario** — Establecer qué puede hacer cada tipo de usuario en la plataforma.
+  - **Roles propuestos:**
+    - **Anónimo:** Solo visualización del globo, aircraft y ships en directo. Sin acceso a AI Intel, alerts, ni trails.
+    - **Free (registrado):** Todo lo anterior + 1 tracking simultáneo, noticias, alertas básicas (sin push), SITREP limitado a 1/día.
+    - **Pro ($9.99/mes):** Trails ilimitados, AI Intel, historial 30 días, alertas push, SITREP ilimitado, exportación CSV.
+    - **Enterprise ($49.99/mes):** Todo Pro + acceso API, analytics avanzados, rate limit elevado, white-label.
+  - **Implementación:** Campo `plan` en tabla `users` de Supabase → middleware backend `checkPlan(requiredPlan)` → gates en frontend (ocultar/deshabilitar features).
+  - **Prioridad:** 🔴 MÁXIMA (prerequisito de M-3 y M-4)
+
 ---
 
 ## 🗺️ ROADMAP PRIORIZADO
@@ -400,8 +408,9 @@
 
 | # | Item | ID |
 |---|------|----|
-| 21 | Supabase Auth + login UI | M-1 |
+| 21 | ✅ Supabase Auth + login UI | M-1 |
 | 22 | Definir tiers (Free/Pro/Enterprise) | M-2 |
+| 22b | Definir roles y permisos por usuario | M-13 |
 | 23 | Stripe integration | M-3 |
 | 24 | Middleware de autorización | M-4 |
 | 25 | Rate limiting por plan | M-7 |
