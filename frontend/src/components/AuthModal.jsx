@@ -120,6 +120,10 @@ export default function AuthModal({ onClose, onOpenLegal }) {
       setTimeout(onClose, 1200);
     } catch (err) {
       if (err.message?.toLowerCase().includes('email not confirmed')) {
+        // Auto-resend confirmation so user can activate their account once
+        if (supabase && email) {
+          await supabase.auth.resend({ type: 'signup', email });
+        }
         setError('__EMAIL_NOT_CONFIRMED__');
       } else {
         setError(err.message || 'Login failed. Check your credentials.');
@@ -276,7 +280,8 @@ export default function AuthModal({ onClose, onOpenLegal }) {
               {error === '__EMAIL_NOT_CONFIRMED__' ? (
                 <div className="rounded border border-hud-amber/40 bg-hud-amber/5 px-3 py-2.5">
                   <p className="text-hud-amber text-xs font-mono mb-1.5">
-                    ⚠ Email not confirmed yet. Check your inbox (and spam folder).
+                    ⚠ Your account needs a one-time activation. We've sent a confirmation link to <strong>{email}</strong>.
+                    Click it and then sign in again.
                   </p>
                   <button
                     type="button"
@@ -285,7 +290,7 @@ export default function AuthModal({ onClose, onOpenLegal }) {
                     className="text-[10px] font-mono text-hud-amber/70 hover:text-hud-amber
                                underline underline-offset-2 transition-colors disabled:opacity-50"
                   >
-                    {loading ? 'Sending…' : 'Resend confirmation email'}
+                    {loading ? 'Sending…' : 'Resend activation email'}
                   </button>
                 </div>
               ) : error ? (
