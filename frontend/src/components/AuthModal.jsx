@@ -1,10 +1,17 @@
 /**
  * AuthModal — Login / Register modal
- * Supports: Google OAuth (future Supabase hook), email/password
- * Registration includes: CAPTCHA (honeypot + math challenge), terms + newsletter checkboxes
+ * - Google OAuth via Supabase (real redirect flow)
+ * - Email/password login & register via Supabase
+ * - reCAPTCHA v2 on register (math CAPTCHA fallback when site key not set)
+ * - Honeypot anti-bot field, terms + newsletter opt-in
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
+import { supabase } from '../utils/supabaseClient.js';
+
+const BACKEND     = import.meta.env.VITE_BACKEND_URL       || 'http://localhost:3001';
+const RC_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 
 // ── Simple math CAPTCHA ──────────────────────────────────────────────────────
 function generateCaptcha() {
@@ -46,19 +53,23 @@ const GoogleBtn = ({ onClick, loading }) => (
 );
 
 export default function AuthModal({ onClose }) {
-  const [tab, setTab]         = useState('login');   // 'login' | 'register'
-  const [email, setEmail]     = useState('');
-  const [password, setPassword] = useState('');
+  const [tab, setTab]             = useState('login');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
-  const [captcha, setCaptcha] = useState(() => generateCaptcha());
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [newsletter, setNewsletter]   = useState(true);
+  const [honeypot, setHoneypot]   = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [success, setSuccess]     = useState('');
+
+  // reCAPTCHA v2 token (when RC_SITE_KEY is set) or math CAPTCHA fallback
+  const recaptchaRef              = useRef(null);
+  const [rcToken, setRcToken]     = useState(null);
+  const [captcha, setCaptcha]     = useState(() => generateCaptcha());
   const [captchaInput, setCaptchaInput] = useState('');
-  const [acceptTerms, setAcceptTerms]   = useState(false);
-  const [newsletter, setNewsletter]     = useState(true);
-  // Honeypot: bots fill this; humans don't see it
-  const [honeypot, setHoneypot] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [success, setSuccess]   = useState('');
+
   const emailRef = useRef(null);
 
   useEffect(() => {
@@ -67,9 +78,11 @@ export default function AuthModal({ onClose }) {
 
   const resetForm = useCallback(() => {
     setEmail(''); setPassword(''); setPwConfirm('');
-    setCaptchaInput(''); setAcceptTerms(false); setNewsletter(true);
+    setAcceptTerms(false); setNewsletter(true);
     setHoneypot(''); setError(''); setSuccess('');
+    setRcToken(null); setCaptchaInput('');
     setCaptcha(generateCaptcha());
+    recaptchaRef.current?.reset();
   }, []);
 
   const handleTabSwitch = useCallback((t) => {
@@ -77,32 +90,38 @@ export default function AuthModal({ onClose }) {
     resetForm();
   }, [resetForm]);
 
-  // ── Google OAuth placeholder (wired to Supabase in future) ──────────────
+  // ── Google OAuth (Supabase) ──────────────────────────────────────────────
   const handleGoogle = useCallback(async () => {
+    if (!supabase) {
+      setError('Auth not configured — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+      return;
+    }
     setLoading(true);
     setError('');
-    try {
-      // TODO M-1: supabase.auth.signInWithOAuth({ provider: 'google' })
-      // For now show a friendly coming-soon message
-      await new Promise(r => setTimeout(r, 600));
-      setError('Google login coming soon — use email for now.');
-    } finally {
+    const { error: authErr } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (authErr) {
+      setError(authErr.message);
       setLoading(false);
     }
+    // On success the browser navigates to Google — no need to reset loading
   }, []);
 
   // ── Email login ──────────────────────────────────────────────────────────
   const handleLogin = useCallback(async (e) => {
     e.preventDefault();
     if (!email || !password) { setError('Please fill all fields.'); return; }
+    if (!supabase)            { setError('Auth not configured.'); return; }
     setLoading(true); setError('');
     try {
-      // TODO M-1: supabase.auth.signInWithPassword({ email, password })
-      await new Promise(r => setTimeout(r, 700));
-      setSuccess('Login successful! (auth backend coming soon)');
-      setTimeout(onClose, 1800);
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw authErr;
+      setSuccess('Signed in! Welcome back.');
+      setTimeout(onClose, 1200);
     } catch (err) {
-      setError('Login failed. Check your credentials.');
+      setError(err.message || 'Login failed. Check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -113,32 +132,62 @@ export default function AuthModal({ onClose }) {
     e.preventDefault();
     setError('');
 
-    // Honeypot check — silently reject bots
-    if (honeypot) { setSuccess('Account created!'); return; }
+    if (honeypot) { setSuccess('Account created!'); return; } // silent bot reject
 
     if (!email || !password || !pwConfirm) { setError('Please fill all fields.'); return; }
     if (password !== pwConfirm)            { setError('Passwords do not match.'); return; }
     if (password.length < 8)               { setError('Password must be at least 8 characters.'); return; }
     if (!acceptTerms)                      { setError('You must accept the Terms & Privacy Policy.'); return; }
-    if (captchaInput.trim() !== captcha.answer) {
-      setError('Incorrect CAPTCHA answer. Please try again.');
-      setCaptcha(generateCaptcha());
-      setCaptchaInput('');
-      return;
+
+    // CAPTCHA check
+    if (RC_SITE_KEY) {
+      if (!rcToken) { setError('Please complete the reCAPTCHA.'); return; }
+      try {
+        const res  = await fetch(`${BACKEND}/api/auth/verify-recaptcha`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: rcToken }),
+        });
+        const data = await res.json();
+        if (!data.valid) {
+          setError('reCAPTCHA verification failed. Please try again.');
+          recaptchaRef.current?.reset(); setRcToken(null);
+          return;
+        }
+      } catch {
+        setError('Could not verify reCAPTCHA. Please try again later.');
+        return;
+      }
+    } else {
+      // Math CAPTCHA fallback
+      if (captchaInput.trim() !== captcha.answer) {
+        setError('Incorrect CAPTCHA answer. Please try again.');
+        setCaptcha(generateCaptcha()); setCaptchaInput('');
+        return;
+      }
     }
+
+    if (!supabase) { setError('Auth not configured.'); return; }
 
     setLoading(true);
     try {
-      // TODO M-1: supabase.auth.signUp({ email, password, options: { data: { newsletter } } })
-      await new Promise(r => setTimeout(r, 700));
-      setSuccess('Account created! Check your email to confirm.' + (newsletter ? ' You\'ve been subscribed to our newsletter.' : ''));
+      const { error: authErr } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { newsletter_opt_in: newsletter } },
+      });
+      if (authErr) throw authErr;
+      setSuccess(
+        'Account created! Check your email to confirm.' +
+        (newsletter ? " You've been subscribed to the newsletter." : '')
+      );
       setTimeout(onClose, 2500);
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [honeypot, email, password, pwConfirm, acceptTerms, captchaInput, captcha, newsletter, onClose]);
+  }, [honeypot, email, password, pwConfirm, acceptTerms, rcToken, captchaInput, captcha, newsletter, onClose]);
 
   return (
     <Overlay onClose={onClose}>
@@ -186,7 +235,7 @@ export default function AuthModal({ onClose }) {
             <div className="flex-1 h-px bg-hud-border/30" />
           </div>
 
-          {/* Login form */}
+          {/* ── Login form ── */}
           {tab === 'login' && (
             <form onSubmit={handleLogin} className="space-y-3" noValidate>
               <input
@@ -224,10 +273,10 @@ export default function AuthModal({ onClose }) {
             </form>
           )}
 
-          {/* Register form */}
+          {/* ── Register form ── */}
           {tab === 'register' && (
             <form onSubmit={handleRegister} className="space-y-3" noValidate>
-              {/* Honeypot — hidden from humans, bots fill it */}
+              {/* Honeypot — invisible to humans, bots fill it */}
               <input
                 type="text"
                 name="website"
@@ -271,22 +320,35 @@ export default function AuthModal({ onClose }) {
                            focus:outline-none focus:border-hud-green transition-colors"
               />
 
-              {/* Math CAPTCHA */}
-              <div className="rounded border border-hud-border/40 bg-white/3 px-3 py-2.5">
-                <p className="text-hud-text text-xs font-mono mb-2">
-                  ◈ Human verification: <span className="text-hud-amber font-bold">{captcha.question} = ?</span>
-                </p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Your answer"
-                  value={captchaInput}
-                  onChange={e => setCaptchaInput(e.target.value)}
-                  className="w-full bg-white/5 border border-hud-border/50 rounded px-3 py-1.5
-                             text-white text-sm font-mono placeholder-hud-text/50
-                             focus:outline-none focus:border-hud-amber transition-colors"
-                />
-              </div>
+              {/* reCAPTCHA v2 when key is set, math CAPTCHA otherwise */}
+              {RC_SITE_KEY ? (
+                <div className="flex justify-center overflow-hidden rounded">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={RC_SITE_KEY}
+                    theme="dark"
+                    onChange={token => setRcToken(token)}
+                    onExpired={() => setRcToken(null)}
+                  />
+                </div>
+              ) : (
+                <div className="rounded border border-hud-border/40 bg-white/3 px-3 py-2.5">
+                  <p className="text-hud-text text-xs font-mono mb-2">
+                    ◈ Human verification:{' '}
+                    <span className="text-hud-amber font-bold">{captcha.question} = ?</span>
+                  </p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Your answer"
+                    value={captchaInput}
+                    onChange={e => setCaptchaInput(e.target.value)}
+                    className="w-full bg-white/5 border border-hud-border/50 rounded px-3 py-1.5
+                               text-white text-sm font-mono placeholder-hud-text/50
+                               focus:outline-none focus:border-hud-amber transition-colors"
+                  />
+                </div>
+              )}
 
               {/* Terms + Privacy */}
               <label className="flex items-start gap-2.5 cursor-pointer">
@@ -298,11 +360,9 @@ export default function AuthModal({ onClose }) {
                 />
                 <span className="text-hud-text text-xs font-mono leading-relaxed">
                   I accept the{' '}
-                  <a href="#" onClick={e => { e.preventDefault(); /* TODO: open terms modal */ }}
-                     className="text-hud-amber hover:underline">Terms of Service</a>
+                  <a href="#" onClick={e => e.preventDefault()} className="text-hud-amber hover:underline">Terms of Service</a>
                   {' '}and{' '}
-                  <a href="#" onClick={e => { e.preventDefault(); }}
-                     className="text-hud-amber hover:underline">Privacy Policy</a>
+                  <a href="#" onClick={e => e.preventDefault()} className="text-hud-amber hover:underline">Privacy Policy</a>
                 </span>
               </label>
 

@@ -33,6 +33,7 @@ import CookieBanner from './components/CookieBanner.jsx';
 import LegalModal from './components/LegalModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
 import NewsletterModal from './components/NewsletterModal.jsx';
+import { supabase } from './utils/supabaseClient.js';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useTimeline } from './hooks/useTimeline.js';
@@ -92,6 +93,15 @@ function App() {
   const [legalPage, setLegalPage] = useState(null); // 'privacy' | 'cookies' | 'terms'
   const [authOpen, setAuthOpen] = useState(false);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+
+  // Listen for Supabase auth state changes (handles Google OAuth redirect return)
+  useEffect(() => {
+    if (!supabase) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') setAuthOpen(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   const [historyTrailId, setHistoryTrailId] = useState(null); // { id, ts } for HistoryPanel trail auto-load
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);

@@ -517,6 +517,34 @@ app.post('/api/admin/tweet', async (req, res) => {
   }
 });
 
+// ─── reCAPTCHA v2 server-side verification ───────────────────────────────────
+app.post('/api/auth/verify-recaptcha', async (req, res) => {
+  const { token } = req.body || {};
+  if (!token || typeof token !== 'string') {
+    return res.status(400).json({ error: 'Missing reCAPTCHA token.' });
+  }
+
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
+  if (!secret) {
+    // No secret configured — dev mode, allow through
+    console.warn('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set — skipping verification (dev mode).');
+    return res.json({ valid: true });
+  }
+
+  try {
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`,
+    });
+    const data = await response.json();
+    res.json({ valid: data.success === true });
+  } catch (err) {
+    console.error('[reCAPTCHA] verify error:', err.message);
+    res.status(500).json({ error: 'reCAPTCHA verification service unavailable.' });
+  }
+});
+
 // ─── Newsletter subscription ─────────────────────────────────────────────────
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 app.post('/api/newsletter/subscribe', async (req, res) => {
