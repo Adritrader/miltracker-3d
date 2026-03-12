@@ -85,6 +85,9 @@
 }
 .radar-sweep { animation: radarSweep 3s linear infinite; }
 
+/* ─── reCAPTCHA badge: hidden (attribution shown in footer, complies with ToS) */
+.grecaptcha-badge { visibility: hidden !important; }
+
 /* ─── Scanlines overlay ──────────────────────────────────────────────────── */
 .scan-overlay {
   position: fixed;

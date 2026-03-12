@@ -240,7 +240,7 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
         </span>
       </div>
 
-      {/* Legal links */}
+      {/* Legal links + reCAPTCHA attribution */}
       {!isMobile && onOpenLegal && (<>
         <Divider />
         <div className="flex items-center gap-3 px-3 h-full">
@@ -254,8 +254,13 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
               {label}
             </button>
           ))}
+          <span className="font-mono text-[9px]" style={{ color: 'rgba(74,96,128,0.45)' }}>
+            Protected by{' '}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer"
+               className="hover:text-hud-text transition-colors">reCAPTCHA</a>
+          </span>
         </div>
-      </>)}
+      </>) }
     </div>
   );
 };
