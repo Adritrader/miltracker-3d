@@ -21,7 +21,7 @@
 
 ## 📊 PROGRESO ACTUAL — Marzo 2026
 
-> Última actualización: 12 Mar 2026 · 50/115 ítems completados
+> Última actualización: 12 Mar 2026 · 50/115 ítems completados + bonuses de perf
 
 ### Por sección y severidad
 
@@ -58,6 +58,8 @@ GLOBAL       ██████████░░░░░░░░░░░░�
 - **Frontend críticos + altos 100%** — sin memory leaks, performance estable
 - **Auth completa** — Supabase Auth (Google OAuth + email), reCAPTCHA v3, UserMenu
 - **Tabla `profiles`** — migration lista, trigger automático, endpoint `/api/profile`
+- **Performance pack #1** *(commit 9f076e1)* — tile request limits (F-M6), trail cap 60pts (F-L17), ticker GPU (F-M2)
+- **Performance pack #2** *(commit 1888b2a)* — targetFPS=60 + HDR+FXAA+MSAA off (Globe3D); ~1200 GC allocs/ciclo eliminados (AircraftLayer/ShipLayer); polyline update on-move-only (ShipLayer); conflicts memo unificado (App); preconnect CDNs (index.html)
 - **Seguridad** — helmet, CORS restringido, input validation, XSS guards
 
 ### Siguiente prioridad 🎯
