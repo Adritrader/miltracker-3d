@@ -14,8 +14,56 @@
 | **Backend** | 10 | 10 | 10 | 10 | **40** |
 | **Frontend** | 8 | 8 | 14 | 17 | **47** |
 | **Infraestructura / DevOps** | 3 | 5 | 4 | 3 | **15** |
-| **Monetización (requisitos)** | — | — | — | — | **12** |
-| **TOTAL** | **21** | **23** | **28** | **30** | **114** |
+| **Monetización (requisitos)** | — | — | — | — | **13** |
+| **TOTAL** | **21** | **23** | **28** | **30** | **115** |
+
+---
+
+## 📊 PROGRESO ACTUAL — Marzo 2026
+
+> Última actualización: 12 Mar 2026 · 47/115 ítems completados
+
+### Por sección y severidad
+
+| Sección | Completados | Total | % | Barra |
+|---------|-------------|-------|---|-------|
+| 🔴 Backend — Críticos | 10 | 10 | **100%** | `████████████████████` |
+| 🟠 Backend — Altos | 3 | 10 | **30%** | `██████░░░░░░░░░░░░░░` |
+| 🟡 Backend — Medios | 2 | 10 | **20%** | `████░░░░░░░░░░░░░░░░` |
+| 🟢 Backend — Bajos | 0 | 10 | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
+| 🔴 Frontend — Críticos | 8 | 8 | **100%** | `████████████████████` |
+| 🟠 Frontend — Altos | 8 | 8 | **100%** | `████████████████████` |
+| 🟡 Frontend — Medios | 10 | 14 | **71%** | `██████████████░░░░░░` |
+| 🟢 Frontend — Bajos | 3 | 17 | **18%** | `████░░░░░░░░░░░░░░░░` |
+| 🔴 Infra — Críticos | 0 | 3 | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
+| 🟠 Infra — Altos | 1 | 5 | **20%** | `████░░░░░░░░░░░░░░░░` |
+| 🟡 Infra — Medios | 0 | 4 | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
+| 🟢 Infra — Bajos | 0 | 3 | **0%** | `░░░░░░░░░░░░░░░░░░░░` |
+| 💰 Monetización | 2 | 13 | **15%** | `███░░░░░░░░░░░░░░░░░` |
+| **🎯 TOTAL GLOBAL** | **47** | **115** | **41%** | `████████░░░░░░░░░░░░` |
+
+### Por área principal
+
+```
+BACKEND      ██████████░░░░░░░░░░░░░░░░  15/40  38%
+FRONTEND     ████████████████░░░░░░░░░░  29/47  62%
+INFRA        ██░░░░░░░░░░░░░░░░░░░░░░░░   1/15   7%
+MONETIZACIÓN ████░░░░░░░░░░░░░░░░░░░░░░   2/13  15%
+────────────────────────────────────────────────────
+GLOBAL       ██████████░░░░░░░░░░░░░░░░  47/115  41%
+```
+
+### Éxitos clave conseguidos ✅
+- **Backend críticos 100%** — cero vulnerabilidades críticas en producción
+- **Frontend críticos + altos 100%** — sin memory leaks, performance estable
+- **Auth completa** — Supabase Auth (Google OAuth + email), reCAPTCHA v3, UserMenu
+- **Tabla `profiles`** — migration lista, trigger automático, endpoint `/api/profile`
+- **Seguridad** — helmet, CORS restringido, input validation, XSS guards
+
+### Siguiente prioridad 🎯
+1. 💳 **Stripe + middleware `checkPlan()`** (M-3, M-4) — primer dólar
+2. 🔧 **Backend Altos pendientes** (B-H4 paginación, B-H8 circular buffer)
+3. 📊 **Sentry** (I-H1) — visibilidad de errores en producción
 
 ---
 
@@ -358,7 +406,7 @@
 - [ ] **M-12 · Programa de afiliados / referrals** — Código de referido que da 1 mes gratis.
   - **Prioridad:** 🟢 BAJA
 
-- [ ] **M-13 · Definir roles y permisos por usuario** — Establecer qué puede hacer cada tipo de usuario en la plataforma.
+- [x] **M-13 · Definir roles y permisos por usuario** ✅ *tabla `profiles` + trigger automático + endpoint `GET /api/profile` + `upsertProfile()` para Stripe — migración SQL en `supabase/migrations/001_profiles.sql`* — Establecer qué puede hacer cada tipo de usuario en la plataforma.
   - **Roles propuestos:**
     - **Anónimo:** Solo visualización del globo, aircraft y ships en directo. Sin acceso a AI Intel, alerts, ni trails.
     - **Free (registrado):** Todo lo anterior + 1 tracking simultáneo, noticias, alertas básicas (sin push), SITREP limitado a 1/día.
