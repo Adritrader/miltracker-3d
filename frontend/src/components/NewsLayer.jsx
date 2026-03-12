@@ -55,6 +55,14 @@ function getCachedClusterIcon(count, color) {
   return _iconCache.get(key);
 }
 
+// F-M11: Pre-generate icons for the most common cluster counts + both colours
+// so first-render has zero btoa() work in the hot path
+;(function prewarmClusterIcons() {
+  const COUNTS = [1, 2, 3, 5, 10, 25, 50, 100, 250, 500];
+  const COLORS = ['#f59e0b', '#ef4444', '#fb923c'];
+  for (const c of COUNTS) for (const col of COLORS) getCachedClusterIcon(c, col);
+})();
+
 // â”€â”€ Grid-based clustering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // clusterDeg = 0 â†’ no clustering (individual pins)
 function clusterNews(items, clusterDeg) {

@@ -14,7 +14,7 @@ const TYPE_COLOR = {
   news:     'text-hud-amber',
 };
 
-const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false }) => {
+const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewer, onSelect, open, onOpen, onClose, isMobile = false, onLoginClick }) => {
   const [query, setQuery]   = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -142,17 +142,27 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
     >
       {/* Collapsed pill – hidden on mobile (search triggered from FilterPanel) */}
       {!open && !isMobile && (
-        <button
-          onClick={onOpen}
-          className="w-full hud-panel px-3 py-1.5 flex items-center gap-2
-                     hover:border-hud-green transition-colors duration-150 group"
-        >
-          <span className="text-hud-text group-hover:text-hud-green transition-colors text-sm select-none">⌕</span>
-          <span className="hud-label text-xs flex-1 text-left">SEARCH ENTITIES</span>
-          {!isMobile && (
-            <span className="text-hud-text text-xs font-mono opacity-40 shrink-0 select-none">CTRL+K</span>
-          )}
-        </button>
+        <>
+          <button
+            onClick={onOpen}
+            className="w-full hud-panel px-3 py-1.5 flex items-center gap-2
+                       hover:border-hud-green transition-colors duration-150 group"
+          >
+            <span className="text-hud-text group-hover:text-hud-green transition-colors text-sm select-none">⌕</span>
+            <span className="hud-label text-xs flex-1 text-left">SEARCH ENTITIES</span>
+            {!isMobile && (
+              <span className="text-hud-text text-xs font-mono opacity-40 shrink-0 select-none">CTRL+K</span>
+            )}
+          </button>
+          <button
+            onClick={onLoginClick}
+            className="w-full hud-panel mt-0.5 px-3 py-1.5 flex items-center gap-2
+                       hover:border-hud-amber transition-colors duration-150 group"
+          >
+            <span className="text-hud-amber group-hover:text-white transition-colors text-sm select-none">⊙</span>
+            <span className="hud-label text-xs flex-1 text-left text-hud-amber group-hover:text-white transition-colors">LOGIN / REGISTER</span>
+          </button>
+        </>
       )}
 
       {/* Expanded search */}

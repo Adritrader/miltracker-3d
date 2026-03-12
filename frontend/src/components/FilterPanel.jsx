@@ -443,7 +443,7 @@ const FilterPanel = ({
   aircraftCount, shipCount, newsCount, conflictCount = 0, alertCount,
   connected, lastUpdate, aircraftSource = 'loading',
   spaceView = false, onSpaceViewChange,
-  isMobile = false, onSearchOpen,
+  isMobile = false, onSearchOpen, onLoginClick,
 }) => {
   const set = (key, value) => onFilterChange({ ...filters, [key]: value });
   const missionTime = useMissionClock();
@@ -561,6 +561,14 @@ const FilterPanel = ({
             >
               <span>⌕</span>
               <span className="hud-label tracking-wider">SEARCH ENTITIES</span>
+            </button>
+            <button
+              onClick={() => { setDrawerOpen(false); onLoginClick?.(); }}
+              className="w-full mt-1 hud-btn text-xs px-3 py-2 flex items-center justify-center gap-2 rounded
+                         border border-hud-border hover:border-hud-amber transition-colors duration-150"
+            >
+              <span className="text-hud-amber">⊙</span>
+              <span className="hud-label tracking-wider text-hud-amber">LOGIN / REGISTER</span>
             </button>
           </div>
 

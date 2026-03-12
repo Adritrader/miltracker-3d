@@ -869,3 +869,18 @@ export async function analyticsAlertsBySeverity(hours = 72) {
     .map(([severity, count]) => ({ severity, count }))
     .sort((a, b) => (ORDER.indexOf(a.severity) === -1 ? 99 : ORDER.indexOf(a.severity)) - (ORDER.indexOf(b.severity) === -1 ? 99 : ORDER.indexOf(b.severity)));
 }
+
+// ─── Newsletter ──────────────────────────────────────────────────────────────
+/**
+ * Subscribe an email to the newsletter table.
+ * Returns { ok: true } or throws on DB error.
+ * Silently ignores duplicate emails (upsert behaviour).
+ */
+export async function subscribeNewsletter(email) {
+  if (!supabase) throw new Error('Database not configured');
+  const { error } = await supabase
+    .from('newsletter_subscribers')
+    .upsert({ email, subscribed_at: new Date().toISOString() }, { onConflict: 'email', ignoreDuplicates: true });
+  if (error) throw error;
+  return { ok: true };
+}

@@ -91,8 +91,7 @@
 
 ### 🟡 MEDIOS — Mejorar calidad para producción
 
-- [ ] **B-M1 · News dedup por fingerprint débil** — `server.js` ~L597-608: Fingerprint = 10 primeras palabras lowercase. "missile strike in Kyiv" = "strike missile in Kyiv" → falso duplicado.
-  - **Fix:** Usar hash SHA-256 del título completo + fuente.
+- [x] **B-M1 · News dedup por fingerprint débil** ✅ *fix: SHA-256(title+source) sliced a 16 hex chars en `server.js` + importado `createHash` de Node crypto* — `server.js` ~L597-608: Fingerprint = 10 primeras palabras lowercase. "missile strike in Kyiv" = "strike missile in Kyiv" → falso duplicado.
 
 - [ ] **B-M2 · Rate limit per-socket no per-IP** — `server.js`: 100 tabs del mismo atacante = 100 sockets independientes.
   - **Fix:** Rate limit por IP además de por socket.
@@ -202,8 +201,7 @@
 - [ ] **F-M2 · News ticker animation perf** — `NewsPanel.jsx` ~L83: `animationPlayState` causa reflow en cada expand/collapse.
   - **Fix:** Usar CSS visibility/opacity en vez de play-state.
 
-- [ ] **F-M3 · Notificaciones browser sin agrupar** — `AlertPanel.jsx` ~L240: Cada alerta CRITICAL genera notificación separada.
-  - **Fix:** Usar `tag: 'critical-alerts'` para agrupar.
+- [x] **F-M3 · Notificaciones browser sin agrupar** ✅ *fix: `tag: 'critical-alerts'` + `renotify: true` en `AlertPanel.jsx` — todos los CRITICAL comparten un slot de notificación OS en vez de inundar la pantalla* — `AlertPanel.jsx` ~L240: Cada alerta CRITICAL genera notificación separada.
 
 - [ ] **F-M4 · Timeline rebuild innecesario** — `useTimeline.js` ~L132: `needFullRebuild = snapshots !== prevSnapshotsRef.current` es SIEMPRE true porque el array se recrea.
   - **Fix:** Comparar por length o usar useMemo con deps explícitas.
@@ -225,8 +223,7 @@
 - [ ] **F-M10 · CoordinateHUD re-renders excesivos** — `CoordinateHUD.jsx` ~L176: `React.memo()` pero props del padre no están memoizadas.
   - **Fix:** Envolver callbacks del padre en `useCallback`.
 
-- [ ] **F-M11 · Cluster icons regenerados por movimiento de cámara** — `NewsLayer.jsx` ~L43: `clusterIcon()` llamado por cada cluster en cada pan. `btoa()` es costoso.
-  - **Fix:** Pre-generar para conteos comunes: [1, 2, 5, 10, 25, 50, 100, 250, 500].
+- [x] **F-M11 · Cluster icons regenerados por movimiento de cámara** ✅ *fix: IIFE `prewarmClusterIcons()` pre-genera los 30 iconos más comunes (10 counts × 3 colors) al cargar el módulo — hot path ya no llama a btoa() en la primera renderización* — `NewsLayer.jsx` ~L43: `clusterIcon()` llamado por cada cluster en cada pan. `btoa()` es costoso.
 
 - [ ] **F-M12 · IndexedDB cursor no se cierra** — `trailStore.js` ~L92: Cursor de IDB mantiene lock más de lo necesario.
   - **Fix:** Usar `deleteRange()` para borrados bulk.
@@ -324,6 +321,7 @@
 
 - [ ] **M-1 · Sistema de autenticación de usuarios** — Actualmente no hay login. Sin auth no hay usuarios, sin usuarios no hay pagos.
   - **Opción recomendada:** Supabase Auth (ya usas Supabase). Social login (Google/GitHub) + email.
+  - **UI implementada:** `AuthModal.jsx` ✅ — login por email + Google (stub), registro con CAPTCHA matemático, honeypot anti-bot, casilla de aceptación de T&C, casilla de newsletter. `NewsletterModal.jsx` ✅ — suscripción independiente desde el icono ✉ de CoordinateHUD. Backend endpoint `POST /api/newsletter/subscribe` ✅ con validación de email + upsert Supabase. Pendiente: conectar a `supabase.auth.signInWithPassword` / `signUp` real (M-1 Supabase wiring).
   - **Prioridad:** 🔴 MÁXIMA
 
 - [ ] **M-2 · Plan de precios y restricciones por tier** — Definir qué es gratis y qué es premium.

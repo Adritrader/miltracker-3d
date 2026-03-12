@@ -30,7 +30,7 @@ const Seg = ({ label, value, valueClass = 'text-hud-green', children }) => (
   </div>
 );
 
-const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false, onOpenLegal, speedUnit = 'kt', onToggleSpeedUnit }) => {
+const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false, onOpenLegal, onNewsletterOpen, speedUnit = 'kt', onToggleSpeedUnit }) => {
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
@@ -227,10 +227,20 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
         </span>
       </div>
 
-      {/* Legal links */}
+      {/* Legal links + newsletter icon */}
       {!isMobile && onOpenLegal && (<>
         <Divider />
         <div className="flex items-center gap-3 px-3 h-full">
+          {onNewsletterOpen && (
+            <button
+              onClick={onNewsletterOpen}
+              title="Subscribe to newsletter"
+              className="font-mono text-xs transition-colors hover:text-hud-amber"
+              style={{ color: 'rgba(74,96,128,0.7)' }}
+            >
+              ✉
+            </button>
+          )}
           {[['privacy','Privacy'],['cookies','Cookies'],['terms','Terms']].map(([key, label]) => (
             <button
               key={key}

@@ -263,7 +263,8 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
         new Notification(`⚠ CRITICAL — ${alert.title}`, {
           body: alert.message || alert.source || '',
           icon: '/favicon.ico',
-          tag:  alert.id, // deduplicates same alert across re-renders
+          tag:  'critical-alerts', // F-M3: shared tag groups all criticals into one OS notification slot
+          renotify: true,           // shows sound/vibrate even when replacing same tag
         });
       } catch (_) {/* Safari / iframe sandbox */}
     }

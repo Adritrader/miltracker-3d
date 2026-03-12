@@ -6,6 +6,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { createHash } from 'crypto';
 import { fetchAircraft } from './services/opensky.js';
 import { fetchShips } from './services/vesselFinder.js';
 import { fetchGDELTNews, fetchNewsAPI, fetchRSSFeeds, geocodeNewsItem } from './services/newsService.js';
@@ -38,7 +39,7 @@ function isInOpZone(lat, lon) {
 }
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 
 dotenv.config();
@@ -519,6 +520,27 @@ app.post('/api/admin/tweet', async (req, res) => {
   }
 });
 
+// ─── Newsletter subscription ─────────────────────────────────────────────────
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+app.post('/api/newsletter/subscribe', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email || typeof email !== 'string' || !EMAIL_PATTERN.test(email.trim())) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  if (!supabaseEnabled()) {
+    // Gracefully accept even when DB is not wired — log for later import
+    console.log('[Newsletter] subscription (no-db):', email.trim());
+    return res.json({ ok: true });
+  }
+  try {
+    await subscribeNewsletter(email.trim().toLowerCase());
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Newsletter] subscribe error:', err.message);
+    res.status(500).json({ error: 'Subscription failed. Please try again later.' });
+  }
+});
+
 // ─── Aircraft polling (every 15 seconds) ────────────────────────────────────
 async function pollAircraft() {
   try {
@@ -637,11 +659,9 @@ async function pollNews() {
       // URL dedup
       if (n.url && seenUrl.has(n.url)) return false;
       if (n.url) seenUrl.add(n.url);
-      // Title fingerprint dedup: lowercase, strip punctuation, take first 10 words
-      const titleFp = (n.title || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9 ]/g, '')
-        .split(/\s+/).slice(0, 10).join(' ');
+      // Title fingerprint dedup: SHA-256 of normalised (title+source) — B-M1
+      const raw = ((n.title || '') + '|' + (n.source || '')).toLowerCase().replace(/[^a-z0-9|]/g, '');
+      const titleFp = raw.length > 8 ? createHash('sha256').update(raw).digest('hex').slice(0, 16) : '';
       if (titleFp.length > 8 && seenTitle.has(titleFp)) return false;
       if (titleFp.length > 8) seenTitle.add(titleFp);
       const key = n.url || n.title;

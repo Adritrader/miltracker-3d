@@ -31,6 +31,8 @@ import CameraLayer from './components/CameraLayer.jsx';
 import CameraModal from './components/CameraModal.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
 import LegalModal from './components/LegalModal.jsx';
+import AuthModal from './components/AuthModal.jsx';
+import NewsletterModal from './components/NewsletterModal.jsx';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import { useTimeline } from './hooks/useTimeline.js';
@@ -88,6 +90,8 @@ function App() {
   const [selectedCamera, setSelectedCamera] = useState(null);
   const [cameras, setCameras] = useState([]);
   const [legalPage, setLegalPage] = useState(null); // 'privacy' | 'cookies' | 'terms'
+  const [authOpen, setAuthOpen] = useState(false);
+  const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [historyTrailId, setHistoryTrailId] = useState(null); // { id, ts } for HistoryPanel trail auto-load
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
@@ -344,6 +348,7 @@ function App() {
         onOpen={() => setSearchOpen(true)}
         onClose={() => setSearchOpen(false)}
         isMobile={isMobile}
+        onLoginClick={() => setAuthOpen(true)}
       />
 
       {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}
@@ -368,6 +373,7 @@ function App() {
           onSpaceViewChange={setSpaceView}
           isMobile={isMobile}
           onSearchOpen={() => setSearchOpen(true)}
+          onLoginClick={() => setAuthOpen(true)}
         />
       </div>
 
@@ -492,6 +498,7 @@ function App() {
         connected={connected}
         isMobile={isMobile}
         onOpenLegal={setLegalPage}
+        onNewsletterOpen={() => setNewsletterOpen(true)}
         speedUnit={speedUnit}
         onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
       />
@@ -534,6 +541,16 @@ function App() {
       {/* Legal modals — Privacy / Cookies / Terms */}
       {legalPage && (
         <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
+      )}
+
+      {/* Auth modal — login / register */}
+      {authOpen && (
+        <AuthModal onClose={() => setAuthOpen(false)} />
+      )}
+
+      {/* Newsletter subscription modal */}
+      {newsletterOpen && (
+        <NewsletterModal onClose={() => setNewsletterOpen(false)} />
       )}
 
     </div>
