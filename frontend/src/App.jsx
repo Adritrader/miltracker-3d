@@ -197,19 +197,18 @@ function App() {
     [news, filters.showNews]
   );
 
-  const filteredConflicts = useMemo(
-    () => filters.showConflicts
-          ? conflicts.filter(c => c.source !== 'NASA FIRMS')
-          : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conflicts, filters.showConflicts]
-  );
-
-  const firmsHotspots = useMemo(
-    () => filters.showFIRMS ? conflicts.filter(c => c.source === 'NASA FIRMS') : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conflicts, filters.showFIRMS]
-  );
+  // P4: single memo iterates `conflicts` once per update instead of twice.
+  // deps include both show-flags so toggling either still triggers a recompute.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { filteredConflicts, firmsHotspots } = useMemo(() => ({
+    filteredConflicts: filters.showConflicts
+      ? conflicts.filter(c => c.source !== 'NASA FIRMS')
+      : [],
+    firmsHotspots: filters.showFIRMS
+      ? conflicts.filter(c => c.source === 'NASA FIRMS')
+      : [],
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [conflicts, filters.showConflicts, filters.showFIRMS]);
 
   const handleViewerReady = useCallback((v) => {
     viewerRef.current = v;

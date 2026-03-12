@@ -59,6 +59,14 @@ const MAX_TRAIL_POINTS = 40;
 // Matches the aircraft poll interval so movement looks continuous.
 const SMOOTH_MS = 10_000;
 
+// Pre-allocated module-level Cesium color constants.
+// fromCssColorString() parses a hex string every call — expensive inside a 400-entity loop.
+const _C_TRACKED    = Cesium.Color.fromCssColorString('#FFD700');
+const _C_NORMAL     = Cesium.Color.fromCssColorString('#00ff88');
+const _LABEL_OFFSET = new Cesium.Cartesian2(0, 20);
+const _LABEL_BG     = new Cesium.Color(0, 0, 0, 0.55);
+const _LABEL_PAD    = new Cesium.Cartesian2(5, 3);
+
 // Aircraft trail point mapper: IndexedDB {x,y,z,a} → runtime {pos, altM}
 const acPointFromDB = p => ({ pos: new Cesium.Cartesian3(p.x, p.y, p.z), altM: p.a || 0 });
 
@@ -251,6 +259,16 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       }
       prevIdsRef.current = currentIds;
 
+      // Pre-allocate DistanceDisplayCondition and NearFarScalar once per effect run.
+      // Cesium treats these as immutable data objects — the same instance can safely be
+      // shared across all entities created/updated in this cycle, cutting ~1 200+ GC
+      // allocations per 30-s poll when tracking 400 aircraft.
+      const ddcTrail  = new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE);
+      const ddcEntity = new Cesium.DistanceDisplayCondition(0, MAX_RANGE);
+      const ddcLabel  = new Cesium.DistanceDisplayCondition(0, LABEL_RANGE);
+      const nfsEntity = new Cesium.NearFarScalar(5e4, 1.2, MAX_RANGE, 0.4);
+      const nfsLabel  = new Cesium.NearFarScalar(5e4, isMobile ? 1.4 : 1.1, LABEL_RANGE, 0.0);
+
       // ── Add / update aircraft + trails ────────────────────────────────────
       for (const ac of aircraft) {
         if (!isValidCoord(ac.lat, ac.lon)) continue;
@@ -301,7 +319,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
                 material: segColor.withAlpha(alpha),
                 clampToGround: false,
                 followSurface: false,
-                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE),
+                distanceDisplayCondition: ddcTrail,
               },
             });
             segs.push(seg);
@@ -358,8 +376,10 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
             entity.label.text = new Cesium.ConstantProperty(newLabel);
             entity._lastLabel = newLabel;
           }
-          if (entity.label && isTracked) entity.label.fillColor = Cesium.Color.fromCssColorString('#FFD700');
-          else if (entity.label)        entity.label.fillColor = Cesium.Color.fromCssColorString('#00ff88');
+          if (entity.label && entity._lastTracked !== isTracked) {
+            entity.label.fillColor = isTracked ? _C_TRACKED : _C_NORMAL;
+            entity._lastTracked = isTracked;
+          }
           entity._milData = ac;
         } else {
           // Create smooth-moving entity — position driven by a lerp CallbackProperty
@@ -381,24 +401,24 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               // Shrink at distance but stay visible — 46px at close range, ~25px at far range
-              scaleByDistance: new Cesium.NearFarScalar(5e4, 1.2, MAX_RANGE, 0.4),
-              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
+              scaleByDistance: nfsEntity,
+              distanceDisplayCondition: ddcEntity,
               disableDepthTestDistance: 2e6,
             },
             label: {
               text: labelText,
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
-              fillColor: Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00ff88'),
+              fillColor: isTracked ? _C_TRACKED : _C_NORMAL,
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
               verticalOrigin: Cesium.VerticalOrigin.TOP,
-              pixelOffset: new Cesium.Cartesian2(0, 20),
-              scaleByDistance: new Cesium.NearFarScalar(5e4, isMobile ? 1.4 : 1.1, LABEL_RANGE, 0.0),
-              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
+              pixelOffset: _LABEL_OFFSET,
+              scaleByDistance: nfsLabel,
+              distanceDisplayCondition: ddcLabel,
               showBackground: true,
-              backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
-              backgroundPadding: new Cesium.Cartesian2(5, 3),
+              backgroundColor: _LABEL_BG,
+              backgroundPadding: _LABEL_PAD,
               disableDepthTestDistance: 2e6,
             },
           });

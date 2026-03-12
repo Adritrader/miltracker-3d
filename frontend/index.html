@@ -10,6 +10,12 @@
       gtag('config', 'G-9TWFX4C3K2');
     </script>
     <meta charset="UTF-8" />
+    <!-- Resource hints: pre-connect tile CDN origins so DNS + TLS are done
+         before the map requests the first tile batch on load. -->
+    <link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin />
+    <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+    <link rel="dns-prefetch" href="https://gibs.earthdata.nasa.gov" />
+    <link rel="dns-prefetch" href="https://tiles.maps.eox.at" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

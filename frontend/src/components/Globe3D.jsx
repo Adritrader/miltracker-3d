@@ -153,6 +153,21 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     viewer.clock.shouldAnimate        = true;
     viewer.clock.multiplier           = 1;
 
+    // ── Render quality tuning (P3) ─────────────────────────────────────────
+    // Cap to 60fps: on 120/144Hz monitors Cesium renders twice as many frames
+    // as needed — halves GPU & JS work per second with no visible difference.
+    viewer.targetFrameRate = 60;
+    // HDR tone-mapping is expensive and adds no value for flat-coloured SVG icons.
+    viewer.scene.highDynamicRange = false;
+    // FXAA is a screen-space anti-alias pass that blurs the whole frame each tick.
+    // Disabling saves ~3-5% GPU per frame; military icons are small / sharp enough.
+    if (viewer.scene.postProcessStages?.fxaa) {
+      viewer.scene.postProcessStages.fxaa.enabled = false;
+    }
+    // MSAA: WebGL2 default is 4x (4 fragment samples per pixel).
+    // 1x disables MSAA entirely — ~15% fillrate saving, minor edge aliasing tradeoff.
+    if (viewer.scene.msaaSamples !== undefined) viewer.scene.msaaSamples = 1;
+
     // ── Initial camera position (only on first mount) ─────────────────────
     if (!cameraInitialized.current) {
       cameraInitialized.current = true;

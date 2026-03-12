@@ -192,6 +192,19 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
       }
       prevIdsRef.current = currentIds;
 
+      // Pre-allocate stable Cesium value objects once per effect run (not inside the loop)
+      // to avoid ~600+ short-lived GC allocations per ship update cycle.
+      const ddcTrail  = new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE);
+      const ddcEntity = new Cesium.DistanceDisplayCondition(0, MAX_RANGE);
+      const ddcLabel  = new Cesium.DistanceDisplayCondition(0, LABEL_RANGE);
+      const nfsEntity = new Cesium.NearFarScalar(5e4, 1.2, MAX_RANGE, 0.4);
+      const nfsLabel  = new Cesium.NearFarScalar(5e4, isMobile ? 1.4 : 1.1, LABEL_RANGE, 0.0);
+      const labelOff  = new Cesium.Cartesian2(0, 22);
+      const labelBg   = new Cesium.Color(0, 0, 0, 0.55);
+      const labelPad  = new Cesium.Cartesian2(5, 3);
+      const cTracked  = Cesium.Color.fromCssColorString('#FFD700');
+      const cShip     = Cesium.Color.fromCssColorString('#00aaff');
+
       // Add / update ships + trails
       for (const ship of ships) {
         if (!isValidCoord(ship.lat, ship.lon)) continue;
@@ -223,8 +236,13 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
         // ── Polyline trail ──────────────────────────────────────────────────
         if (TRAIL_RANGE > 0 && pts.length >= 2) {
           if (trailEntityRef.current.has(id)) {
-            trailEntityRef.current.get(id).polyline.positions =
-              new Cesium.ConstantProperty(pts.slice());
+            // Only rebuild positions when trail actually grew (ship moved).
+            // Without this guard, every update recreates a ConstantProperty
+            // and copies the whole pts array even when the ship is at anchor.
+            if (moved) {
+              trailEntityRef.current.get(id).polyline.positions =
+                new Cesium.ConstantProperty(pts.slice());
+            }
           } else {
             const te = trailDS.entities.add({
               id: `ship-trail-${id}`,
@@ -237,7 +255,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
                   color: cesiumColor.withAlpha(0.65),
                 }),
                 clampToGround: true,
-                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, TRAIL_RANGE),
+                distanceDisplayCondition: ddcTrail,
               },
             });
             trailEntityRef.current.set(id, te);
@@ -294,24 +312,24 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
               color: Cesium.Color.WHITE,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-              scaleByDistance: new Cesium.NearFarScalar(5e4, 1.2, MAX_RANGE, 0.4),
-              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, MAX_RANGE),
+              scaleByDistance: nfsEntity,
+              distanceDisplayCondition: ddcEntity,
               disableDepthTestDistance: 2e6,
             },
             label: {
               text: shipLabel,
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
-              fillColor: Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00aaff'),
+              fillColor: isTracked ? cTracked : cShip,
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
               verticalOrigin: Cesium.VerticalOrigin.TOP,
-              pixelOffset: new Cesium.Cartesian2(0, 22),
-              scaleByDistance: new Cesium.NearFarScalar(5e4, isMobile ? 1.4 : 1.1, LABEL_RANGE, 0.0),
-              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, LABEL_RANGE),
+              pixelOffset: labelOff,
+              scaleByDistance: nfsLabel,
+              distanceDisplayCondition: ddcLabel,
               showBackground: true,
-              backgroundColor: new Cesium.Color(0, 0, 0, 0.55),
-              backgroundPadding: new Cesium.Cartesian2(5, 3),
+              backgroundColor: labelBg,
+              backgroundPadding: labelPad,
               disableDepthTestDistance: 2e6,
             },
           });
