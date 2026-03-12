@@ -138,31 +138,30 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
       className={`fixed top-4 z-50 ${
         isMobile ? 'left-2 right-2' : 'right-4'
       }`}
-      style={isMobile ? {} : { width: '13rem' }}
+      style={isMobile ? {} : { width: 'auto' }}
     >
-      {/* Collapsed pill – hidden on mobile (search triggered from FilterPanel) */}
+      {/* Collapsed state – search pill + login button side-by-side (desktop only) */}
       {!open && !isMobile && (
-        <>
+        <div className="flex items-center gap-1">
           <button
             onClick={onOpen}
-            className="w-full hud-panel px-3 py-1.5 flex items-center gap-2
+            className="hud-panel px-3 py-1.5 flex items-center gap-2
                        hover:border-hud-green transition-colors duration-150 group"
+            style={{ width: '13rem' }}
           >
             <span className="text-hud-text group-hover:text-hud-green transition-colors text-sm select-none">⌕</span>
             <span className="hud-label text-xs flex-1 text-left">SEARCH ENTITIES</span>
-            {!isMobile && (
-              <span className="text-hud-text text-xs font-mono opacity-40 shrink-0 select-none">CTRL+K</span>
-            )}
+            <span className="text-hud-text text-xs font-mono opacity-40 shrink-0 select-none">CTRL+K</span>
           </button>
           <button
             onClick={onLoginClick}
-            className="w-full hud-panel mt-0.5 px-3 py-1.5 flex items-center gap-2
-                       hover:border-hud-amber transition-colors duration-150 group"
+            className="hud-panel px-3 py-1.5 flex items-center gap-1.5
+                       hover:border-hud-amber transition-colors duration-150 group shrink-0"
           >
             <span className="text-hud-amber group-hover:text-white transition-colors text-sm select-none">⊙</span>
-            <span className="hud-label text-xs flex-1 text-left text-hud-amber group-hover:text-white transition-colors">LOGIN / REGISTER</span>
+            <span className="hud-label text-xs text-hud-amber group-hover:text-white transition-colors whitespace-nowrap">LOGIN</span>
           </button>
-        </>
+        </div>
       )}
 
       {/* Expanded search */}

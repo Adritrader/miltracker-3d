@@ -191,6 +191,17 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
       {!isMobile && (<>
         <Divider />
         <div className="px-2 h-full flex items-center gap-2">
+          {onNewsletterOpen && (
+            <button
+              onClick={onNewsletterOpen}
+              title="Subscribe to newsletter"
+              className="hud-label text-xs px-2 py-0.5 rounded border border-hud-border/50
+                         hover:border-hud-amber hover:text-hud-amber transition-colors duration-150"
+              style={{ color: 'rgba(74,96,128,0.7)' }}
+            >
+              ✉
+            </button>
+          )}
           <button
             onClick={resetCamera}
             title="Reset camera to default view"
@@ -229,20 +240,10 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
         </span>
       </div>
 
-      {/* Legal links + newsletter icon */}
+      {/* Legal links */}
       {!isMobile && onOpenLegal && (<>
         <Divider />
         <div className="flex items-center gap-3 px-3 h-full">
-          {onNewsletterOpen && (
-            <button
-              onClick={onNewsletterOpen}
-              title="Subscribe to newsletter"
-              className="font-mono text-xs transition-colors hover:text-hud-amber"
-              style={{ color: 'rgba(74,96,128,0.7)' }}
-            >
-              ✉
-            </button>
-          )}
           {[['privacy','Privacy'],['cookies','Cookies'],['terms','Terms']].map(([key, label]) => (
             <button
               key={key}
