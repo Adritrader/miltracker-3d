@@ -249,6 +249,12 @@ function App() {
     setTrackedList(new Map());
   }, []);
 
+  // F-M10: stable callbacks for CoordinateHUD (wrapped in React.memo) to avoid re-renders
+  const handleToggleSpeedUnit   = useCallback(() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt'), []);
+  const handleToggleAltUnit     = useCallback(() => setAltUnit(u => u === 'ft' ? 'm' : 'ft'), []);
+  const handleOpenNewsletter    = useCallback(() => setNewsletterOpen(true), []);
+  const handleOpenAuth          = useCallback(() => setAuthOpen(true), []);
+
   return (
     <div className="w-screen h-screen overflow-hidden" style={{ background: '#050810' }}>
       {/* Scanlines overlay only */}
@@ -348,7 +354,7 @@ function App() {
         onOpen={() => setSearchOpen(true)}
         onClose={() => setSearchOpen(false)}
         isMobile={isMobile}
-        onLoginClick={() => setAuthOpen(true)}
+        onLoginClick={handleOpenAuth}
       />
 
       {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}
@@ -373,7 +379,7 @@ function App() {
           onSpaceViewChange={setSpaceView}
           isMobile={isMobile}
           onSearchOpen={() => setSearchOpen(true)}
-          onLoginClick={() => setAuthOpen(true)}
+          onLoginClick={handleOpenAuth}
         />
       </div>
 
@@ -465,9 +471,9 @@ function App() {
         onSatellite={setSatellitePortal}
         onLoadTrail={(id) => setHistoryTrailId({ id, ts: Date.now() })}
         speedUnit={speedUnit}
-        onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
+        onToggleSpeedUnit={handleToggleSpeedUnit}
         altUnit={altUnit}
-        onToggleAltUnit={() => setAltUnit(u => u === 'ft' ? 'm' : 'ft')}
+        onToggleAltUnit={handleToggleAltUnit}
       />
 
       {/* SITREP capture — already rendered inline in the bottom-right container above */}
@@ -498,9 +504,9 @@ function App() {
         connected={connected}
         isMobile={isMobile}
         onOpenLegal={setLegalPage}
-        onNewsletterOpen={() => setNewsletterOpen(true)}
+        onNewsletterOpen={handleOpenNewsletter}
         speedUnit={speedUnit}
-        onToggleSpeedUnit={() => setSpeedUnit(u => u === 'kt' ? 'kmh' : 'kt')}
+        onToggleSpeedUnit={handleToggleSpeedUnit}
       />
 
       {/* Full blocking overlay — only when there's truly nothing cached to show */}

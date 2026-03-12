@@ -288,8 +288,8 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
             position: posCallback,
             billboard: {
               image: iconUri,
-              width:  46,
-              height: 46,
+              width:  isMobile ? 32 : 46,
+              height: isMobile ? 32 : 46,
               // Baseline vessels dimmed to indicate "last known position"
               color: Cesium.Color.WHITE,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
@@ -327,7 +327,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => idbSaveTrails('ship', trailPointsRef.current), 15_000);
     }
-  }, [viewer, ships, visible, trackedList, getDS]);
+  }, [viewer, ships, visible, trackedList, isMobile, getDS]);
 
   return null;
 };

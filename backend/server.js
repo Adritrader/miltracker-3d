@@ -58,12 +58,9 @@ const ALLOWED_ORIGINS = (origin, cb) => {
   const extraOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
   if (extraOrigins.includes(origin)) return cb(null, true);
   if (allowed.some(re => re.test(origin))) return cb(null, true);
-  // In production, reject unknown origins. In dev, allow all.
-  if (process.env.NODE_ENV === 'production') {
-    console.warn(`[CORS] Blocked origin: ${origin}`);
-    return cb(new Error(`CORS: origin ${origin} not allowed`), false);
-  }
-  cb(null, true); // dev-only fallback — set NODE_ENV=production in Railway to restrict
+  // In production AND dev, reject unknown origins — B-M7: explicit whitelist always enforced
+  console.warn(`[CORS] Blocked origin: ${origin}`);
+  return cb(new Error(`CORS: origin ${origin} not allowed`), false);
 };
 
 const app = express();

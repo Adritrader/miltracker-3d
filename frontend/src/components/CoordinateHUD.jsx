@@ -34,7 +34,7 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
-  const [shareCopied, setShareCopied] = useState(false);
+  const [shareMsg, setShareMsg] = useState('');  // F-M5: '' | '✓ COPIED' | '⚠ URL UPDATED'
   const handlerRef = useRef(null);
 
   // UTC clock — 1s tick
@@ -112,12 +112,14 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
     url.search  = '';
     url.searchParams.set('fly', `${lat},${lon},${alt},${hdg},${ptch}`);
     window.history.replaceState({}, '', url.toString());
-    navigator.clipboard.writeText(url.toString()).catch(() => {
-      // Clipboard API unavailable — show URL in console so user can copy manually (O13)
-      console.info('[Share] Clipboard unavailable. URL:', url.toString());
-    });
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2000);
+    navigator.clipboard.writeText(url.toString())
+      .then(() => setShareMsg('✓ COPIED'))
+      .catch(() => {
+        // F-M5: clipboard unavailable — show visible feedback, URL already updated in address bar
+        console.info('[Share] Clipboard unavailable. URL:', url.toString());
+        setShareMsg('⚠ URL UPDATED');
+      })
+      .finally(() => setTimeout(() => setShareMsg(''), 2500));
   }, [viewer]);
 
   return (
@@ -201,12 +203,12 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
             onClick={shareView}
             title="Copy share link for this exact view"
             className={`hud-label text-xs px-2 py-0.5 rounded border transition-colors duration-150 ${
-              shareCopied
-                ? 'border-hud-green text-hud-green'
+              shareMsg
+                ? (shareMsg.startsWith('✓') ? 'border-hud-green text-hud-green' : 'border-hud-amber text-hud-amber')
                 : 'border-hud-border/50 hover:border-hud-amber hover:text-hud-amber'
             }`}
           >
-            {shareCopied ? '✓ COPIED' : '⎘ SHARE'}
+            {shareMsg || '⎘ SHARE'}
           </button>          <button
             onClick={onToggleSpeedUnit}
             title="Toggle speed units: knots / km/h"

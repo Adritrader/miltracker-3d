@@ -376,8 +376,8 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
             position: posCallback,
             billboard: {
               image: iconUri,
-              width:  46,
-              height: 46,
+              width:  isMobile ? 32 : 46,
+              height: isMobile ? 32 : 46,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               // Shrink at distance but stay visible — 46px at close range, ~25px at far range
@@ -416,7 +416,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 15_000);
     }
-  }, [viewer, aircraft, visible, trackedList, speedUnit, altUnit, getDS]);
+  }, [viewer, aircraft, visible, trackedList, speedUnit, altUnit, isMobile, getDS]);
 
   // ── Click selection handled centrally by Globe3D's screenSpaceEventHandler ─
   // (§0.18: removed per-layer handler — Globe3D picks _milData and calls onEntityClick)

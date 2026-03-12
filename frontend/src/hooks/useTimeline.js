@@ -162,10 +162,10 @@ export function useTimeline(socketRef) {
       prevSnapshotsRef.current = null;
       return {};
     }
-    // Full rebuild when seeking backwards or when the snapshots array changes
+    // Full rebuild when seeking backwards or when the snapshots array grows/changes
     const needFullRebuild =
       currentIndex < prevTrackIndexRef.current ||
-      snapshots !== prevSnapshotsRef.current;
+      snapshots.length !== (prevSnapshotsRef.current?.length ?? -1); // F-M4: compare by length, not reference
     if (needFullRebuild) {
       const track = {};
       for (const snap of snapshots.slice(0, currentIndex + 1)) {

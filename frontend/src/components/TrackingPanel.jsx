@@ -26,7 +26,8 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
       for (const e of entries) onHeightChange(Math.round(e.contentRect.height));
     });
     ro.observe(panelRef.current);
-    onHeightChange(Math.round(panelRef.current.getBoundingClientRect().height));
+    // F-H7: do NOT call getBoundingClientRect() synchronously — it returns 0 before layout.
+    // ResizeObserver fires the real size once the browser has painted content.
     return () => { ro.disconnect(); };
   }, [onHeightChange]);  // stable ref — runs once on mount
 

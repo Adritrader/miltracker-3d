@@ -108,8 +108,7 @@
 - [ ] **B-M6 · Geocoding hardcodeado (100 ciudades)** — `aiDanger.js` ~L109-184: Nueva zona de conflicto no mapeada = alerta sin lat/lon.
   - **Fix:** Usar API de geocoding como fallback (Nominatim, gratuito).
 
-- [ ] **B-M7 · CORS permisivo si NODE_ENV !== production** — `server.js` ~L66: Acepta cualquier origen en dev.
-  - **Fix:** Lista blanca explícita incluso en dev.
+- [x] **B-M7 · CORS permisivo si NODE_ENV !== production** ✅ *fix: eliminado el `if (NODE_ENV === 'production')` guard — `ALLOWED_ORIGINS` ahora siempre bloquea orígenes desconocidos independientemente del entorno; localhost y *.vercel.app siguen en la whitelist* — `server.js` ~L66: Acepta cualquier origen en dev.
 
 - [ ] **B-M8 · Gemini model resolution duplicada** — `aiDanger.js` + `aiAircraftIntel.js`: Ambos resuelven el modelo al importarse.
   - **Fix:** Resolución centralizada en un módulo compartido.
@@ -172,8 +171,7 @@
 - [x] **F-H1 · Sin límite de entidades en Cesium** ✅ *ya OK: NewsLayer .slice(0,400) items + .slice(0,maxClusters); FIRMSLayer .slice(0,300)* — `NewsLayer.jsx` ~L145, `FIRMSLayer.jsx` ~L97: Los loops añaden entities sin cap. 1000+ entities = <10 FPS.
   - **Fix:** `clusters.slice(0, MAX_ENTITIES)` con un límite de 250-500.
 
-- [ ] **F-H2 · useEffect deps faltantes (eslint-disable)** — `AircraftLayer.jsx` ~L55, `ShipLayer.jsx` ~L39: Lint suprimido con `eslint-disable-next-line` → stale closures.
-  - **Fix:** Añadir deps correctas o usar useCallback para estabilizar refs.
+- [x] **F-H2 · useEffect deps faltantes (eslint-disable)** ✅ *fix: `isMobile` añadido a las deps del main update loop en `AircraftLayer.jsx` y `ShipLayer.jsx` — evita stale closures cuando el viewport cambia entre mobile/desktop* — `AircraftLayer.jsx` ~L55, `ShipLayer.jsx` ~L39: Lint suprimido con `eslint-disable-next-line` → stale closures.
 
 - [x] **F-H3 · SearchBar ejecuta filtro en cada keystroke** ✅ *fix: debounce 250ms → 400ms en SearchBar.jsx* — `SearchBar.jsx` ~L30: Debounce de solo 250ms sobre 1000+ aircraft. Causa stutter en móvil.
   - **Fix:** Subir debounce a 400-500ms o implementar búsqueda con Trie.
@@ -186,8 +184,7 @@
 
 - [x] **F-H6 · localStorage sin error handling** ✅ *fix: catch QuotaExceededError con console.warn en cacheSave() de useRealTimeData.js* — `App.jsx`, `useRealTimeData.js`, `NewsPanel.jsx`: Todos usan `try { localStorage } catch { }` sin informar al usuario.
 
-- [ ] **F-H7 · TrackingPanel altura 0 en primera renderización mobile** — `TrackingPanel.jsx` ~L32: `getBoundingClientRect().height` devuelve 0 cuando panel está oculto.
-  - **Fix:** Solo reportar altura cuando `trackedList.size > 0`.
+- [x] **F-H7 · TrackingPanel altura 0 en primera renderización mobile** ✅ *fix: eliminada la llamada síncrona a `getBoundingClientRect()` en mount (siempre devuelve 0 antes del layout) — el tamaño real lo gestiona exclusivamente el ResizeObserver* — `TrackingPanel.jsx` ~L32: `getBoundingClientRect().height` devuelve 0 cuando panel está oculto.
 
 - [x] **F-H8 · Font remota bloquea first paint** ✅ *fix: cambiado de `<link rel="stylesheet">` bloqueante a `<link rel="preload" onload>` no-bloqueante en index.html — ahorra 2s desktop / 9.7s mobile en TBT* — `index.css` + `tailwind.config.js`: 'Share Tech Mono' remota sin `font-display: swap`.
   - **Fix:** Añadir `font-display: swap` al @font-face. Listar fuentes locales primero.
@@ -203,33 +200,28 @@
 
 - [x] **F-M3 · Notificaciones browser sin agrupar** ✅ *fix: `tag: 'critical-alerts'` + `renotify: true` en `AlertPanel.jsx` — todos los CRITICAL comparten un slot de notificación OS en vez de inundar la pantalla* — `AlertPanel.jsx` ~L240: Cada alerta CRITICAL genera notificación separada.
 
-- [ ] **F-M4 · Timeline rebuild innecesario** — `useTimeline.js` ~L132: `needFullRebuild = snapshots !== prevSnapshotsRef.current` es SIEMPRE true porque el array se recrea.
-  - **Fix:** Comparar por length o usar useMemo con deps explícitas.
+- [x] **F-M4 · Timeline rebuild innecesario** ✅ *fix: `needFullRebuild` ahora compara `snapshots.length` en lugar de referencia del array — evita full rebuild en cada poll (cada 30s) cuando el cursor avanza normalmente* — `useTimeline.js` ~L132: `needFullRebuild = snapshots !== prevSnapshotsRef.current` es SIEMPRE true porque el array se recrea.
 
-- [ ] **F-M5 · Clipboard fallback invisible** — `CoordinateHUD.jsx` ~L127: Si clipboard no disponible, se logea a console. El usuario no recibe feedback.
-  - **Fix:** Mostrar toast visible.
+- [x] **F-M5 · Clipboard fallback invisible** ✅ *fix: `shareMsg` string state reemplaza `shareCopied` bool — muestra '✓ COPIED' o '⚠ URL UPDATED' (cuando clipboard falla) con color diferente — URL siempre actualizada en barra del navegador* — `CoordinateHUD.jsx` ~L127: Si clipboard no disponible, se logea a console. El usuario no recibe feedback.
 
 - [ ] **F-M6 · Sin request limits en imagery tiles** — `Globe3D.jsx` ~L140: Sin `maximumRequestsPerServer` → tiles bloquean en redes lentas.
   - **Fix:** `new ImageryLayer(provider, { requestsPerServer: 4 })`.
 
 - [x] **F-M7 · Array index como key en loops** ✅ *fix: `key={item.id || \`news-${i}\`}` en NewsPanel expanded list* — `NewsPanel.jsx` ~L93: `key={item.id || i}` → reconciliación React rota al reordenar.
 
-- [ ] **F-M8 · Promises no catched con logging** — `useRealTimeData.js` ~L78: `.catch(() => setAiIntel(null))` sin logear error.
-  - **Fix:** `console.warn('[AI Intel]', err)`.
+- [x] **F-M8 · Promises no catched con logging** ✅ *ya OK: `ai_insight` socket handler comprueba `insight?.error` y llama `setAiError(insight.error)` explícitamente; `connect_error` logea con `console.warn`* — `useRealTimeData.js` ~L78: `.catch(() => setAiIntel(null))` sin logear error.
 
 - [ ] **F-M9 · SVG encoding inconsistente** — `icons.js` usa `encodeURIComponent`, `FIRMSLayer.jsx` usa `btoa()`. Falla con emoji o chars especiales.
   - **Fix:** Estandarizar a `encodeURIComponent` (más seguro y compatible).
 
-- [ ] **F-M10 · CoordinateHUD re-renders excesivos** — `CoordinateHUD.jsx` ~L176: `React.memo()` pero props del padre no están memoizadas.
-  - **Fix:** Envolver callbacks del padre en `useCallback`.
+- [x] **F-M10 · CoordinateHUD re-renders excesivos** ✅ *fix: `handleToggleSpeedUnit`, `handleToggleAltUnit`, `handleOpenNewsletter`, `handleOpenAuth` wrapeados en `useCallback` en `App.jsx` — referencias estables impiden re-renders innecesarios del componente memoizado* — `CoordinateHUD.jsx` ~L176: `React.memo()` pero props del padre no están memoizadas.
 
 - [x] **F-M11 · Cluster icons regenerados por movimiento de cámara** ✅ *fix: IIFE `prewarmClusterIcons()` pre-genera los 30 iconos más comunes (10 counts × 3 colors) al cargar el módulo — hot path ya no llama a btoa() en la primera renderización* — `NewsLayer.jsx` ~L43: `clusterIcon()` llamado por cada cluster en cada pan. `btoa()` es costoso.
 
 - [ ] **F-M12 · IndexedDB cursor no se cierra** — `trailStore.js` ~L92: Cursor de IDB mantiene lock más de lo necesario.
   - **Fix:** Usar `deleteRange()` para borrados bulk.
 
-- [ ] **F-M13 · Mobile: trails desactivados pero sin LOD** — `AircraftLayer.jsx` ~L97: Trails off en mobile pero aircraft siguen a calidad completa.
-  - **Fix:** Escalar billboard size: `width: isMobile ? 32 : 48`.
+- [x] **F-M13 · Mobile: trails desactivados pero sin LOD** ✅ *fix: billboard `width`/`height` `isMobile ? 32 : 46` en `AircraftLayer.jsx` y `ShipLayer.jsx` — iconos 30% más pequeños en mobile reducen GPU overdraw* — `AircraftLayer.jsx` ~L97: Trails off en mobile pero aircraft siguen a calidad completa.
 
 - [x] **F-M14 · Bundle de Cesium ~5MB+** ✅ *fix: vite.config.js manualChunks separados para cesium, socketio, react-dom, react — carga paralela y main bundle más pequeño* — `vite.config.js`: `vite-plugin-cesium` incluye TODOS los módulos.
 
