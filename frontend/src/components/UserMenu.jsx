@@ -1,27 +1,13 @@
 /**
  * UserMenu — Avatar pill + dropdown for authenticated users.
- * Sections: Profile · Newsletter · Public API endpoints
+ * Sections: Profile · Newsletter
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'https://miltracker-3d-production.up.railway.app';
-
-const API_ENDPOINTS = [
-  { method: 'GET', path: '/api/aircraft',              label: 'Live military aircraft' },
-  { method: 'GET', path: '/api/ships',                 label: 'Live military ships' },
-  { method: 'GET', path: '/api/news',                  label: 'Latest intel news' },
-  { method: 'GET', path: '/api/alerts',                label: 'Active alerts' },
-  { method: 'GET', path: '/api/conflicts',             label: 'Conflict zones / hotspots' },
-  { method: 'GET', path: '/api/status',                label: 'Server status' },
-  { method: 'GET', path: '/api/history/trail/:id',     label: 'Entity trail history' },
-  { method: 'GET', path: '/api/analytics/fleet',       label: 'Fleet composition analytics' },
-];
-
 export default function UserMenu({ user, onLogout, onOpenNewsletter }) {
-  const [open, setOpen]       = useState(false);
-  const [copied, setCopied]   = useState(null);
+  const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
   // Close on outside click
@@ -41,13 +27,6 @@ export default function UserMenu({ user, onLogout, onOpenNewsletter }) {
   const initials = name
     ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : email.slice(0, 2).toUpperCase();
-
-  const copyToClipboard = useCallback((text, key) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(key);
-      setTimeout(() => setCopied(null), 1500);
-    }).catch(() => {});
-  }, []);
 
   const handleLogout = async () => {
     setOpen(false);
@@ -125,55 +104,6 @@ export default function UserMenu({ user, onLogout, onOpenNewsletter }) {
               <span>✉</span>
               <span>Subscribe / Manage newsletter</span>
             </button>
-          </div>
-
-          {/* ── 3. PUBLIC API ── */}
-          <div className="px-4 py-3 border-b border-hud-border/20">
-            <div className="text-[9px] font-mono text-hud-text/40 tracking-widest uppercase mb-2">Public API</div>
-
-            {/* Base URL copy row */}
-            <button
-              onClick={() => copyToClipboard(BACKEND, 'base')}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded mb-2
-                         border border-hud-border/30 bg-white/3
-                         hover:bg-hud-border/20 transition-colors duration-100 group"
-              title="Copy base URL"
-            >
-              <span className="text-hud-text/40 text-[9px] font-mono shrink-0">BASE</span>
-              <span className="text-hud-green text-[10px] font-mono truncate flex-1 text-left">
-                {BACKEND.replace('https://', '')}
-              </span>
-              <span className="text-[9px] text-hud-text/40 group-hover:text-hud-green transition-colors shrink-0">
-                {copied === 'base' ? '✓' : '⎘'}
-              </span>
-            </button>
-
-            {/* Endpoint rows */}
-            <div className="flex flex-col gap-0.5 max-h-44 overflow-y-auto pr-0.5
-                            scrollbar-thin scrollbar-thumb-hud-border/30">
-              {API_ENDPOINTS.map((ep) => {
-                const full = `${BACKEND}${ep.path}`;
-                const key  = ep.path;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => copyToClipboard(full, key)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left
-                               hover:bg-hud-border/20 transition-colors duration-100 group"
-                    title={`Copy: ${full}`}
-                  >
-                    <span className="text-hud-green/60 text-[8px] font-mono shrink-0 w-7">{ep.method}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-hud-text text-[9px] font-mono truncate">{ep.path}</div>
-                      <div className="text-hud-text/40 text-[8px] font-mono truncate">{ep.label}</div>
-                    </div>
-                    <span className="text-[9px] text-hud-text/30 group-hover:text-hud-green transition-colors shrink-0">
-                      {copied === key ? '✓' : '⎘'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* ── Sign out ── */}
