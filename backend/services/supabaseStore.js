@@ -27,6 +27,9 @@ export function isEnabled() {
   return supabase !== null;
 }
 
+/** Expose the client for auth token verification in server.js */
+export { supabase as supabaseClient };
+
 // ─── Alert Archive ──────────────────────────────────────────────────────────
 
 // Track already-archived alert IDs — seeded from DB on first call to survive restarts
@@ -883,4 +886,32 @@ export async function subscribeNewsletter(email) {
     .upsert({ email, subscribed_at: new Date().toISOString() }, { onConflict: 'email', ignoreDuplicates: true });
   if (error) throw error;
   return { ok: true };
+}
+
+// ─── User profiles ────────────────────────────────────────────────────────────
+
+export async function getProfile(userId) {
+  if (!supabase) throw new Error('Database not configured');
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, plan, stripe_customer_id, plan_expires_at, created_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertProfile(userId, fields) {
+  if (!supabase) throw new Error('Database not configured');
+  const allowed = ['plan', 'stripe_customer_id', 'plan_expires_at'];
+  const safe = Object.fromEntries(
+    Object.entries(fields).filter(([k]) => allowed.includes(k))
+  );
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...safe }, { onConflict: 'id' })
+    .select('id, plan, stripe_customer_id, plan_expires_at')
+    .single();
+  if (error) throw error;
+  return data;
 }

@@ -39,7 +39,7 @@ function isInOpZone(lat, lon) {
 }
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, supabaseClient } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 
 dotenv.config();
@@ -564,6 +564,32 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     // DB error (e.g. table not yet created) — log and accept gracefully
     console.error('[Newsletter] subscribe error:', err.message, '| email:', email.trim());
     res.json({ ok: true }); // don't surface DB errors to users
+  }
+});
+
+// ─── User profile ─────────────────────────────────────────────────────────────
+// Requires valid Supabase JWT in Authorization header (issued by supabase.auth)
+async function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  if (!supabaseEnabled() || !supabaseClient) return res.status(503).json({ error: 'Auth not configured' });
+  const { data: authData, error: authErr } = await supabaseClient.auth.getUser(token);
+  if (authErr || !authData?.user) return res.status(401).json({ error: 'Invalid token' });
+  req.user = authData.user;
+  next();
+}
+
+app.get('/api/profile', requireAuth, async (req, res) => {
+  try {
+    const profile = await getProfile(req.user.id);
+    res.json({ ...profile, email: req.user.email });
+  } catch (err) {
+    // Profile row may not exist yet (pre-migration users) — return default
+    if (err.message?.includes('No rows')) {
+      return res.json({ id: req.user.id, plan: 'free', email: req.user.email });
+    }
+    console.error('[Profile] get error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
