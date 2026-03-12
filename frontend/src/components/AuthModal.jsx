@@ -192,7 +192,7 @@ export default function AuthModal({ onClose, onOpenLegal }) {
       });
       if (authErr) throw authErr;
       setSuccess(
-        'Account created! Check your email to confirm.' +
+        'Account created! You can now sign in.' +
         (newsletter ? " You've been subscribed to the newsletter." : '')
       );
       setTimeout(onClose, 2500);
