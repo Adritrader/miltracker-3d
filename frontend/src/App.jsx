@@ -37,6 +37,7 @@ import NewsletterModal from './components/NewsletterModal.jsx';
 import UserMenu from './components/UserMenu.jsx';
 import PricingModal from './components/PricingModal.jsx';
 import PromoModal, { PromoModalTrigger } from './components/PromoModal.jsx';
+import AccountPanel from './components/AccountPanel.jsx';
 import { supabase } from './utils/supabaseClient.js';
 import { useSubscription } from './hooks/useSubscription.js';
 
@@ -101,6 +102,7 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [checkoutBanner, setCheckoutBanner] = useState(() => {
     // Show success/cancel banner if redirected back from Stripe Checkout
     const params = new URLSearchParams(window.location.search);
@@ -292,6 +294,7 @@ function App() {
   const handleOpenNewsletter    = useCallback(() => setNewsletterOpen(true), []);
   const handleOpenAuth          = useCallback(() => setAuthOpen(true), []);
   const handleOpenPricing       = useCallback(() => setPricingOpen(true), []);
+  const handleOpenAccount       = useCallback(() => setAccountOpen(true), []);
   const handleLogout            = useCallback(() => setAuthUser(null), []);
 
   const appContent = (
@@ -403,6 +406,7 @@ function App() {
         isPro={isPro}
         profile={profile}
         onOpenPricing={handleOpenPricing}
+        onOpenAccount={handleOpenAccount}
       />
 
       {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}
@@ -623,6 +627,23 @@ function App() {
       {/* Auth modal — login / register */}
       {authOpen && (
         <AuthModal onClose={() => setAuthOpen(false)} onOpenLegal={setLegalPage} />
+      )}
+
+      {/* Account settings panel — profile, subscription, preferences */}
+      {accountOpen && authUser && (
+        <AccountPanel
+          user={authUser}
+          profile={profile}
+          isPro={isPro}
+          onClose={() => setAccountOpen(false)}
+          onOpenPricing={handleOpenPricing}
+          onOpenNewsletter={handleOpenNewsletter}
+          onLogout={handleLogout}
+          speedUnit={speedUnit}
+          altUnit={altUnit}
+          onToggleSpeedUnit={handleToggleSpeedUnit}
+          onToggleAltUnit={handleToggleAltUnit}
+        />
       )}
 
       {/* Pricing / upgrade modal (opened manually) */}

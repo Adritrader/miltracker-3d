@@ -8,7 +8,7 @@ import { supabase } from '../utils/supabaseClient.js';
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
-export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, isPro, onOpenPricing }) {
+export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, isPro, onOpenPricing, onOpenAccount }) {
   const [open, setOpen] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const ref = useRef(null);
@@ -190,7 +190,16 @@ export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, is
           </div>
 
           {/* ── Sign out ── */}
-          <div className="py-1">
+          <div className="py-1 border-t border-hud-border/20">
+            <button
+              onClick={() => { setOpen(false); onOpenAccount?.(); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left
+                         text-xs font-mono transition-colors duration-150
+                         text-hud-text/60 hover:bg-white/5 hover:text-white"
+            >
+              <span className="text-sm leading-none w-4 text-center">⊞</span>
+              Account settings
+            </button>
             <button
               onClick={handleLogout}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left
