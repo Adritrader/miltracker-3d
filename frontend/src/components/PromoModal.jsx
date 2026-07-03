@@ -251,33 +251,4 @@ export function PromoModalTrigger({ authUser, isPro, onOpenAuth }) {
   );
 }
 
-/**
- * PromoModalTrigger — Mounts the modal automatically after DELAY_MS
- * on first visit (once per browser via localStorage).
- */
-export function PromoModalTrigger({ authUser, isPro, onOpenAuth }) {
-  const [show, setShow] = useState(false);
 
-  useEffect(() => {
-    // Don't show to pro users or if already seen
-    if (isPro) return;
-    if (localStorage.getItem(STORAGE_KEY)) return;
-
-    const timer = setTimeout(() => {
-      setShow(true);
-      localStorage.setItem(STORAGE_KEY, '1');
-    }, DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [isPro]);
-
-  if (!show) return null;
-
-  return (
-    <PromoModal
-      authUser={authUser}
-      onClose={() => setShow(false)}
-      onOpenAuth={onOpenAuth}
-    />
-  );
-}
