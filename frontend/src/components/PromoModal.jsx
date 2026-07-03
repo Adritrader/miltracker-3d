@@ -250,11 +250,6 @@ export function PromoModalTrigger({ authUser, isPro, onOpenAuth }) {
     />
   );
 }
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /**
  * PromoModalTrigger — Mounts the modal automatically after DELAY_MS
