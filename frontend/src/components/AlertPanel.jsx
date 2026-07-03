@@ -225,7 +225,7 @@ const SitrepView = ({ alerts, aiInsight }) => {
   );
 };
 
-const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange, onHeightChange }) => {
+const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEnabled = null, viewer, onFlyTo, isMobile = false, onOpenChange, onHeightChange, isPro = false, onOpenPricing }) => {
   const [open, setOpen] = useState(!isMobile);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const panelRef = useRef(null);
@@ -286,7 +286,11 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
   });
   const criticalCount  = alerts.filter(a => a.severity === 'critical').length;
   const totalCount     = alerts.length;
-  const visibleAlerts  = alertsExpanded ? sortedAlerts : sortedAlerts.slice(0, 8);
+  // Free users: see only 3 alerts
+  const FREE_ALERT_LIMIT = 3;
+  const cappedAlerts   = isPro ? sortedAlerts : sortedAlerts.slice(0, FREE_ALERT_LIMIT);
+  const hiddenAlerts   = isPro ? 0 : Math.max(0, sortedAlerts.length - FREE_ALERT_LIMIT);
+  const visibleAlerts  = alertsExpanded ? cappedAlerts : cappedAlerts.slice(0, 8);
 
   const flyToAlert = (alert) => {
     if (viewer && !viewer.isDestroyed() && alert.lat != null && alert.lon != null) {
@@ -326,7 +330,22 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
                 {visibleAlerts.map(a => (
                   <AlertItem key={a.id} alert={a} onFlyTo={flyToAlert} />
                 ))}
-                {sortedAlerts.length > 8 && (
+                {hiddenAlerts > 0 && (
+                  <div
+                    className="flex items-center justify-between gap-3 mt-1 px-2 py-2 rounded
+                               border border-hud-amber/20 bg-hud-amber/5 cursor-pointer"
+                    onClick={onOpenPricing}
+                  >
+                    <span className="text-hud-amber text-[10px] font-mono">
+                      +{hiddenAlerts} alerts hidden — upgrade for full access
+                    </span>
+                    <button className="shrink-0 px-2 py-0.5 rounded border border-hud-amber/50
+                                       text-hud-amber text-[9px] font-mono font-bold hover:bg-hud-amber/20 transition-colors">
+                      ⚡ Pro
+                    </button>
+                  </div>
+                )}
+                {sortedAlerts.length > 8 && isPro && (
                   <button
                     onClick={() => setAlertsExpanded(e => !e)}
                     className="w-full text-center text-[10px] font-mono text-hud-green hover:text-white py-1.5 border-t border-hud-border/40 mt-1 transition-colors"

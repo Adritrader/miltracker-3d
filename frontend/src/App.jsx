@@ -35,7 +35,10 @@ import LegalModal from './components/LegalModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
 import NewsletterModal from './components/NewsletterModal.jsx';
 import UserMenu from './components/UserMenu.jsx';
+import PricingModal from './components/PricingModal.jsx';
+import PromoModal, { PromoModalTrigger } from './components/PromoModal.jsx';
 import { supabase } from './utils/supabaseClient.js';
+import { useSubscription } from './hooks/useSubscription.js';
 
 const RC_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
@@ -97,6 +100,17 @@ function App() {
   const [legalPage, setLegalPage] = useState(null); // 'privacy' | 'cookies' | 'terms'
   const [authOpen, setAuthOpen] = useState(false);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+  const [pricingOpen, setPricingOpen] = useState(false);
+  const [checkoutBanner, setCheckoutBanner] = useState(() => {
+    // Show success/cancel banner if redirected back from Stripe Checkout
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('checkout');
+    if (status) {
+      // Clean URL without reloading
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    return status || null; // 'success' | 'cancel' | null
+  });
   const [authUser, setAuthUser] = useState(null);
 
   // Listen for Supabase auth state changes (handles Google OAuth redirect return)
@@ -112,6 +126,10 @@ function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Subscription plan (fetched from backend via /api/profile)
+  const { profile, isPro, refresh: refreshSubscription } = useSubscription(authUser);
+
   const [historyTrailId, setHistoryTrailId] = useState(null); // { id, ts } for HistoryPanel trail auto-load
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
@@ -273,6 +291,7 @@ function App() {
   const handleToggleAltUnit     = useCallback(() => setAltUnit(u => u === 'ft' ? 'm' : 'ft'), []);
   const handleOpenNewsletter    = useCallback(() => setNewsletterOpen(true), []);
   const handleOpenAuth          = useCallback(() => setAuthOpen(true), []);
+  const handleOpenPricing       = useCallback(() => setPricingOpen(true), []);
   const handleLogout            = useCallback(() => setAuthUser(null), []);
 
   const appContent = (
@@ -379,6 +398,9 @@ function App() {
         onLogout={handleLogout}
         onOpenNewsletter={handleOpenNewsletter}
         onOpenLegal={setLegalPage}
+        isPro={isPro}
+        profile={profile}
+        onOpenPricing={handleOpenPricing}
       />
 
       {/* Top-left: Filter controls — slides up/fades when Intel Feed expands (skip on mobile so hamburger stays reachable) */}
@@ -424,6 +446,8 @@ function App() {
           onFlyTo={handleFlyToAlert}
           isMobile={isMobile}
           onHeightChange={setAlertPanelHeight}
+          isPro={isPro}
+          onOpenPricing={handleOpenPricing}
         />
       </div>
 
@@ -517,6 +541,8 @@ function App() {
         isMobile={isMobile}
         onHeightChange={setNewsPanelHeight}
         onExpandedChange={setNewsFeedExpanded}
+        isPro={isPro}
+        onOpenPricing={handleOpenPricing}
       />
 
       {/* Bottom: Coordinate / status bar */}
@@ -576,6 +602,41 @@ function App() {
       {/* Auth modal — login / register */}
       {authOpen && (
         <AuthModal onClose={() => setAuthOpen(false)} onOpenLegal={setLegalPage} />
+      )}
+
+      {/* Pricing / upgrade modal (opened manually) */}
+      {pricingOpen && (
+        <PromoModal
+          onClose={() => setPricingOpen(false)}
+          authUser={authUser}
+          onOpenAuth={() => { setPricingOpen(false); setAuthOpen(true); }}
+        />
+      )}
+
+      {/* Auto promo modal — shows once after 12s to non-pro visitors */}
+      <PromoModalTrigger
+        authUser={authUser}
+        isPro={isPro}
+        onOpenAuth={() => setAuthOpen(true)}
+      />
+
+      {/* Checkout return banner */}
+      {checkoutBanner && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[400] px-5 py-3 rounded-lg border font-mono text-xs shadow-xl animate-fade-in
+          ${checkoutBanner === 'success'
+            ? 'bg-hud-green/10 border-hud-green/50 text-hud-green'
+            : 'bg-hud-amber/10 border-hud-amber/40 text-hud-amber'}`}>
+          {checkoutBanner === 'success'
+            ? '✓ Payment successful — your Pro plan is now active!'
+            : 'Checkout cancelled — your plan has not changed.'}
+          <button
+            onClick={() => {
+              setCheckoutBanner(null);
+              if (checkoutBanner === 'success') refreshSubscription();
+            }}
+            className="ml-4 opacity-60 hover:opacity-100"
+          >×</button>
+        </div>
       )}
 
       {/* Newsletter subscription modal */}

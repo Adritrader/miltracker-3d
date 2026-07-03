@@ -22,7 +22,7 @@ function fmtDate(d) {
   return dt.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange, onExpandedChange }) => {
+const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange, onExpandedChange, isPro = false, onOpenPricing }) => {
   const [expanded, setExpanded] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [visibleCount, setVisibleCount] = useState(0);
@@ -43,9 +43,14 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange, onExp
   }, [onHeightChange]);
 
   // Sort newest first — use publishedAt (real article time) so each article shows its actual age
-  const recentNews = [...news]
+  const allNews = [...news]
     .sort((a, b) => new Date(bestTs(b) || 0) - new Date(bestTs(a) || 0))
     .slice(0, 30);
+
+  // Free users: cap at 5 items
+  const FREE_LIMIT = 5;
+  const recentNews = isPro ? allNews : allNews.slice(0, FREE_LIMIT);
+  const hiddenCount = isPro ? 0 : Math.max(0, allNews.length - FREE_LIMIT);
 
   // When new items arrive, reveal them one by one with a small delay
   useEffect(() => {
@@ -172,6 +177,22 @@ const NewsPanel = ({ news, onSelectNews, isMobile = false, onHeightChange, onExp
             {recentNews.length === 0 && (
               <div className="col-span-3 text-center text-hud-text py-8 text-sm">
                 No news loaded yet — waiting for data feed
+              </div>
+            )}
+            {/* Free-tier upgrade nudge */}
+            {hiddenCount > 0 && (
+              <div
+                className="col-span-full flex items-center justify-between gap-4 px-4 py-3
+                           border-t border-hud-amber/20 bg-hud-amber/5 cursor-pointer"
+                onClick={onOpenPricing}
+              >
+                <span className="text-hud-amber text-[11px] font-mono">
+                  +{hiddenCount} more articles hidden — upgrade to Pro for the full feed
+                </span>
+                <button className="shrink-0 px-3 py-1 rounded border border-hud-amber/50 bg-hud-amber/10
+                                   text-hud-amber text-[10px] font-mono font-bold hover:bg-hud-amber/20 transition-colors">
+                  ⚡ Upgrade
+                </button>
               </div>
             )}
           </div>

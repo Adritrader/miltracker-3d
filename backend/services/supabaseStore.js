@@ -12,11 +12,16 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+// Service role key bypasses RLS — required for writing to profiles from webhooks
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY;
 
 let supabase = null;
+// Admin client for writes that need to bypass RLS (Stripe webhooks, profile upserts)
+let supabaseAdmin = null;
 
 if (SUPABASE_URL && SUPABASE_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   console.log('[Supabase] Connected →', SUPABASE_URL.replace(/https?:\/\//, '').split('.')[0]);
 } else {
   console.warn('[Supabase] SUPABASE_URL or SUPABASE_ANON_KEY not set — historical storage disabled');
@@ -891,10 +896,10 @@ export async function subscribeNewsletter(email) {
 // ─── User profiles ────────────────────────────────────────────────────────────
 
 export async function getProfile(userId) {
-  if (!supabase) throw new Error('Database not configured');
-  const { data, error } = await supabase
+  if (!supabaseAdmin) throw new Error('Database not configured');
+  const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, plan, stripe_customer_id, plan_expires_at, created_at')
+    .select('id, plan, stripe_customer_id, plan_expires_at, subscription_status')
     .eq('id', userId)
     .single();
   if (error) throw error;
@@ -902,15 +907,15 @@ export async function getProfile(userId) {
 }
 
 export async function upsertProfile(userId, fields) {
-  if (!supabase) throw new Error('Database not configured');
-  const allowed = ['plan', 'stripe_customer_id', 'plan_expires_at'];
+  if (!supabaseAdmin) throw new Error('Database not configured');
+  const allowed = ['plan', 'stripe_customer_id', 'plan_expires_at', 'stripe_subscription_id', 'stripe_price_id', 'subscription_status'];
   const safe = Object.fromEntries(
     Object.entries(fields).filter(([k]) => allowed.includes(k))
   );
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('profiles')
     .upsert({ id: userId, ...safe }, { onConflict: 'id' })
-    .select('id, plan, stripe_customer_id, plan_expires_at')
+    .select('id, plan, stripe_customer_id, plan_expires_at, subscription_status')
     .single();
   if (error) throw error;
   return data;

@@ -41,6 +41,7 @@ import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
 import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, supabaseClient } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
+import { isStripeEnabled, createCheckoutSession, createPortalSession, constructWebhookEvent, planFromSubscription } from './services/stripeService.js';
 
 dotenv.config();
 
@@ -73,6 +74,96 @@ const io = new Server(httpServer, {
 
 app.use(compression());
 app.use(cors({ origin: ALLOWED_ORIGINS }));
+
+// ── Stripe webhook needs raw body — register BEFORE express.json() ────────────
+app.post('/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+      event = constructWebhookEvent(req.body, sig);
+    } catch (err) {
+      console.error('[Stripe] Webhook signature invalid:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    const sub = event.data?.object;
+    const userId = sub?.metadata?.supabase_user_id;
+
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          // sub here is the checkout.session; fetch the actual subscription
+          if (sub.mode === 'subscription' && sub.subscription && userId) {
+            // stripe_customer_id update happens via customer.subscription.updated below
+            await upsertProfile(userId, { stripe_customer_id: sub.customer });
+          }
+          break;
+        }
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated': {
+          const uid = sub.metadata?.supabase_user_id || userId;
+          if (!uid) {
+            // Look up profile by stripe_customer_id
+            const { data } = await supabaseClient
+              .from('profiles')
+              .select('id')
+              .eq('stripe_customer_id', sub.customer)
+              .single();
+            if (data?.id) {
+              const fields = planFromSubscription(sub);
+              await upsertProfile(data.id, {
+                ...fields,
+                stripe_subscription_id: sub.id,
+                stripe_customer_id: sub.customer,
+              });
+            }
+          } else {
+            const fields = planFromSubscription(sub);
+            await upsertProfile(uid, {
+              ...fields,
+              stripe_subscription_id: sub.id,
+              stripe_customer_id: sub.customer,
+            });
+          }
+          break;
+        }
+        case 'customer.subscription.deleted': {
+          const uid = sub.metadata?.supabase_user_id || userId;
+          if (uid) {
+            await upsertProfile(uid, {
+              plan: 'free',
+              subscription_status: 'canceled',
+              stripe_subscription_id: sub.id,
+            });
+          } else {
+            const { data } = await supabaseClient
+              .from('profiles')
+              .select('id')
+              .eq('stripe_customer_id', sub.customer)
+              .single();
+            if (data?.id) {
+              await upsertProfile(data.id, {
+                plan: 'free',
+                subscription_status: 'canceled',
+                stripe_subscription_id: sub.id,
+              });
+            }
+          }
+          break;
+        }
+        default:
+          // Unhandled event type — ignore
+      }
+    } catch (err) {
+      console.error('[Stripe] Webhook handler error:', err.message);
+    }
+
+    res.json({ received: true });
+  }
+);
+
 app.use(express.json());
 // F-L16: security headers — helmet with relaxed CSP compatible with Railway/Socket.io
 app.use(helmet({
@@ -590,6 +681,58 @@ app.get('/api/profile', requireAuth, async (req, res) => {
     }
     console.error('[Profile] get error:', err.message);
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// ─── Stripe checkout — create a Checkout Session ─────────────────────────────
+app.post('/api/stripe/checkout', requireAuth, async (req, res) => {
+  if (!isStripeEnabled()) return res.status(503).json({ error: 'Payments not configured' });
+  const { priceId } = req.body || {};
+  const allowed = [process.env.STRIPE_PRICE_MONTHLY, process.env.STRIPE_PRICE_ANNUAL].filter(Boolean);
+  if (!priceId || !allowed.includes(priceId)) {
+    return res.status(400).json({ error: 'Invalid price ID' });
+  }
+  try {
+    let profile;
+    try { profile = await getProfile(req.user.id); } catch { profile = {}; }
+    const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const { url, customerId } = await createCheckoutSession({
+      userId:             req.user.id,
+      email:              req.user.email,
+      priceId,
+      existingCustomerId: profile.stripe_customer_id || null,
+      successUrl:         `${origin}/?checkout=success`,
+      cancelUrl:          `${origin}/?checkout=cancel`,
+    });
+    // Pre-save customer ID so webhook has it even before checkout completes
+    if (customerId && (!profile.stripe_customer_id || profile.stripe_customer_id !== customerId)) {
+      await upsertProfile(req.user.id, { stripe_customer_id: customerId }).catch(() => {});
+    }
+    res.json({ url });
+  } catch (err) {
+    console.error('[Stripe] checkout error:', err.message);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// ─── Stripe portal — let users manage their subscription ─────────────────────
+app.post('/api/stripe/portal', requireAuth, async (req, res) => {
+  if (!isStripeEnabled()) return res.status(503).json({ error: 'Payments not configured' });
+  try {
+    let profile;
+    try { profile = await getProfile(req.user.id); } catch { profile = {}; }
+    if (!profile.stripe_customer_id) {
+      return res.status(400).json({ error: 'No active subscription found' });
+    }
+    const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const url = await createPortalSession({
+      customerId: profile.stripe_customer_id,
+      returnUrl:  `${origin}/`,
+    });
+    res.json({ url });
+  } catch (err) {
+    console.error('[Stripe] portal error:', err.message);
+    res.status(500).json({ error: 'Failed to open billing portal' });
   }
 });
 
