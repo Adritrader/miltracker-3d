@@ -288,8 +288,6 @@ export function PromoModalTrigger({ authUser, isPro, onOpenAuth }) {
     />
   );
 }
-
-const BACKEND    = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 const DELAY_MS   = 12000;
 const STORAGE_KEY = 'milt_promo_seen';
 
