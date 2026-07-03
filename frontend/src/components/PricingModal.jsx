@@ -97,7 +97,7 @@ export default function PricingModal({ onClose, authUser, onOpenAuth }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-hud-border/30">
           <div>
-            <div className="text-hud-green text-[9px] font-mono tracking-[0.25em] uppercase mb-1">MilTracker 3D</div>
+            <div className="text-hud-green text-[9px] font-mono tracking-[0.25em] uppercase mb-1">LiveWar3D</div>
             <h2 className="text-white text-lg font-mono font-bold tracking-wide">Upgrade to Pro</h2>
             <p className="text-hud-text/60 text-xs font-mono mt-0.5">
               Unlock unlimited tracking, AI analysis, and full data access.

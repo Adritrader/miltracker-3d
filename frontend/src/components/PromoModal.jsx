@@ -86,7 +86,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
             className="absolute top-4 right-4 text-hud-text/40 hover:text-white text-xl transition-colors leading-none"
           >×</button>
           <div className="text-hud-green text-[10px] font-mono tracking-[0.3em] uppercase mb-2">
-            ◈ MilTracker 3D
+            ◈ LiveWar3D
           </div>
           <h2 className="text-white text-2xl font-mono font-bold tracking-wide mb-1">
             Real-Time Military Intelligence
