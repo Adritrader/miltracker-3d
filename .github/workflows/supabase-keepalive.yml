@@ -1,0 +1,23 @@
+name: Supabase Keep-Alive
+
+# Runs every 3 days to prevent the free-tier project from pausing
+on:
+  schedule:
+    - cron: '0 8 */3 * *'   # every 3 days at 08:00 UTC
+  workflow_dispatch:          # manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase DB via backend health endpoint
+        run: |
+          # Hits the backend /api/status which reads from DB
+          # Replace with your production backend URL
+          curl -sf "${{ secrets.BACKEND_URL }}/api/status" \
+            --max-time 15 \
+            --retry 3 \
+            --retry-delay 5 \
+            -o /dev/null \
+            && echo "✓ Backend alive" \
+            || echo "⚠ Ping failed (backend may be down)"
