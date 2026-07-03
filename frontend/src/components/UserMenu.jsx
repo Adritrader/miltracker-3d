@@ -1,41 +1,52 @@
 /**
- * UserMenu — Avatar pill + dropdown for authenticated users.
- * Sections: Profile · Subscription · Newsletter · Sign Out
+ * UserMenu — Avatar pill trigger + full centered modal panel for authenticated users.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
-export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, isPro, onOpenPricing, onOpenAccount }) {
-  const [open, setOpen] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
-  const ref = useRef(null);
+const PRO_FEATURES = [
+  'Unlimited news feed',
+  'All threat alerts (no cap)',
+  'AI threat analysis (Gemini)',
+  'Historical flight & ship trails',
+  'Timeline replay',
+  'Live conflict cameras',
+  'SITREP capture',
+  'Advanced analytics',
+];
 
-  // Close on outside click
+export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, isPro, onOpenPricing, onOpenAccount }) {
+  const [open, setOpen]               = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState('');
+
+  // Close on Escape
   useEffect(() => {
-    const handler = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (!open) return;
+    const handler = (e) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open]);
 
   const name     = user.user_metadata?.full_name || user.user_metadata?.name || '';
   const email    = user.email || '';
   const avatar   = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
   const prov     = user?.app_metadata?.provider || 'email';
   const joinedAt = user.created_at
-    ? new Date(user.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
+    ? new Date(user.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
   const initials = name
     ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : email.slice(0, 2).toUpperCase();
 
-  const planLabel  = isPro ? 'PRO' : 'FREE';
-  const expiresAt  = profile?.plan_expires_at
-    ? new Date(profile.plan_expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const planLabel = isPro ? 'PRO' : 'FREE';
+  const subStatus = profile?.subscription_status;
+  const expiresAt = profile?.plan_expires_at
+    ? new Date(profile.plan_expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
     : null;
-  const subStatus  = profile?.subscription_status;
 
   const handleLogout = async () => {
     setOpen(false);
@@ -45,6 +56,7 @@ export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, is
 
   const handleManageBilling = async () => {
     setPortalLoading(true);
+    setPortalError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -54,18 +66,19 @@ export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, is
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
+      else throw new Error(data.error || 'Could not open billing portal');
     } catch (err) {
-      console.error('[UserMenu] billing portal error:', err.message);
+      setPortalError(err.message);
     } finally {
       setPortalLoading(false);
     }
   };
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <>
       {/* ── Avatar pill trigger ── */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen(true)}
         className="hud-panel px-2 py-1 flex items-center gap-1.5
                    hover:border-hud-green transition-colors duration-150 group"
         title={name || email}
@@ -81,138 +94,193 @@ export default function UserMenu({ user, onLogout, onOpenNewsletter, profile, is
         <span className="hud-label text-xs text-hud-green max-w-[80px] truncate hidden sm:block">
           {name || email.split('@')[0]}
         </span>
-        {/* Pro badge on pill */}
         {isPro && (
-          <span className="text-[8px] font-mono px-1 py-0.5 rounded bg-hud-green/20 text-hud-green font-bold leading-none hidden sm:block">
+          <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-hud-green/20 text-hud-green font-bold leading-none hidden sm:block">
             PRO
           </span>
         )}
-        <span className="text-hud-text text-[10px] opacity-50 group-hover:opacity-80 transition-opacity">▾</span>
+        <span className="text-hud-text/50 text-[10px] group-hover:text-hud-text/80 transition-opacity">▾</span>
       </button>
 
-      {/* ── Dropdown ── */}
+      {/* ── Full-screen modal panel ── */}
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 w-72 rounded-lg border border-hud-border/60
-                     shadow-xl z-[300] overflow-hidden animate-fade-in"
-          style={{ background: 'rgba(8,14,26,0.98)' }}
+          className="fixed inset-0 z-[350] flex items-center justify-center p-4"
+          style={{ background: 'rgba(5,8,16,0.88)', backdropFilter: 'blur(12px)' }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
+          <div
+            className="w-full max-w-xl rounded-2xl shadow-2xl animate-fade-in overflow-hidden"
+            style={{ background: 'rgba(10,17,32,1)', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            {/* ── HEADER: profile ── */}
+            <div className="relative px-7 pt-7 pb-6"
+                 style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.06) 0%, rgba(0,100,255,0.04) 100%)' }}>
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full
+                           text-white/40 hover:text-white hover:bg-white/10 transition-all text-lg"
+              >×</button>
 
-          {/* ── 1. PROFILE ── */}
-          <div className="px-4 py-3 border-b border-hud-border/30 flex items-center gap-3">
-            {avatar ? (
-              <img src={avatar} alt={initials} className="w-10 h-10 rounded-full object-cover shrink-0" />
-            ) : (
-              <span className="w-10 h-10 rounded-full flex items-center justify-center
-                               bg-hud-green/20 text-hud-green text-sm font-bold shrink-0">
-                {initials}
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              {name && <div className="text-white text-xs font-mono truncate font-semibold">{name}</div>}
-              <div className="text-hud-text text-[10px] font-mono truncate opacity-70">{email}</div>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider
-                  ${prov === 'google' ? 'bg-blue-500/20 text-blue-300' : 'bg-hud-green/15 text-hud-green'}`}>
-                  {prov === 'google' ? '⬤ Google' : '✉ Email'}
-                </span>
-                {joinedAt && (
-                  <span className="text-[9px] font-mono text-hud-text/40">since {joinedAt}</span>
+              <div className="flex items-center gap-5">
+                {avatar ? (
+                  <img src={avatar} alt={initials}
+                       className="w-16 h-16 rounded-full object-cover shrink-0 ring-2 ring-hud-green/40" />
+                ) : (
+                  <span className="w-16 h-16 rounded-full shrink-0 flex items-center justify-center
+                                   bg-hud-green/20 text-hud-green text-xl font-bold ring-2 ring-hud-green/30">
+                    {initials}
+                  </span>
+                )}
+                <div className="flex-1 min-w-0">
+                  {name && (
+                    <div className="text-white text-base font-mono font-bold truncate mb-0.5">{name}</div>
+                  )}
+                  <div className="text-white/60 text-sm font-mono truncate mb-2">{email}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider
+                      ${isPro
+                        ? 'bg-hud-green/25 text-hud-green border border-hud-green/40'
+                        : 'bg-white/8 text-white/50 border border-white/15'}`}>
+                      {planLabel}
+                    </span>
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold
+                      ${prov === 'google' ? 'bg-blue-500/20 text-blue-300' : 'bg-white/8 text-white/50'}`}>
+                      {prov === 'google' ? '⬤ Google' : '✉ Email'}
+                    </span>
+                    {subStatus && subStatus !== 'inactive' && (
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase
+                        ${subStatus === 'active' || subStatus === 'trialing'
+                          ? 'bg-hud-green/15 text-hud-green'
+                          : 'bg-hud-amber/15 text-hud-amber'}`}>
+                        {subStatus}
+                      </span>
+                    )}
+                  </div>
+                  {joinedAt && (
+                    <div className="text-white/30 text-[10px] font-mono mt-1.5">Member since {joinedAt}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── BODY ── */}
+            <div className="px-7 py-5 space-y-5">
+
+              {/* Subscription block */}
+              <div className={`rounded-xl p-5 border ${isPro
+                ? 'border-hud-green/40 bg-hud-green/5'
+                : 'border-white/10 bg-white/3'}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="text-white/40 text-[10px] font-mono uppercase tracking-widest mb-1">Subscription</div>
+                    <div className={`text-xl font-mono font-bold ${isPro ? 'text-hud-green' : 'text-white'}`}>
+                      {isPro ? 'Pro Plan' : 'Free Plan'}
+                    </div>
+                    {isPro && expiresAt && (
+                      <div className="text-white/50 text-xs font-mono mt-1">Renews {expiresAt}</div>
+                    )}
+                    {!isPro && (
+                      <div className="text-white/40 text-xs font-mono mt-1">Upgrade to unlock all features</div>
+                    )}
+                  </div>
+                  {isPro && (
+                    <div className="text-3xl">🛡️</div>
+                  )}
+                </div>
+
+                {isPro && (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-4">
+                    {PRO_FEATURES.map((f, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-[11px] font-mono text-white/70">
+                        <span className="text-hud-green shrink-0 text-xs">✓</span>{f}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {isPro ? (
+                  <>
+                    <button
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                      className="w-full py-2.5 rounded-lg border border-white/20 bg-white/5
+                                 text-sm font-mono text-white/70 font-medium
+                                 hover:bg-white/10 hover:text-white hover:border-white/30
+                                 transition-all duration-150 disabled:opacity-50"
+                    >
+                      {portalLoading ? 'Opening portal…' : '⚙  Manage billing & invoices'}
+                    </button>
+                    {portalError && (
+                      <p className="text-red-400 text-[10px] font-mono mt-2 text-center">{portalError}</p>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => { setOpen(false); onOpenPricing?.(); }}
+                    className="w-full py-3 rounded-lg border-2 border-hud-green bg-hud-green/15
+                               text-sm font-mono text-hud-green font-bold tracking-wider uppercase
+                               hover:bg-hud-green/25 hover:shadow-[0_0_24px_rgba(0,255,136,0.2)]
+                               transition-all duration-200"
+                  >
+                    ⚡ Upgrade to Pro
+                  </button>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* ── 2. SUBSCRIPTION ── */}
-          <div className="px-4 py-3 border-b border-hud-border/20">
-            <div className="text-[9px] font-mono text-hud-text/40 tracking-widest uppercase mb-2">Subscription</div>
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded
-                ${isPro
-                  ? 'bg-hud-green/20 text-hud-green border border-hud-green/30'
-                  : 'bg-hud-border/20 text-hud-text/50 border border-hud-border/30'}`}>
-                {planLabel}
-              </span>
-              {subStatus && subStatus !== 'inactive' && (
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase
-                  ${subStatus === 'active' || subStatus === 'trialing'
-                    ? 'text-hud-green bg-hud-green/10'
-                    : 'text-hud-amber bg-hud-amber/10'}`}>
-                  {subStatus}
-                </span>
-              )}
-            </div>
-            {isPro && expiresAt && (
-              <div className="text-[10px] font-mono text-hud-text/40 mb-2">
-                Renews {expiresAt}
+              {/* Actions grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <ActionBtn
+                  icon="⊞"
+                  label="Account settings"
+                  sub="Profile & preferences"
+                  onClick={() => { setOpen(false); onOpenAccount?.(); }}
+                />
+                <ActionBtn
+                  icon="✉"
+                  label="Newsletter"
+                  sub="Subscribe & manage"
+                  onClick={() => { setOpen(false); onOpenNewsletter?.(); }}
+                  color="amber"
+                />
               </div>
-            )}
-            {isPro ? (
-              <button
-                onClick={() => { setOpen(false); handleManageBilling(); }}
-                disabled={portalLoading}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded
-                           border border-hud-border/40 bg-white/3
-                           text-xs font-mono text-hud-text/70
-                           hover:bg-white/5 hover:text-white
-                           transition-colors duration-150 disabled:opacity-50"
-              >
-                {portalLoading ? 'Opening…' : '⚙ Manage Billing'}
-              </button>
-            ) : (
-              <button
-                onClick={() => { setOpen(false); onOpenPricing?.(); }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded
-                           border border-hud-green/50 bg-hud-green/10
-                           text-xs font-mono text-hud-green font-bold
-                           hover:bg-hud-green/20 hover:border-hud-green
-                           transition-colors duration-150"
-              >
-                ⚡ Upgrade to Pro
-              </button>
-            )}
-          </div>
 
-          {/* ── 3. NEWSLETTER ── */}
-          <div className="px-4 py-3 border-b border-hud-border/20">
-            <div className="text-[9px] font-mono text-hud-text/40 tracking-widest uppercase mb-2">Newsletter</div>
-            <button
-              onClick={() => { setOpen(false); onOpenNewsletter?.(); }}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded
-                         border border-hud-amber/40 bg-hud-amber/5
-                         text-xs font-mono text-hud-amber
-                         hover:bg-hud-amber/15 hover:border-hud-amber/70
-                         transition-colors duration-150"
-            >
-              <span>✉</span>
-              <span>Subscribe / Manage newsletter</span>
-            </button>
-          </div>
+              {/* Sign out */}
+              <div className="pt-1 border-t border-white/8">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg
+                             text-sm font-mono text-red-400/80
+                             hover:bg-red-500/10 hover:text-red-300
+                             transition-colors duration-150"
+                >
+                  <span className="text-base w-5 text-center">⏻</span>
+                  Sign out of {email}
+                </button>
+              </div>
 
-          {/* ── Sign out ── */}
-          <div className="py-1 border-t border-hud-border/20">
-            <button
-              onClick={() => { setOpen(false); onOpenAccount?.(); }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left
-                         text-xs font-mono transition-colors duration-150
-                         text-hud-text/60 hover:bg-white/5 hover:text-white"
-            >
-              <span className="text-sm leading-none w-4 text-center">⊞</span>
-              Account settings
-            </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left
-                         text-xs font-mono transition-colors duration-150
-                         text-red-400 hover:bg-red-500/10 hover:text-red-300"
-            >
-              <span className="text-sm leading-none w-4 text-center">⏻</span>
-              Sign Out
-            </button>
+            </div>
           </div>
-
         </div>
       )}
-    </div>
+    </>
+  );
+}
+
+function ActionBtn({ icon, label, sub, onClick, color = 'default' }) {
+  const colorMap = {
+    default: 'border-white/10 bg-white/4 hover:bg-white/8 hover:border-white/20 text-white',
+    amber:   'border-hud-amber/25 bg-hud-amber/5 hover:bg-hud-amber/10 hover:border-hud-amber/50 text-hud-amber',
+  };
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-start gap-1 px-4 py-3.5 rounded-xl border
+                  transition-all duration-150 ${colorMap[color]}`}
+    >
+      <span className="text-lg leading-none">{icon}</span>
+      <span className="text-xs font-mono font-semibold">{label}</span>
+      <span className="text-[10px] font-mono opacity-50">{sub}</span>
+    </button>
   );
 }
