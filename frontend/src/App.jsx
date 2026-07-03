@@ -335,10 +335,11 @@ function App() {
         />
         </ErrorBoundary>
         <ErrorBoundary name="NewsLayer" silent>
+        {/* Free users: no globe news pins — upgrade to see geolocated news */}
         <NewsLayer
           viewer={viewer}
           news={filteredNews}
-          visible={filters.showNews}
+          visible={isPro && filters.showNews}
           onSelect={handleEntityClick}
           onClusterSelect={handleClusterSelect}
           isMobile={isMobile}
@@ -368,10 +369,11 @@ function App() {
         />
         </ErrorBoundary>
         <ErrorBoundary name="CameraLayer" silent>
+        {/* Free users: no live cameras */}
         <CameraLayer
           viewer={viewer}
           cameras={cameras}
-          visible={filters.showCameras}
+          visible={isPro && filters.showCameras}
           onSelect={setSelectedCamera}
         />
         </ErrorBoundary>
@@ -466,20 +468,22 @@ function App() {
         altUnit={altUnit}
       />
 
-      {/* Bottom-center: Timeline — always visible video-controls bar (auto-fetches history on mount) */}
-      <TimelinePanel
-        snapshots={timeline.snapshots}
-        currentIndex={timeline.currentIndex}
-        playing={timeline.playing}
-        speed={timeline.speed}
-        replayMode={timeline.replayMode}
-        currentTs={timeline.currentTs}
-        controls={timeline.controls}
-        trackingPanelHeight={trackingPanelHeight}
-        newsPanelHeight={newsPanelHeight}
-        isMobile={isMobile}
-        popupOpen={!!selectedEntity}
-      />
+      {/* Bottom-center: Timeline — Pro only */}
+      {isPro && (
+        <TimelinePanel
+          snapshots={timeline.snapshots}
+          currentIndex={timeline.currentIndex}
+          playing={timeline.playing}
+          speed={timeline.speed}
+          replayMode={timeline.replayMode}
+          currentTs={timeline.currentTs}
+          controls={timeline.controls}
+          trackingPanelHeight={trackingPanelHeight}
+          newsPanelHeight={newsPanelHeight}
+          isMobile={isMobile}
+          popupOpen={!!selectedEntity}
+        />
+      )}
 
       {/* Bottom-right: Legend + Map layer + SITREP stacked vertically */}
       <div className="fixed z-[35] flex flex-col gap-2 items-end pointer-events-auto"
@@ -488,14 +492,31 @@ function App() {
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLegend isMobile={isMobile} />
         <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
-        <HistoryPanel viewer={viewer} isMobile={isMobile} externalTrailId={historyTrailId}
-          liveCounts={{ aircraft: filteredAircraft.length, ships: filteredShips.length, alerts: alerts.length, conflicts: filteredConflicts.length, news: filteredNews.filter(n => n.lat).length }} />
-        <SitrepCapture
-          viewer={viewer}
-          onUiHide={() => setUiHidden(true)}
-          onUiShow={() => setUiHidden(false)}
-          inline
-        />
+        {/* History trails — Pro only */}
+        {isPro && (
+          <HistoryPanel viewer={viewer} isMobile={isMobile} externalTrailId={historyTrailId}
+            liveCounts={{ aircraft: filteredAircraft.length, ships: filteredShips.length, alerts: alerts.length, conflicts: filteredConflicts.length, news: filteredNews.filter(n => n.lat).length }} />
+        )}
+        {/* SITREP capture — Pro only */}
+        {isPro && (
+          <SitrepCapture
+            viewer={viewer}
+            onUiHide={() => setUiHidden(true)}
+            onUiShow={() => setUiHidden(false)}
+            inline
+          />
+        )}
+        {/* Upgrade nudge for free users in bottom-right toolbar */}
+        {!isPro && (
+          <button
+            onClick={handleOpenPricing}
+            className="px-3 py-1.5 rounded border border-hud-green/50 bg-hud-green/10
+                       text-hud-green text-[10px] font-mono font-bold tracking-wider
+                       hover:bg-hud-green/20 transition-colors duration-150"
+          >
+            ⚡ Upgrade to Pro
+          </button>
+        )}
       </div>
 
       {/* News cluster modal — shown when multiple items share a map area */}
@@ -587,7 +608,7 @@ function App() {
       </div>{/* end UI overlay wrapper (uiHidden) */}
 
       {/* Camera live viewer modal */}
-      {selectedCamera && (
+      {selectedCamera && isPro && (
         <CameraModal camera={selectedCamera} onClose={() => setSelectedCamera(null)} />
       )}
 

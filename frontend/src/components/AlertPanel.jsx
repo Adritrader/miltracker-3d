@@ -313,11 +313,16 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
         {['alerts', 'hotspots', 'sitrep'].map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              if ((t === 'sitrep') && !isPro) { onOpenPricing?.(); return; }
+              setTab(t);
+            }}
             className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-wide transition-colors
-              ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}`}
+              ${tab === t ? 'text-hud-green border-b-2 border-hud-green' : 'text-hud-text hover:text-white'}
+              ${(t === 'sitrep') && !isPro ? 'opacity-40' : ''}`}
+            title={(t === 'sitrep') && !isPro ? 'Pro feature' : undefined}
           >
-            {t === 'alerts' ? `⚠ ${totalCount}` : t === 'hotspots' ? `◉ ${hotspots.length}` : '≡ SITREP'}
+            {t === 'alerts' ? `⚠ ${totalCount}` : t === 'hotspots' ? `◉ ${hotspots.length}` : isPro ? '≡ SITREP' : '🔒 SITREP'}
           </button>
         ))}
       </div>
