@@ -432,6 +432,9 @@ function App() {
           isMobile={isMobile}
           onSearchOpen={() => setSearchOpen(true)}
           onLoginClick={handleOpenAuth}
+          isPro={isPro}
+          authUser={authUser}
+          onOpenPricing={handleOpenPricing}
         />
       </div>
 
@@ -547,6 +550,9 @@ function App() {
         onToggleSpeedUnit={handleToggleSpeedUnit}
         altUnit={altUnit}
         onToggleAltUnit={handleToggleAltUnit}
+        isPro={isPro}
+        authUser={authUser}
+        onOpenPricing={handleOpenPricing}
       />
 
       {/* SITREP capture — already rendered inline in the bottom-right container above */}

@@ -60,7 +60,7 @@ const EntityImage = ({ src, alt }) => {
   );
 };
 
-const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, onLoadTrail, speedUnit = 'kt', onToggleSpeedUnit, altUnit = 'ft', onToggleAltUnit }) => {
+const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = null, onTrack, onUntrack, onSatellite, onLoadTrail, speedUnit = 'kt', onToggleSpeedUnit, altUnit = 'ft', onToggleAltUnit, isPro = false, authUser = null, onOpenPricing }) => {
   const panelRef  = useRef(null);
   const dragState = useRef({ active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
   const [pos, setPos] = useState(null); // null = centered, {left,top} = dragged
@@ -415,14 +415,14 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                 </div>
               )}
               {/* AI Aircraft Intelligence */}
-              {aiIntelLoading && (
+              {aiIntelLoading && isPro && (
                 <div className="mt-1 rounded-lg border border-purple-400/30 bg-purple-950/30 p-1.5">
                   <div className="text-[8px] sm:text-[9px] font-mono font-bold text-purple-300/80 tracking-widest uppercase animate-pulse">
                     {"\u{1F916}"} AI IDENTIFYING…
                   </div>
                 </div>
               )}
-              {aiIntel && !aiIntelLoading && (
+              {aiIntel && !aiIntelLoading && isPro && (
                 <div className="mt-1 rounded-lg border border-purple-400/40 bg-purple-950/40 p-1.5 space-y-0.5">
                   <div className="text-[8px] sm:text-[9px] font-mono font-bold text-purple-300/80 tracking-widest uppercase mb-0.5">
                     {"\u{1F916}"} AI AIRCRAFT INTEL
@@ -453,10 +453,26 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                   )}
                 </div>
               )}
+              {/* AI Intel teaser for free/unlogged users */}
+              {!isPro && (
+                <div
+                  className="mt-1 rounded-lg border border-purple-400/25 bg-purple-950/20 p-1.5 cursor-pointer
+                             hover:border-purple-400/50 transition-colors"
+                  onClick={() => onOpenPricing?.()}
+                >
+                  <div className="text-[8px] sm:text-[9px] font-mono font-bold text-purple-300/60 tracking-widest uppercase mb-0.5">
+                    🔒 AI AIRCRAFT INTEL — PRO
+                  </div>
+                  <div className="text-[8px] font-mono text-purple-200/40 leading-snug blur-[3px] select-none">
+                    UNIT: 5th Ftr Wing · BASE: Langley AFB · ROLE: Air Superiority
+                  </div>
+                  <div className="text-[8px] font-mono text-purple-300/50 mt-1">
+                    ⚡ Tap to unlock full intelligence
+                  </div>
+                </div>
+              )}
             </>
           )}
-
-          {/* SHIP */}
           {isShip && (
             <>
               <Row label="NAME"        value={entity.name}            highlight="text-hud-blue" />
@@ -618,26 +634,46 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
             </a>
           )}
 
-          {/* SAT IMG — available for any geo-referenced entity */}
+          {/* SAT IMG — Pro only */}
           {entity.lat != null && entity.lon != null && onSatellite && (
-            <button
-              className="hud-btn text-center text-xs"
-              title="Open satellite imagery portal for this location"
-              onClick={() => onSatellite({ lat: entity.lat, lon: entity.lon, title: entity.callsign || entity.name || entity.title || entity.type })}
-            >
-              &#x1F6F0; SAT IMG
-            </button>
+            isPro ? (
+              <button
+                className="hud-btn text-center text-xs"
+                title="Open satellite imagery portal for this location"
+                onClick={() => onSatellite({ lat: entity.lat, lon: entity.lon, title: entity.callsign || entity.name || entity.title || entity.type })}
+              >
+                &#x1F6F0; SAT IMG
+              </button>
+            ) : (
+              <button
+                className="hud-btn text-center text-xs opacity-60"
+                title="Pro feature"
+                onClick={() => onOpenPricing?.()}
+              >
+                🔒 SAT IMG
+              </button>
+            )
           )}
 
-          {/* TRAIL — load historical trajectory from Supabase */}
+          {/* TRAIL — Pro only */}
           {(isAircraft || isShip) && trackableId && onLoadTrail && (
-            <button
-              className="hud-btn text-center text-xs"
-              title="Load historical trajectory from database"
-              onClick={() => onLoadTrail(trackableId)}
-            >
-              &#x1F4CD; TRAIL
-            </button>
+            isPro ? (
+              <button
+                className="hud-btn text-center text-xs"
+                title="Load historical trajectory from database"
+                onClick={() => onLoadTrail(trackableId)}
+              >
+                &#x1F4CD; TRAIL
+              </button>
+            ) : (
+              <button
+                className="hud-btn text-center text-xs opacity-60"
+                title="Pro feature — historical trajectory"
+                onClick={() => onOpenPricing?.()}
+              >
+                🔒 TRAIL
+              </button>
+            )
           )}
         </div>
       </div>

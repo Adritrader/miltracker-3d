@@ -327,7 +327,7 @@ export const MapLegend = ({ isMobile = false }) => {
 /* ────────────────────────────────────────────────────────── */
 /* Shared inner panel content (used by desktop + drawer)     */
 /* ────────────────────────────────────────────────────────── */
-const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource }) => (
+const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource, isPro = false, authUser = null, onOpenPricing, onLoginClick }) => (
   <>
     {/* Layer toggles */}
     <div className="hud-panel px-3 py-2 space-y-2">
@@ -336,10 +336,32 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource 
       <Toggle label="WARSHIPS"     checked={filters.showShips}         onChange={v => set('showShips', v)} />
       <Toggle label="CONFLICT EVTS"checked={filters.showConflicts}     onChange={v => set('showConflicts', v)} />
       <Toggle label="FIRMS HEAT"   checked={filters.showFIRMS ?? true} onChange={v => set('showFIRMS', v)} color="hud-amber" />
-      <Toggle label="NEWS EVENTS"  checked={filters.showNews}          onChange={v => set('showNews', v)} />
+      {/* NEWS EVENTS — Pro only on globe */}
+      <div className="flex items-center justify-between gap-1">
+        <Toggle
+          label="NEWS EVENTS"
+          checked={filters.showNews && isPro}
+          onChange={v => { if (!isPro) { onOpenPricing?.(); return; } set('showNews', v); }}
+          color="hud-amber"
+        />
+        {!isPro && (
+          <span className="text-[8px] font-mono text-hud-amber/60 shrink-0">🔒 PRO</span>
+        )}
+      </div>
       <Toggle label="DANGER ZONES" checked={filters.showDanger}        onChange={v => set('showDanger', v)} />
       <Toggle label="MIL BASES"    checked={filters.showBases}         onChange={v => set('showBases', v)} color="hud-amber" />
-      <Toggle label="LIVE CAMS"    checked={filters.showCameras ?? true} onChange={v => set('showCameras', v)} color="hud-blue" />
+      {/* LIVE CAMS — Pro only */}
+      <div className="flex items-center justify-between gap-1">
+        <Toggle
+          label="LIVE CAMS"
+          checked={filters.showCameras && isPro}
+          onChange={v => { if (!isPro) { onOpenPricing?.(); return; } set('showCameras', v); }}
+          color="hud-blue"
+        />
+        {!isPro && (
+          <span className="text-[8px] font-mono text-hud-blue/60 shrink-0">🔒 PRO</span>
+        )}
+      </div>
       <Toggle label="ON GROUND"    checked={filters.showOnGround}      onChange={v => set('showOnGround', v)} />
       <div className="border-t border-hud-border/50 pt-2 mt-1">
         <Toggle label="SPACE VIEW" checked={spaceView} onChange={onSpaceViewChange} color="hud-blue" />
@@ -432,6 +454,31 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource 
         <div className="text-hud-text text-xs">30s refresh</div>
       </div>
     </div>
+
+    {/* Upgrade banner for non-Pro users */}
+    {!isPro && (
+      <div
+        className="hud-panel px-3 py-2.5 border border-hud-green/30 bg-hud-green/5 cursor-pointer
+                   hover:border-hud-green/60 hover:bg-hud-green/10 transition-all duration-150"
+        onClick={onOpenPricing}
+      >
+        <div className="text-hud-green text-[10px] font-mono font-bold uppercase tracking-widest mb-1">
+          ⚡ Upgrade to Pro
+        </div>
+        <div className="text-hud-text/70 text-[9px] font-mono leading-snug">
+          Unlock news globe pins, live cameras, AI intel, history trails, SITREP, timeline replay & more.
+        </div>
+        {!authUser && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onLoginClick?.(); }}
+            className="mt-2 w-full text-center text-[9px] font-mono text-hud-amber border border-hud-amber/30
+                       py-1 rounded hover:bg-hud-amber/10 transition-colors"
+          >
+            ⊙ Login / Register
+          </button>
+        )}
+      </div>
+    )}
   </>
 );
 
@@ -444,6 +491,7 @@ const FilterPanel = ({
   connected, lastUpdate, aircraftSource = 'loading',
   spaceView = false, onSpaceViewChange,
   isMobile = false, onSearchOpen, onLoginClick,
+  isPro = false, authUser = null, onOpenPricing,
 }) => {
   const set = (key, value) => onFilterChange({ ...filters, [key]: value });
   const missionTime = useMissionClock();
@@ -580,6 +628,10 @@ const FilterPanel = ({
               spaceView={spaceView}
               onSpaceViewChange={onSpaceViewChange}
               aircraftSource={aircraftSource}
+              isPro={isPro}
+              authUser={authUser}
+              onOpenPricing={onOpenPricing}
+              onLoginClick={onLoginClick}
             />
           </div>
         </div>
@@ -617,6 +669,10 @@ const FilterPanel = ({
             spaceView={spaceView}
             onSpaceViewChange={onSpaceViewChange}
             aircraftSource={aircraftSource}
+            isPro={isPro}
+            authUser={authUser}
+            onOpenPricing={onOpenPricing}
+            onLoginClick={onLoginClick}
           />
         </div>
       )}
