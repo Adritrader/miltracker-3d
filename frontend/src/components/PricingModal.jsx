@@ -106,7 +106,7 @@ export default function PricingModal({ onClose, authUser, onOpenAuth }) {
           <button
             onClick={onClose}
             className="text-hud-text/50 hover:text-white text-xl transition-colors leading-none"
-          >×</button>
+          >X</button>
         </div>
 
         {/* Billing toggle */}
@@ -191,7 +191,7 @@ export default function PricingModal({ onClose, authUser, onOpenAuth }) {
                            text-hud-green text-xs font-mono font-bold tracking-wider uppercase
                            hover:bg-hud-green/25 transition-colors duration-150 disabled:opacity-50"
               >
-                {loading ? 'Redirecting…' : authUser ? `Upgrade to Pro →` : 'Sign in to Upgrade →'}
+                {loading ? 'Redirecting...' : authUser ? 'Upgrade to Pro >>' : 'Sign in to Upgrade >>'}
               </button>
               {error && (
                 <p className="text-red-400 text-[10px] font-mono mt-2 text-center">{error}</p>
@@ -204,7 +204,7 @@ export default function PricingModal({ onClose, authUser, onOpenAuth }) {
         {/* Footer */}
         <div className="px-6 pb-5 text-center">
           <p className="text-hud-text/30 text-[10px] font-mono">
-            Secure payment via Stripe · Cancel anytime · No hidden fees
+            Secure payment via Stripe &nbsp;&bull;&nbsp; Cancel anytime &nbsp;&bull;&nbsp; No hidden fees
           </p>
         </div>
       </div>
