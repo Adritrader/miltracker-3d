@@ -18,27 +18,27 @@ const PRICE_MONTHLY = import.meta.env.VITE_STRIPE_PRICE_MONTHLY || '';
 const PRICE_ANNUAL  = import.meta.env.VITE_STRIPE_PRICE_ANNUAL  || '';
 
 const FREE_FEATURES = [
-  '✓ Live military aircraft (ADS-B)',
-  '✓ Live warships tracking',
-  '✓ Conflict events on globe',
-  '✓ 5 latest news items',
-  '✓ 3 threat alerts',
-  '✗ AI threat analysis',
-  '✗ Historical flight trails',
-  '✗ Unlimited news feed',
-  '✗ Advanced analytics',
+  { text: 'Live military aircraft (ADS-B)', included: true },
+  { text: 'Live warships tracking',         included: true },
+  { text: 'Conflict events on globe',        included: true },
+  { text: '5 latest news items',             included: true },
+  { text: '3 threat alerts',                 included: true },
+  { text: 'AI threat analysis',              included: false },
+  { text: 'Historical flight trails',        included: false },
+  { text: 'Unlimited news feed',             included: false },
+  { text: 'Advanced analytics',              included: false },
 ];
 
 const PRO_FEATURES = [
-  '✓ Everything in Free',
-  '✓ Unlimited news feed',
-  '✓ All threat alerts (no cap)',
-  '✓ AI threat analysis (Gemini)',
-  '✓ Historical flight & ship trails',
-  '✓ Advanced analytics dashboard',
-  '✓ Timeline replay',
-  '✓ SITREP capture',
-  '✓ Priority support',
+  { text: 'Everything in Free' },
+  { text: 'Unlimited news feed' },
+  { text: 'All threat alerts (no cap)' },
+  { text: 'AI threat analysis (Gemini)' },
+  { text: 'Historical flight & ship trails' },
+  { text: 'Advanced analytics dashboard' },
+  { text: 'Timeline replay' },
+  { text: 'SITREP capture' },
+  { text: 'Priority support' },
 ];
 
 export default function PricingModal({ onClose, authUser, onOpenAuth }) {
@@ -144,8 +144,9 @@ export default function PricingModal({ onClose, authUser, onOpenAuth }) {
             <div className="text-hud-text/40 text-[10px] font-mono mb-4">forever</div>
             <ul className="space-y-1.5 flex-1">
               {FREE_FEATURES.map((f, i) => (
-                <li key={i} className={`text-[11px] font-mono ${f.startsWith('✗') ? 'text-hud-text/30 line-through' : 'text-hud-text/70'}`}>
-                  {f}
+                <li key={i} className={`text-[11px] font-mono flex items-center gap-1.5 ${!f.included ? 'text-hud-text/30' : 'text-hud-text/70'}`}>
+                  <span className={`shrink-0 ${f.included ? 'text-hud-green' : 'text-hud-text/25'}`}>{f.included ? '+' : '-'}</span>
+                  <span className={!f.included ? 'line-through' : ''}>{f.text}</span>
                 </li>
               ))}
             </ul>
@@ -176,7 +177,10 @@ export default function PricingModal({ onClose, authUser, onOpenAuth }) {
             </div>
             <ul className="space-y-1.5 flex-1">
               {PRO_FEATURES.map((f, i) => (
-                <li key={i} className="text-[11px] font-mono text-hud-text/80">{f}</li>
+                <li key={i} className="text-[11px] font-mono flex items-center gap-1.5 text-hud-text/80">
+                  <span className="shrink-0 text-hud-green">+</span>
+                  <span>{f.text}</span>
+                </li>
               ))}
             </ul>
             <div className="mt-4">

@@ -38,6 +38,7 @@ import UserMenu from './components/UserMenu.jsx';
 import PricingModal from './components/PricingModal.jsx';
 import PromoModal, { PromoModalTrigger } from './components/PromoModal.jsx';
 import AccountPanel from './components/AccountPanel.jsx';
+import AdBanner from './components/AdBanner.jsx';
 import { supabase } from './utils/supabaseClient.js';
 import { useSubscription } from './hooks/useSubscription.js';
 
@@ -524,6 +525,12 @@ function App() {
             ⚡ Upgrade to Pro
           </button>
         )}
+      </div>
+
+      {/* Bottom-left: Google AdSense banner — free users only */}
+      {!isPro && (
+        <AdBanner isMobile={isMobile} newsPanelHeight={newsPanelHeight} />
+      )}
       </div>
 
       {/* News cluster modal — shown when multiple items share a map area */}
