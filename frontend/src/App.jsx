@@ -531,7 +531,6 @@ function App() {
       {!isPro && (
         <AdBanner isMobile={isMobile} newsPanelHeight={newsPanelHeight} />
       )}
-      </div>
 
       {/* News cluster modal — shown when multiple items share a map area */}
       {newsCluster && (
