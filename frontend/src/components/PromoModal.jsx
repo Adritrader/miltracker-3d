@@ -18,15 +18,15 @@ const PRICE_ANNUAL   = import.meta.env.VITE_STRIPE_PRICE_ANNUAL  || '';
 const COMPARE = [
   { label: 'Live military aircraft (ADS-B)',    free: 'Limited',     pro: 'Full access'  },
   { label: 'Live warship tracking',             free: 'Limited',     pro: 'Full access'  },
-  { label: 'Conflict events on globe',          free: 'âœ“',           pro: 'âœ“'            },
+  { label: 'Conflict events on globe',          free: '+',           pro: '+'            },
   { label: 'News feed',                         free: '5 items',     pro: 'Unlimited'    },
   { label: 'Threat alerts',                     free: '3 alerts',    pro: 'Unlimited'    },
-  { label: 'AI threat analysis (Gemini)',       free: 'â€”',           pro: 'âœ“'            },
-  { label: 'Historical flight & ship trails',   free: 'â€”',           pro: 'âœ“'            },
-  { label: 'Timeline replay',                   free: 'â€”',           pro: 'âœ“'            },
-  { label: 'Live conflict cameras',             free: 'â€”',           pro: 'âœ“'            },
-  { label: 'SITREP capture',                    free: 'â€”',           pro: 'âœ“'            },
-  { label: 'Advanced analytics dashboard',      free: 'â€”',           pro: 'âœ“'            },
+  { label: 'AI threat analysis (Gemini)',       free: '--',          pro: '+'            },
+  { label: 'Historical flight & ship trails',   free: '--',          pro: '+'            },
+  { label: 'Timeline replay',                   free: '--',          pro: '+'            },
+  { label: 'Live conflict cameras',             free: '--',          pro: '+'            },
+  { label: 'SITREP capture',                    free: '--',          pro: '+'            },
+  { label: 'Advanced analytics dashboard',      free: '--',          pro: '+'            },
 ];
 
 export default function PromoModal({ authUser, onClose, onOpenAuth }) {
@@ -90,7 +90,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
           onClick={onClose}
           className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full
                      text-white/50 hover:text-white hover:bg-white/10 transition-all text-lg"
-        >Ã—</button>
+        >X</button>
 
         {/* â”€â”€ HERO â”€â”€ */}
         <div className="px-8 pt-8 pb-7 text-center"
@@ -104,7 +104,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
             Real-Time Military Intelligence
           </h2>
           <p className="text-white/55 text-sm font-mono max-w-xl mx-auto leading-relaxed">
-            Track live military aircraft, warships, AI threat analysis and global conflict events â€” all in one 3D globe.
+            Track live military aircraft, warships, AI threat analysis and global conflict events -- all in one 3D globe.
           </p>
 
           {/* â”€â”€ Billing toggle â€” pill style â”€â”€ */}
@@ -134,7 +134,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
                 Annual
                 <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded-md tracking-wider"
                       style={{ background: 'rgba(255,170,0,0.25)', color: '#ffbb00', border: '1px solid rgba(255,170,0,0.4)' }}>
-                  âˆ’{saving}%
+                  -{saving}%
                 </span>
               </button>
             </div>
@@ -152,12 +152,12 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
               <div className="flex items-end gap-1.5 mb-1">
                 <span className="text-white text-5xl font-mono font-black">$0</span>
               </div>
-              <div className="text-white/40 text-xs font-mono">No credit card required Â· forever</div>
+              <div className="text-white/40 text-xs font-mono">No credit card required - forever</div>
             </div>
 
             <div className="space-y-2.5 flex-1 mb-6">
               {COMPARE.map((f, i) => {
-                const available = f.free !== 'â€”';
+                const available = f.free !== '--';
                 return (
                   <div key={i} className="flex items-center justify-between gap-3">
                     <span className={`text-xs font-mono ${available ? 'text-white/70' : 'text-white/30'}`}>
@@ -202,8 +202,8 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
               </div>
               <div className="text-white/50 text-xs font-mono">
                 {annual
-                  ? `Billed $${annualTotal}/year Â· you save $${(monthlyPrice * 12 - parseFloat(annualTotal)).toFixed(2)}`
-                  : 'Billed monthly Â· cancel anytime'}
+                  ? `Billed $${annualTotal}/year - you save $${(monthlyPrice * 12 - parseFloat(annualTotal)).toFixed(2)}`
+                  : 'Billed monthly - cancel anytime'}
               </div>
             </div>
 
@@ -236,9 +236,9 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
                 e.currentTarget.style.boxShadow = '0 0 20px rgba(0,255,136,0.15)';
               }}
             >
-              {loading ? 'Redirecting to checkoutâ€¦' :
-               authUser ? `Get Pro${annual ? ' â€” Best Value' : ''} â†’` :
-               'Create account & upgrade â†’'}
+              {loading ? 'Redirecting to checkout...' :
+               authUser ? `Get Pro${annual ? ' - Best Value' : ''} >>` :
+               'Create account & upgrade >>'}
             </button>
             {error && <p className="text-red-400 text-[11px] font-mono mt-3 text-center">{error}</p>}
           </div>
@@ -248,7 +248,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
         {/* â”€â”€ TRUST â”€â”€ */}
         <div className="px-7 pb-6 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5">
-            {['ðŸ”’ Secure payment via Stripe', 'âœ“ Cancel anytime', 'âœ“ No hidden fees', 'âœ“ Real data only'].map((t, i) => (
+            {['[S] Secure payment via Stripe', '[+] Cancel anytime', '[+] No hidden fees', '[+] Real data only'].map((t, i) => (
               <span key={i} className="text-white/35 text-[11px] font-mono">{t}</span>
             ))}
           </div>
