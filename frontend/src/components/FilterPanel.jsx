@@ -93,7 +93,6 @@ const COUNTRY_COLORS = [
   { label: 'Turkey',   color: '#cc4400' },
   { label: 'Ukraine',  color: '#ffcc00' },
   { label: 'Israel',   color: '#0066cc' },
-  { label: 'Iran',     color: '#008800' },
   { label: 'Germany',  color: '#555555' },
 ];
 
@@ -413,7 +412,6 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource,
         <option value="Germany">🇩🇪 Germany</option>
         <option value="Israel">🇮🇱 Israel</option>
         <option value="Turkey">🇹🇷 Turkey</option>
-        <option value="Iran">🇮🇷 Iran</option>
         <option value="Ukraine">🇺🇦 Ukraine</option>
       </select>
     </div>
