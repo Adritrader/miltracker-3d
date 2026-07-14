@@ -98,11 +98,23 @@
       "browserRequirements": "Requires WebGL",
       "inLanguage": "en",
       "isAccessibleForFree": true,
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Free Plan",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "Live military aircraft and warship tracking, conflict zones, threat alerts and breaking news — free forever."
+        },
+        {
+          "@type": "Offer",
+          "name": "Pro Plan",
+          "price": "9.99",
+          "priceCurrency": "USD",
+          "billingIncrement": "P1M",
+          "description": "Unlimited alerts and news, news pins on globe, live conflict cameras, AI threat analysis, historical trails, timeline replay, analytics dashboard and SITREP capture."
+        }
+      ],
       "featureList": [
         "Real-time military aircraft tracking",
         "Live warship positions",
@@ -119,6 +131,54 @@
       },
       "sameAs": [
         "https://twitter.com/livewar3d"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is LiveWar3D?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "LiveWar3D is a free real-time OSINT platform that tracks military aircraft, warships and active conflict zones on an interactive 3D globe. It aggregates live ADS-B flight data, AIS ship positions, ACLED conflict events, NASA FIRMS fire data and breaking geopolitical news updated every 30 seconds."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is LiveWar3D free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. LiveWar3D is free with live aircraft tracking, warship positions, conflict zones and up to 5 news items and 3 threat alerts. The Pro plan ($9.99/month) adds unlimited alerts and news, live conflict cameras, AI threat analysis, historical trails, timeline replay and SITREP capture."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What military data does LiveWar3D show?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "LiveWar3D shows real-time positions of military aircraft (fighters, bombers, tankers, ISR platforms, patrol aircraft), warships (aircraft carriers, destroyers, frigates, submarines surface signatures), active conflict zones with ACLED event data, AI-scored danger zones, NASA FIRMS wildfire hotspots and live breaking geopolitical news."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which conflict zones does LiveWar3D cover?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "LiveWar3D covers all active global conflict zones including Ukraine-Russia war, Israel-Gaza conflict, Taiwan Strait tensions, South China Sea, Red Sea Houthi operations, Korean DMZ, Sahel region conflicts, Myanmar civil war and other global hotspots — all updated in real time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How often does LiveWar3D update?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Aircraft and ship positions update every 30 seconds via live WebSocket stream. Threat alerts and AI analysis update every 5 minutes. News headlines update every 15 minutes. Conflict zone overlays update every hour."
+          }
+        }
       ]
     }
     </script>

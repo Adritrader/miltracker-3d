@@ -41,6 +41,7 @@ import AccountPanel from './components/AccountPanel.jsx';
 import AdBanner from './components/AdBanner.jsx';
 import { supabase } from './utils/supabaseClient.js';
 import { useSubscription } from './hooks/useSubscription.js';
+import { HelmetProvider, Helmet } from 'react-helmet-async';
 
 const RC_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
@@ -298,8 +299,58 @@ function App() {
   const handleOpenAccount       = useCallback(() => setAccountOpen(true), []);
   const handleLogout            = useCallback(() => setAuthUser(null), []);
 
+  // ── Dynamic SEO title/description based on selected entity ───────────────────────────
+  const seoTitle = useMemo(() => {
+    if (!selectedEntity) return 'LiveWar3D — Real-Time Military Tracking on a 3D Globe';
+    const e = selectedEntity;
+    if (e.type === 'aircraft') {
+      const id = e.callsign || e.icao || 'Unknown';
+      const model = e.aircraft_type || e.model || 'Military Aircraft';
+      return `${id} — ${model} | LiveWar3D`;
+    }
+    if (e.type === 'ship') {
+      const name = e.name || e.mmsi || 'Unknown';
+      const kind = e.ship_type || 'Warship';
+      return `${name} — ${kind} | LiveWar3D`;
+    }
+    if (e.type === 'news') return `${e.title || 'Breaking News'} | LiveWar3D`;
+    if (e.type === 'conflict') return `${e.name || 'Active Conflict'} — Conflict Zone | LiveWar3D`;
+    return 'LiveWar3D — Real-Time Military Tracking on a 3D Globe';
+  }, [selectedEntity]);
+
+  const seoDescription = useMemo(() => {
+    if (!selectedEntity) return 'Track military aircraft, warships and active conflict zones live on a free interactive 3D globe. AI threat analysis, live cameras and breaking war news.';
+    const e = selectedEntity;
+    if (e.type === 'aircraft') {
+      const parts = [];
+      if (e.callsign) parts.push(`Callsign: ${e.callsign}`);
+      if (e.altitude) parts.push(`Alt: ${e.altitude}ft`);
+      if (e.speed) parts.push(`Speed: ${e.speed}kt`);
+      if (e.country) parts.push(e.country);
+      return `Live military aircraft tracking — ${parts.join(', ')}. Real-time OSINT on LiveWar3D.`;
+    }
+    if (e.type === 'ship') {
+      const parts = [];
+      if (e.name) parts.push(e.name);
+      if (e.flag) parts.push(e.flag);
+      if (e.status) parts.push(e.status);
+      return `Live warship tracking — ${parts.join(', ')}. Real-time naval positions on LiveWar3D.`;
+    }
+    if (e.type === 'news') return e.description || e.title || 'Breaking geopolitical news on LiveWar3D.';
+    return 'Track active conflict zones live on LiveWar3D.';
+  }, [selectedEntity]);
+
   const appContent = (
     <div className="w-screen h-screen overflow-hidden" style={{ background: '#050810' }}>
+      <Helmet>
+        <title>{seoTitle}</title>
+        <meta name="description" content={seoDescription} />
+        <meta property="og:title" content={seoTitle} />
+        <meta property="og:description" content={seoDescription} />
+        <meta name="twitter:title" content={seoTitle} />
+        <meta name="twitter:description" content={seoDescription} />
+      </Helmet>
+
       {/* Scanlines overlay only */}
       <div className="scan-overlay" aria-hidden="true" />
 
@@ -701,11 +752,17 @@ function App() {
     </div>
   );
 
-  return RC_SITE_KEY ? (
+  const wrappedContent = RC_SITE_KEY ? (
     <GoogleReCaptchaProvider reCaptchaKey={RC_SITE_KEY}>
       {appContent}
     </GoogleReCaptchaProvider>
   ) : appContent;
+
+  return (
+    <HelmetProvider>
+      {wrappedContent}
+    </HelmetProvider>
+  );
 }
 
 export default App;
