@@ -749,6 +749,31 @@ function App() {
         <NewsletterModal onClose={() => setNewsletterOpen(false)} />
       )}
 
+      {/* Site footer — legal links for Google AdSense compliance */}
+      <div
+        className="fixed bottom-0 right-0 z-[20] pointer-events-auto"
+        style={{ padding: '4px 10px', background: 'rgba(5,8,16,0.7)' }}
+      >
+        <div className="flex gap-3">
+          {[
+            { href: '/about.html',   label: 'About'   },
+            { href: '/privacy.html', label: 'Privacy' },
+            { href: '/terms.html',   label: 'Terms'   },
+          ].map(({ href, label }) => (
+            <a
+              key={href}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[9px] transition-opacity hover:opacity-100"
+              style={{ color: '#4a5568', opacity: 0.7, textDecoration: 'none' }}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 

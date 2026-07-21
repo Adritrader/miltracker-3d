@@ -222,5 +222,91 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- ══════════════════════════════════════════════════
+         NOSCRIPT / SEO FALLBACK CONTENT
+         Visible to crawlers and browsers without JS.
+         Provides editorial content for Google AdSense review.
+    ══════════════════════════════════════════════════ -->
+    <noscript>
+      <style>
+        .ns-wrap { font-family: 'Segoe UI', system-ui, sans-serif; background: #050810; color: #c0cfe0; max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; line-height: 1.7; }
+        .ns-wrap h1 { color: #fff; font-size: 2rem; margin-bottom: 16px; }
+        .ns-wrap h2 { color: #00ff88; font-size: 1.2rem; margin: 32px 0 10px; border-bottom: 1px solid rgba(0,255,136,0.2); padding-bottom: 6px; }
+        .ns-wrap p { margin-bottom: 12px; }
+        .ns-wrap ul { margin: 8px 0 8px 24px; }
+        .ns-wrap ul li { margin-bottom: 6px; }
+        .ns-wrap a { color: #00e5ff; }
+        .ns-nav { background: rgba(0,229,255,0.05); border-bottom: 1px solid rgba(0,229,255,0.15); padding: 14px 24px; display: flex; gap: 20px; flex-wrap: wrap; }
+        .ns-nav a { color: #8a9bb0; font-size: 0.9rem; text-decoration: none; }
+        .ns-footer { border-top: 1px solid rgba(255,255,255,0.08); padding: 24px; text-align: center; color: #4a5568; font-size: 0.85rem; margin-top: 40px; }
+        .ns-footer a { color: #8a9bb0; margin: 0 8px; }
+      </style>
+      <div class="ns-nav">
+        <a href="/" style="color:#00e5ff;font-weight:700;">LiveWar3D</a>
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/terms.html">Terms of Use</a>
+      </div>
+      <div class="ns-wrap">
+        <h1>LiveWar3D — Real-Time Military Tracking on a 3D Globe</h1>
+        <p>
+          LiveWar3D is a free, browser-based open-source intelligence (OSINT) platform that tracks military aircraft, warships, and active conflict zones in real time on an interactive 3D globe. No registration required.
+        </p>
+        <p>
+          <strong>Note:</strong> LiveWar3D requires JavaScript and a WebGL-compatible browser to run the interactive globe. Please enable JavaScript to use the full application.
+        </p>
+
+        <h2>What You Can Track</h2>
+        <ul>
+          <li><strong>Military Aircraft</strong> — Live positions of fighters, bombers, ISR aircraft, tankers, transport jets, and drones via public ADS-B transponder feeds.</li>
+          <li><strong>Warships &amp; Naval Vessels</strong> — Aircraft carriers, destroyers, frigates, and submarines tracked via public AIS transponder data.</li>
+          <li><strong>Active Conflict Zones</strong> — Colour-coded danger zones based on ACLED conflict event data covering Ukraine, Gaza, Taiwan Strait, Red Sea, and more.</li>
+          <li><strong>NASA FIRMS Fire Data</strong> — Satellite thermal anomalies from NASA's FIRMS system, updated every few hours.</li>
+          <li><strong>Live War News</strong> — Geolocated breaking conflict news from the GDELT Project, pinned to the globe.</li>
+          <li><strong>Live Conflict Cameras</strong> — Curated live camera feeds from active conflict regions.</li>
+          <li><strong>AI Threat Analysis</strong> — On-demand AI-generated intelligence summaries for selected aircraft and vessels.</li>
+        </ul>
+
+        <h2>Covered Conflict Zones</h2>
+        <p>LiveWar3D monitors all major active conflict zones and military flashpoints worldwide, including:</p>
+        <ul>
+          <li>Ukraine–Russia War — frontline tracking, air defence activity, naval operations in the Black Sea</li>
+          <li>Israel–Gaza Conflict — airstrikes, ground operations, naval activity in the Eastern Mediterranean</li>
+          <li>Taiwan Strait — PLAAF and ROCAF air activity, PLAN naval exercises, US carrier strike group positions</li>
+          <li>Red Sea / Yemen — Houthi drone and missile operations, US Navy and coalition warship positions</li>
+          <li>Korean DMZ — North and South Korean military aircraft activity, US Forces Korea operations</li>
+          <li>South China Sea — territorial disputes, PLAN warships, US Freedom of Navigation operations</li>
+          <li>Sahel Region — Mali, Burkina Faso, Niger — coup-era military activity</li>
+          <li>Indo-Pacific — US, Japanese, Australian, and Chinese naval and air force operations</li>
+        </ul>
+
+        <h2>Data Sources</h2>
+        <p>All data is sourced exclusively from public, unclassified networks:</p>
+        <ul>
+          <li>Aircraft: adsb.lol, adsb.fi (cooperative ADS-B transponder network)</li>
+          <li>Ships: public AIS transponder aggregators</li>
+          <li>News: GDELT Project (gdeltproject.org)</li>
+          <li>Fire data: NASA FIRMS (firms.modaps.eosdis.nasa.gov)</li>
+          <li>Conflict events: ACLED (acleddata.com)</li>
+        </ul>
+
+        <h2>Free &amp; Pro Plans</h2>
+        <p>LiveWar3D is free to use with full access to live aircraft and ship tracking, conflict zones, danger alerts, and breaking news. The Pro plan ($9.99/month) unlocks unlimited alerts, live conflict cameras, AI threat analysis, historical flight and voyage trails, timeline replay, and SITREP capture.</p>
+
+        <h2>About This Platform</h2>
+        <p>LiveWar3D is an independent, non-governmental OSINT platform. It is not affiliated with any military organisation, intelligence service, or government agency. All data is publicly available and used for informational and educational purposes only.</p>
+        <p>For more information, visit our <a href="/about.html">About page</a>.</p>
+      </div>
+      <div class="ns-footer">
+        <p>&copy; 2026 LiveWar3D. All rights reserved.</p>
+        <p style="margin-top:8px;">
+          <a href="/about.html">About</a>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Use</a>
+          <a href="mailto:legal@livewar3d.com">Contact</a>
+        </p>
+      </div>
+    </noscript>
   </body>
 </html>
