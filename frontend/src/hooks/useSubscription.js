@@ -10,6 +10,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
+// Comma-separated admin emails in VITE_ADMIN_EMAILS get permanent Pro access
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean);
+
 export function useSubscription(authUser) {
   const [profile, setProfile]   = useState(null);
   const [loading, setLoading]   = useState(false);
@@ -44,8 +50,10 @@ export function useSubscription(authUser) {
   }, [authUser, fetchProfile]);
 
   const plan  = profile?.plan || 'free';
-  const isPro = plan === 'pro' &&
-    ['active', 'trialing'].includes(profile?.subscription_status || '');
+  const isAdmin = !!authUser?.email &&
+    ADMIN_EMAILS.includes(authUser.email.toLowerCase());
+  const isPro = isAdmin ||
+    (plan === 'pro' && ['active', 'trialing'].includes(profile?.subscription_status || ''));
 
-  return { profile, plan, isPro, loading, refresh: () => fetchProfile(authUser) };
+  return { profile, plan, isPro, isAdmin, loading, refresh: () => fetchProfile(authUser) };
 }
