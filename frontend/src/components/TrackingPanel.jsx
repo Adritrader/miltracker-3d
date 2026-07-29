@@ -112,12 +112,12 @@ const TrackingPanel = ({ trackedList, aircraft, ships, viewer, onUntrack, onUntr
                   {label}
                 </span>
                 {alive && altFt != null && (
-                  <span className="text-hud-amber hidden sm:inline">
+                  <span className="text-hud-amber">
                     {entity.on_ground ? 'GND' : altUnit === 'm' ? `${Math.round(altFt / 3.28084)}m` : `${Math.round(altFt / 100) * 100}ft`}
                   </span>
                 )}
                 {alive && speed != null && (
-                  <span className="text-hud-green hidden md:inline">
+                  <span className="text-hud-green hidden sm:inline">
                     {type === 'aircraft' && speedUnit === 'kmh' ? `${Math.round(speed * 1.852)}km/h` : `${speed}${type === 'aircraft' ? 'kt' : 'kn'}`}
                   </span>
                 )}

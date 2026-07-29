@@ -10,6 +10,8 @@
     font-family: 'Share Tech Mono', Consolas, monospace;
     background: #050810;
     color: #c0cfe0;
+    /* iOS safe area support (notch / home indicator) */
+    padding-bottom: env(safe-area-inset-bottom);
   }
   /* Prevent Cesium's default blue sky from flashing on load/reload */
   .cesium-widget,

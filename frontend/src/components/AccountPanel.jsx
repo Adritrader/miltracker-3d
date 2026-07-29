@@ -71,8 +71,8 @@ export default function AccountPanel({ user, profile, isPro, onClose, onOpenPric
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-hud-border/50 shadow-2xl animate-fade-in overflow-hidden"
-        style={{ background: 'rgba(8,14,26,0.99)' }}
+        className="w-full max-w-lg rounded-2xl border border-hud-border/50 shadow-2xl animate-fade-in overflow-hidden flex flex-col"
+        style={{ background: 'rgba(8,14,26,0.99)', maxHeight: 'min(90vh, 700px)' }}
       >
         {/* ── Header ── */}
         <div className="flex items-center gap-4 px-6 py-5 border-b border-hud-border/30"
@@ -126,7 +126,7 @@ export default function AccountPanel({ user, profile, isPro, onClose, onOpenPric
         </div>
 
         {/* ── Tab content ── */}
-        <div className="px-6 py-5 min-h-[240px]">
+        <div className="px-6 py-5 min-h-[180px] overflow-y-auto flex-1">
 
           {/* ACCOUNT */}
           {section === SECTION.ACCOUNT && (

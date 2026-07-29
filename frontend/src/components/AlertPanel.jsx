@@ -329,7 +329,7 @@ const AlertPanel = ({ alerts, hotspots = [], aiInsight, aiError = null, geminiEn
         ))}
       </div>
 
-      <div className="p-2 overflow-y-auto" style={{ maxHeight: isMobile ? undefined : 'min(18rem, 38vh)' }}>
+      <div className="p-2 overflow-y-auto" style={{ maxHeight: isMobile ? '60vh' : 'min(18rem, 38vh)' }}>
         {tab === 'alerts' && (
           sortedAlerts.length > 0
             ? (

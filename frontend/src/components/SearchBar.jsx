@@ -141,6 +141,29 @@ const SearchBar = ({ aircraft = [], ships = [], conflicts = [], news = [], viewe
       }`}
       style={isMobile ? {} : { maxWidth: 320 }}
     >
+      {/* Mobile: login/account button next to the hamburger, always visible */}
+      {isMobile && !open && (
+        <div className="fixed z-50" style={{ top: 11, left: 84 }}>
+          {authUser ? (
+            <UserMenu
+              user={authUser} onLogout={onLogout} onOpenNewsletter={onOpenNewsletter}
+              onOpenLegal={onOpenLegal} isPro={isPro} profile={profile}
+              onOpenPricing={onOpenPricing} onOpenAccount={onOpenAccount}
+            />
+          ) : (
+            <button
+              onClick={onLoginClick}
+              className="bg-hud-panel flex items-center gap-1.5 px-3 py-2 rounded-lg
+                         border border-hud-border active:scale-95 transition-transform select-none"
+              aria-label="Login"
+            >
+              <span className="text-hud-amber text-sm">⊙</span>
+              <span className="hud-label text-xs text-hud-amber">LOGIN</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Collapsed state – search pill + login/user button side-by-side (desktop only) */}
       {!open && !isMobile && (
         <div className="flex items-center gap-1">

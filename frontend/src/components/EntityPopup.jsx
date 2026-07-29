@@ -18,8 +18,8 @@ import {
 
 const Row = ({ label, value, highlight }) => (
   <div className="flex justify-between items-center py-px border-b border-hud-border/40">
-    <span className="hud-label text-[10px] sm:text-xs">{label}</span>
-    <span className={`font-mono text-[10px] sm:text-xs font-bold ${highlight || 'text-white'}`}>{value ?? '—'}</span>
+    <span className="hud-label text-xs">{label}</span>
+    <span className={`font-mono text-xs font-bold ${highlight || 'text-white'}`}>{value ?? '—'}</span>
   </div>
 );
 

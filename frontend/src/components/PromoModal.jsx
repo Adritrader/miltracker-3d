@@ -82,7 +82,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-4xl rounded-2xl shadow-2xl animate-fade-in my-auto overflow-hidden"
+        className="relative w-full max-w-2xl rounded-2xl shadow-2xl animate-fade-in my-auto overflow-hidden"
         style={{ background: 'rgba(10,17,32,1)', border: '1px solid rgba(255,255,255,0.12)' }}
       >
         {/* Close */}
