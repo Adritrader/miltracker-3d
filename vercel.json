@@ -7,7 +7,10 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Permissions-Policy", "value": "unload=()" }
+        {
+          "key": "Permissions-Policy",
+          "value": "unload=(), bluetooth=(), usb=(), serial=(), hid=(), midi=()"
+        }
       ]
     }
   ],
