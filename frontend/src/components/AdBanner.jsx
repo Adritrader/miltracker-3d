@@ -1,43 +1,64 @@
 /**
- * AdBanner — Google AdSense banner, shown only to free-tier users.
+ * AdBanner — Ezoic ad placeholder, shown only to free-tier users.
  *
  * Placement: fixed bottom-left corner on desktop, bottom-center on mobile.
  *
  * Configuration (set in .env):
- *   VITE_ADSENSE_CLIENT  — publisher ID, e.g. ca-pub-6813391861469052
- *   VITE_ADSENSE_SLOT    — ad unit slot ID from AdSense console
+ *   VITE_EZOIC_PLACEHOLDER  — Ezoic placeholder ID from your Ezoic dashboard (e.g. 101)
+ *
+ * Setup:
+ *   1. Sign up at https://ezoic.com and add livewar3d.com
+ *   2. Verify via their nameserver or script method
+ *   3. Create an ad placeholder in Ezoic dashboard → get a numeric ID
+ *   4. Set VITE_EZOIC_PLACEHOLDER=<that ID> in .env and Vercel env vars
  */
 
 import { useEffect, useRef, useState } from 'react';
 
-const CLIENT = import.meta.env.VITE_ADSENSE_CLIENT || 'ca-pub-6813391861469052';
-const SLOT   = import.meta.env.VITE_ADSENSE_SLOT   || '';
+const PLACEHOLDER_ID = import.meta.env.VITE_EZOIC_PLACEHOLDER || '';
 
 export default function AdBanner({ isMobile = false, newsPanelHeight = 0 }) {
-  const insRef = useRef(null);
-  const pushed = useRef(false);
-  const [blocked, setBlocked] = useState(false);
+  const divRef   = useRef(null);
+  const defined  = useRef(false);
+  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    if (!SLOT || pushed.current) return;
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-      pushed.current = true;
-    } catch {
-      setBlocked(true);
+    if (!PLACEHOLDER_ID || defined.current) return;
+    const id = Number(PLACEHOLDER_ID);
+    if (!id) return;
+
+    const run = () => {
+      try {
+        window.ezstandalone = window.ezstandalone || {};
+        window.ezstandalone.cmd = window.ezstandalone.cmd || [];
+        window.ezstandalone.cmd.push(() => {
+          window.ezstandalone.define(id);
+          window.ezstandalone.enable();
+          window.ezstandalone.display();
+        });
+        defined.current = true;
+      } catch { /* ezoic not loaded yet */ }
+    };
+
+    // Wait for Ezoic script to initialise (it loads async)
+    if (typeof window.ezstandalone?.cmd !== 'undefined') {
+      run();
+    } else {
+      const t = setTimeout(run, 1500);
+      return () => clearTimeout(t);
     }
   }, []);
 
-  // Detect ad blocker: ins stays at 0 height when blocked
+  // Hide if placeholder renders with 0 height (ad blocker or no fill)
   useEffect(() => {
-    if (!SLOT) return;
+    if (!PLACEHOLDER_ID) return;
     const t = setTimeout(() => {
-      if (insRef.current && insRef.current.offsetHeight === 0) setBlocked(true);
-    }, 2500);
+      if (divRef.current && divRef.current.offsetHeight === 0) setHidden(true);
+    }, 4000);
     return () => clearTimeout(t);
   }, []);
 
-  if (!SLOT || blocked) return null;
+  if (!PLACEHOLDER_ID || hidden) return null;
 
   const bottomOffset = (isMobile ? 72 : 16) + newsPanelHeight;
 
@@ -53,14 +74,10 @@ export default function AdBanner({ isMobile = false, newsPanelHeight = 0 }) {
       <div className="text-[8px] font-mono text-hud-text/25 tracking-widest uppercase mb-0.5 text-center select-none">
         Advertisement
       </div>
-      <ins
-        ref={insRef}
-        className="adsbygoogle"
-        style={{ display: 'block' }}
-        data-ad-client={CLIENT}
-        data-ad-slot={SLOT}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
+      <div
+        ref={divRef}
+        id={`ezoic-pub-ad-placeholder-${PLACEHOLDER_ID}`}
+        style={{ minHeight: 50 }}
       />
     </div>
   );

@@ -39,7 +39,6 @@ import PricingModal from './components/PricingModal.jsx';
 import PromoModal, { PromoModalTrigger } from './components/PromoModal.jsx';
 import AccountPanel from './components/AccountPanel.jsx';
 import AdBanner from './components/AdBanner.jsx';
-import LandingPage from './components/LandingPage.jsx';
 import { supabase } from './utils/supabaseClient.js';
 import { useSubscription } from './hooks/useSubscription.js';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
@@ -67,13 +66,6 @@ const DEFAULT_FILTERS = {
 };
 
 function App() {
-  // Show editorial landing page on first visit per browser session (AdSense compliance).
-  // Google's crawler always sees the landing page (new session = no sessionStorage entry).
-  // NOTE: useState must be the first hook call; conditional render happens at the return below.
-  const [showLanding, setShowLanding] = React.useState(() => {
-    try { return !sessionStorage.getItem('lw3d_entered'); } catch { return false; }
-  });
-
   const isMobile = useIsMobile();
   const viewerRef = useRef(null);
   const [viewer, setViewer] = useState(null);
@@ -790,18 +782,6 @@ function App() {
       {appContent}
     </GoogleReCaptchaProvider>
   ) : appContent;
-
-  // Landing page is shown AFTER all hooks (Rules of Hooks: no early returns before hook calls)
-  if (showLanding) {
-    return (
-      <HelmetProvider>
-        <LandingPage onEnter={() => {
-          try { sessionStorage.setItem('lw3d_entered', '1'); } catch { /* ignore */ }
-          setShowLanding(false);
-        }} />
-      </HelmetProvider>
-    );
-  }
 
   return (
     <HelmetProvider>
