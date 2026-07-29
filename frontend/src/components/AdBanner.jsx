@@ -33,29 +33,3 @@ export default function AdBanner() {
   return null;
 }
 
-  if (!PLACEHOLDER_ID || hidden) return null;
-
-  const bottomOffset = (isMobile ? 72 : 16) + newsPanelHeight;
-
-  return (
-    <div
-      className="fixed z-[34] pointer-events-auto"
-      style={
-        isMobile
-          ? { bottom: bottomOffset + 8, left: '50%', transform: 'translateX(-50%)', width: 320 }
-          : { bottom: bottomOffset + 8, left: 16, width: 300 }
-      }
-    >
-      <div className="text-[8px] font-mono text-hud-text/25 tracking-widest uppercase mb-0.5 text-center select-none">
-        Advertisement
-      </div>
-      <div
-        ref={divRef}
-        id={`ezoic-pub-ad-placeholder-${PLACEHOLDER_ID}`}
-        style={{ minHeight: 50 }}
-      />
-    </div>
-  );
-}
-
-
