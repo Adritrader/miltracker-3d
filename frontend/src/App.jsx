@@ -578,9 +578,9 @@ function App() {
         )}
       </div>
 
-      {/* Bottom-left: Google AdSense banner — free users only */}
+      {/* Monetag ad script — free users only */}
       {!isPro && (
-        <AdBanner isMobile={isMobile} newsPanelHeight={newsPanelHeight} />
+        <AdBanner />
       )}
 
       {/* News cluster modal — shown when multiple items share a map area */}

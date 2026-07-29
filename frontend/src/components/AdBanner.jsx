@@ -1,62 +1,37 @@
 /**
- * AdBanner — Ezoic ad placeholder, shown only to free-tier users.
+ * AdBanner — Monetag ads, shown ONLY to free-tier users.
  *
- * Placement: fixed bottom-left corner on desktop, bottom-center on mobile.
- *
- * Configuration (set in .env):
- *   VITE_EZOIC_PLACEHOLDER  — Ezoic placeholder ID from your Ezoic dashboard (e.g. 101)
- *
- * Setup:
- *   1. Sign up at https://ezoic.com and add livewar3d.com
- *   2. Verify via their nameserver or script method
- *   3. Create an ad placeholder in Ezoic dashboard → get a numeric ID
- *   4. Set VITE_EZOIC_PLACEHOLDER=<that ID> in .env and Vercel env vars
+ * The script is injected dynamically here so Pro users never load it.
+ * This component is only rendered when !isPro (see App.jsx).
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 
-const PLACEHOLDER_ID = import.meta.env.VITE_EZOIC_PLACEHOLDER || '';
+const MONETAG_SRC  = 'https://quge5.com/88/tag.min.js';
+const MONETAG_ZONE = '265147';
 
-export default function AdBanner({ isMobile = false, newsPanelHeight = 0 }) {
-  const divRef   = useRef(null);
-  const defined  = useRef(false);
-  const [hidden, setHidden] = useState(false);
-
+export default function AdBanner() {
   useEffect(() => {
-    if (!PLACEHOLDER_ID || defined.current) return;
-    const id = Number(PLACEHOLDER_ID);
-    if (!id) return;
+    // Avoid double-injection on re-renders
+    if (document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`)) return;
 
-    const run = () => {
-      try {
-        window.ezstandalone = window.ezstandalone || {};
-        window.ezstandalone.cmd = window.ezstandalone.cmd || [];
-        window.ezstandalone.cmd.push(() => {
-          window.ezstandalone.define(id);
-          window.ezstandalone.enable();
-          window.ezstandalone.display();
-        });
-        defined.current = true;
-      } catch { /* ezoic not loaded yet */ }
+    const script = document.createElement('script');
+    script.src = MONETAG_SRC;
+    script.setAttribute('data-zone', MONETAG_ZONE);
+    script.setAttribute('data-cfasync', 'false');
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      // Remove script if user upgrades to Pro mid-session
+      const el = document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`);
+      if (el) el.remove();
     };
-
-    // Wait for Ezoic script to initialise (it loads async)
-    if (typeof window.ezstandalone?.cmd !== 'undefined') {
-      run();
-    } else {
-      const t = setTimeout(run, 1500);
-      return () => clearTimeout(t);
-    }
   }, []);
 
-  // Hide if placeholder renders with 0 height (ad blocker or no fill)
-  useEffect(() => {
-    if (!PLACEHOLDER_ID) return;
-    const t = setTimeout(() => {
-      if (divRef.current && divRef.current.offsetHeight === 0) setHidden(true);
-    }, 4000);
-    return () => clearTimeout(t);
-  }, []);
+  // Monetag manages its own ad placement — no DOM node needed here
+  return null;
+}
 
   if (!PLACEHOLDER_ID || hidden) return null;
 
