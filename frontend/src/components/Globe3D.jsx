@@ -266,6 +266,26 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     viewerRef.current = viewer;
     onViewerReady?.(viewer);
 
+    // ── Auto-recover from transient render errors ──────────────────────────
+    // Mobile browsers under memory/CPU pressure (e.g. heavy third-party ad
+    // scripts) can occasionally throw a single bad WebGL/array-size error
+    // mid-frame. Cesium's default behaviour is to permanently stop the render
+    // loop and show a dead-end "Rendering has stopped" dialog. Instead, try a
+    // bounded number of automatic resumes before giving up.
+    let renderErrorCount = 0;
+    viewer.scene.renderError.addEventListener((_scene, error) => {
+      renderErrorCount++;
+      console.warn(`[Globe3D] render error #${renderErrorCount}`, error);
+      if (viewer.isDestroyed()) return;
+      if (renderErrorCount <= 3) {
+        setTimeout(() => {
+          if (!viewer.isDestroyed()) viewer.useDefaultRenderLoop = true;
+        }, 300);
+      }
+      // Beyond 3 failures the scene state is likely unrecoverable — leave the
+      // default error dialog visible rather than looping forever.
+    });
+
     // ── Kill the blue flash: wait for 3 rendered frames before revealing ───
     // One postRender is not always enough — the first frame may still show
     // Cesium's default navy-blue clear color before imagery tiles paint.

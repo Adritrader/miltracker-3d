@@ -15,14 +15,22 @@ export default function AdBanner() {
     // Avoid double-injection on re-renders
     if (document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`)) return;
 
-    const script = document.createElement('script');
-    script.src = MONETAG_SRC;
-    script.setAttribute('data-zone', MONETAG_ZONE);
-    script.setAttribute('data-cfasync', 'false');
-    script.async = true;
-    document.head.appendChild(script);
+    // Delay injection so the ad script (heavy/aggressive on mobile) doesn't
+    // compete with Cesium's WebGL context creation during initial page load.
+    const timer = setTimeout(() => {
+      if (document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`)) return;
+      try {
+        const script = document.createElement('script');
+        script.src = MONETAG_SRC;
+        script.setAttribute('data-zone', MONETAG_ZONE);
+        script.setAttribute('data-cfasync', 'false');
+        script.async = true;
+        document.head.appendChild(script);
+      } catch (_) { /* ignore ad script injection failures */ }
+    }, 3000);
 
     return () => {
+      clearTimeout(timer);
       // Remove script if user upgrades to Pro mid-session
       const el = document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`);
       if (el) el.remove();

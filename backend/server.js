@@ -477,8 +477,7 @@ app.get('/api/analytics/fleet', async (req, res) => {
     const data = await analyticsFleetComposition(parseHours(req.query.hours, 24));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] fleet error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch fleet composition' });
+    console.error('[Analytics] fleet error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -489,8 +488,7 @@ app.get('/api/analytics/aircraft-types', async (req, res) => {
     const data = await analyticsAircraftTypes(parseHours(req.query.hours, 24));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] aircraft-types error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch aircraft types' });
+    console.error('[Analytics] aircraft-types error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -501,8 +499,7 @@ app.get('/api/analytics/hourly-activity', async (req, res) => {
     const data = await analyticsHourlyActivity(parseHours(req.query.hours, 48));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] hourly-activity error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch hourly activity' });
+    console.error('[Analytics] hourly-activity error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -515,8 +512,7 @@ app.get('/api/analytics/top-entities', async (req, res) => {
     const data = await analyticsTopEntities(hours, limit);
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] top-entities error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch top entities' });
+    console.error('[Analytics] top-entities error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -527,8 +523,7 @@ app.get('/api/analytics/altitude', async (req, res) => {
     const data = await analyticsAltitudeDistribution(parseHours(req.query.hours, 24));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] altitude error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch altitude distribution' });
+    console.error('[Analytics] altitude error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -539,8 +534,7 @@ app.get('/api/analytics/speed', async (req, res) => {
     const data = await analyticsSpeedDistribution(parseHours(req.query.hours, 24));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] speed error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch speed distribution' });
+    console.error('[Analytics] speed error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -551,8 +545,7 @@ app.get('/api/analytics/conflicts-by-zone', async (req, res) => {
     const data = await analyticsConflictsByZone(parseHours(req.query.hours, 72));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] conflicts-by-zone error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch conflicts by zone' });
+    console.error('[Analytics] conflicts-by-zone error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -563,8 +556,7 @@ app.get('/api/analytics/conflicts-by-type', async (req, res) => {
     const data = await analyticsConflictsByType(parseHours(req.query.hours, 72));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] conflicts-by-type error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch conflicts by type' });
+    console.error('[Analytics] conflicts-by-type error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -575,8 +567,7 @@ app.get('/api/analytics/news-by-source', async (req, res) => {
     const data = await analyticsNewsBySource(parseHours(req.query.hours, 72));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] news-by-source error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch news by source' });
+    console.error('[Analytics] news-by-source error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -587,8 +578,7 @@ app.get('/api/analytics/alerts-by-severity', async (req, res) => {
     const data = await analyticsAlertsBySeverity(parseHours(req.query.hours, 72));
     res.json(data);
   } catch (err) {
-    console.error('[Analytics] alerts-by-severity error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch alerts by severity' });
+    console.error('[Analytics] alerts-by-severity error:', err.message); res.json([]); // graceful degradation
   }
 });
 
@@ -1060,3 +1050,4 @@ async function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
+
