@@ -8,16 +8,15 @@
 import { useEffect } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile.js';
 
-const MONETAG_SRC  = 'https://quge5.com/88/tag.min.js';
-const MONETAG_ZONE = '265147';
+// In-Page Push (Banner) format — swapped from Multitag (Popunder + Push
+// Notifications + Vignette combined), which was overloading mobile DOM/CPU
+// and crashing Cesium's WebGL render loop.
+const MONETAG_SRC  = 'https://nap5k.com/tag.min.js';
+const MONETAG_ZONE = '11485282';
 
 export default function AdBanner() {
-  // Monetag's in-page push/notification creatives run heavy DOM + timer loops
-  // that reliably crash Cesium's WebGL rendering on mobile (RangeError:
-  // Invalid array length) — reproduces on both the browser and the installed
-  // PWA, so it isn't tab-backgrounding, it's raw memory/CPU contention on
-  // constrained mobile GPUs. Skip loading the ad entirely on mobile viewports
-  // until Monetag serves a lighter creative for this zone.
+  // Still withheld on mobile until the lighter In-Page Push format is
+  // confirmed stable there too.
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -45,7 +44,7 @@ export default function AdBanner() {
       const el = document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`);
       if (el) el.remove();
     };
-  }, []);
+  }, [isMobile]);
 
   // Monetag manages its own ad placement — no DOM node needed here
   return null;
