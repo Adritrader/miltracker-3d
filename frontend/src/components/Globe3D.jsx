@@ -285,13 +285,19 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       renderErrorCount++;
       console.warn(`[Globe3D] render error #${renderErrorCount}`, error);
       if (viewer.isDestroyed()) return;
-      if (renderErrorCount <= 3) {
-        setTimeout(() => {
-          if (!viewer.isDestroyed() && canvasSizeValid()) viewer.useDefaultRenderLoop = true;
-        }, 300);
-      }
-      // Beyond 3 failures the scene state is likely unrecoverable — leave the
-      // default error dialog visible rather than looping forever.
+      // Poll for a valid canvas size instead of a single fixed-delay retry —
+      // the 0×0 canvas window from a backgrounded tab can outlast 300ms.
+      let attempts = 0;
+      const tryResume = () => {
+        if (viewer.isDestroyed()) return;
+        attempts++;
+        if (canvasSizeValid()) {
+          viewer.useDefaultRenderLoop = true;
+        } else if (attempts < 20) {
+          setTimeout(tryResume, 300);
+        }
+      };
+      setTimeout(tryResume, 300);
     });
 
     // ── Pause rendering while the tab is backgrounded ──────────────────────
@@ -450,6 +456,9 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
         scene3DOnly
         creditContainer={CREDIT_CONTAINER}
         contextOptions={CONTEXT_OPTIONS}
+        // Cesium's own "Rendering has stopped" overlay would otherwise sit on
+        // top of the canvas forever, hiding the automatic recovery below.
+        showRenderLoopErrorMessage={false}
         // Disable every widget at construction
         animation={false}
         timeline={false}
