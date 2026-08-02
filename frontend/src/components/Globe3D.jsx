@@ -110,6 +110,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
   const imageryInitialized = useRef(false);   // guard: prevents re-init on spurious re-calls
   const [globeReady, setGlobeReady] = useState(false);
   const overlayRemovedRef = useRef(false);
+  const backgroundCleanupRef = useRef(null);
 
   const handleViewerReady = useCallback((cesiumComponent) => {
     if (!cesiumComponent || !cesiumComponent.cesiumElement) return;
@@ -272,6 +273,11 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     // mid-frame. Cesium's default behaviour is to permanently stop the render
     // loop and show a dead-end "Rendering has stopped" dialog. Instead, try a
     // bounded number of automatic resumes before giving up.
+    const canvasSizeValid = () => {
+      const c = viewer.scene.canvas;
+      return c.clientWidth > 0 && c.clientHeight > 0;
+    };
+
     let renderErrorCount = 0;
     viewer.scene.renderError.addEventListener((_scene, error) => {
       renderErrorCount++;
@@ -279,12 +285,59 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       if (viewer.isDestroyed()) return;
       if (renderErrorCount <= 3) {
         setTimeout(() => {
-          if (!viewer.isDestroyed()) viewer.useDefaultRenderLoop = true;
+          if (!viewer.isDestroyed() && canvasSizeValid()) viewer.useDefaultRenderLoop = true;
         }, 300);
       }
       // Beyond 3 failures the scene state is likely unrecoverable — leave the
       // default error dialog visible rather than looping forever.
     });
+
+    // ── Pause rendering while the tab is backgrounded ──────────────────────
+    // Only reproduces in a real mobile browser tab, never in the installed
+    // home-screen app: ad scripts there can open a popunder/new tab, which
+    // backgrounds this tab and lets mobile Chrome/Firefox collapse the canvas
+    // to 0×0 for a moment. Cesium then tries to size internal buffers from
+    // that 0 dimension and throws "Invalid array length". Stopping the render
+    // loop while hidden — and only resuming once the canvas has a real size
+    // again — avoids rendering during that invalid window entirely.
+    const handleVisibilityChange = () => {
+      if (viewer.isDestroyed()) return;
+      if (document.hidden) {
+        viewer.useDefaultRenderLoop = false;
+      } else {
+        const tryResume = () => {
+          if (viewer.isDestroyed()) return;
+          if (canvasSizeValid()) {
+            viewer.useDefaultRenderLoop = true;
+          } else {
+            setTimeout(tryResume, 200);
+          }
+        };
+        tryResume();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // ── Recover from lost/restored WebGL contexts ──────────────────────────
+    // Same trigger as above (backgrounding via ad popunders) can also cost the
+    // tab its GPU context on low-memory mobile devices.
+    const canvas = viewer.scene.canvas;
+    const handleContextLost = (e) => {
+      e.preventDefault();
+      console.warn('[Globe3D] WebGL context lost');
+      if (!viewer.isDestroyed()) viewer.useDefaultRenderLoop = false;
+    };
+    const handleContextRestored = () => {
+      console.warn('[Globe3D] WebGL context restored');
+      if (!viewer.isDestroyed() && canvasSizeValid()) viewer.useDefaultRenderLoop = true;
+    };
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+    backgroundCleanupRef.current = () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
 
     // ── Kill the blue flash: wait for 3 rendered frames before revealing ───
     // One postRender is not always enough — the first frame may still show
@@ -338,6 +391,8 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
   // all screen space event handlers in one call.
   useEffect(() => {
     return () => {
+      backgroundCleanupRef.current?.();
+      backgroundCleanupRef.current = null;
       const viewer = viewerRef.current;
       if (viewer && !viewer.isDestroyed()) {
         viewer.destroy();
