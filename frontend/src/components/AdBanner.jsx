@@ -8,41 +8,42 @@
 import { useEffect } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile.js';
 
-// In-Page Push (Banner) format — swapped from Multitag (Popunder + Push
-// Notifications + Vignette combined), which was overloading mobile DOM/CPU
-// and crashing Cesium's WebGL render loop.
-const MONETAG_SRC  = 'https://nap5k.com/tag.min.js';
-const MONETAG_ZONE = '11485282';
+// In-Page Push (Banner) + Onclick (Popunder) — swapped from Multitag
+// (Popunder + Push Notifications + Vignette combined), which was overloading
+// mobile DOM/CPU and crashing Cesium's WebGL render loop.
+const AD_TAGS = [
+  { src: 'https://nap5k.com/tag.min.js', zone: '11485282' }, // In-Page Push
+  { src: 'https://al5sm.com/tag.min.js', zone: '11485407' }, // Onclick (Popunder)
+];
 
 export default function AdBanner() {
-  // Still withheld on mobile until the lighter In-Page Push format is
-  // confirmed stable there too.
+  // Still withheld on mobile until these lighter formats are confirmed stable there too.
   const isMobile = useIsMobile();
 
   useEffect(() => {
     if (isMobile) return;
-    // Avoid double-injection on re-renders
-    if (document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`)) return;
 
-    // Delay injection so the ad script (heavy/aggressive on mobile) doesn't
-    // compete with Cesium's WebGL context creation during initial page load.
     const timer = setTimeout(() => {
-      if (document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`)) return;
-      try {
-        const script = document.createElement('script');
-        script.src = MONETAG_SRC;
-        script.setAttribute('data-zone', MONETAG_ZONE);
-        script.setAttribute('data-cfasync', 'false');
-        script.async = true;
-        document.head.appendChild(script);
-      } catch (_) { /* ignore ad script injection failures */ }
-    }, 3000);
+      for (const { src, zone } of AD_TAGS) {
+        if (document.querySelector(`script[data-zone="${zone}"]`)) continue;
+        try {
+          const script = document.createElement('script');
+          script.src = src;
+          script.setAttribute('data-zone', zone);
+          script.setAttribute('data-cfasync', 'false');
+          script.async = true;
+          document.head.appendChild(script);
+        } catch (_) { /* ignore ad script injection failures */ }
+      }
+    }, 3000); // delay so ad scripts don't compete with Cesium's WebGL init
 
     return () => {
       clearTimeout(timer);
-      // Remove script if user upgrades to Pro mid-session
-      const el = document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`);
-      if (el) el.remove();
+      // Remove scripts if user upgrades to Pro mid-session
+      for (const { zone } of AD_TAGS) {
+        const el = document.querySelector(`script[data-zone="${zone}"]`);
+        if (el) el.remove();
+      }
     };
   }, [isMobile]);
 
