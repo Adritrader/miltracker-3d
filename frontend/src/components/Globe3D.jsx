@@ -100,9 +100,11 @@ function buildImageryProvider(basemap) {
 }
 
 // CartoDB Dark Matter — initial provider (stable ref for first render)
-const IMAGERY_PROVIDER = ION_TOKEN
-  ? new Cesium.IonImageryProvider({ assetId: 2 })
-  : buildImageryProvider('dark');
+// NOTE: do NOT construct Cesium.IonImageryProvider directly — its constructor
+// is deprecated/unsafe in 1.115 (must use the async .fromAssetId() factory),
+// and using it here raced with tile creation causing a black-screen crash
+// ("TypeError: Cannot read properties of undefined (reading 'tilingScheme')").
+const IMAGERY_PROVIDER = buildImageryProvider('dark');
 
 const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'dark', children }) => {
   const viewerRef = useRef(null);
