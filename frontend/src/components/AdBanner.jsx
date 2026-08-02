@@ -6,12 +6,22 @@
  */
 
 import { useEffect } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile.js';
 
 const MONETAG_SRC  = 'https://quge5.com/88/tag.min.js';
 const MONETAG_ZONE = '265147';
 
 export default function AdBanner() {
+  // Monetag's in-page push/notification creatives run heavy DOM + timer loops
+  // that reliably crash Cesium's WebGL rendering on mobile (RangeError:
+  // Invalid array length) — reproduces on both the browser and the installed
+  // PWA, so it isn't tab-backgrounding, it's raw memory/CPU contention on
+  // constrained mobile GPUs. Skip loading the ad entirely on mobile viewports
+  // until Monetag serves a lighter creative for this zone.
+  const isMobile = useIsMobile();
+
   useEffect(() => {
+    if (isMobile) return;
     // Avoid double-injection on re-renders
     if (document.querySelector(`script[data-zone="${MONETAG_ZONE}"]`)) return;
 
