@@ -6,23 +6,19 @@
  */
 
 import { useEffect } from 'react';
-import { useIsMobile } from '../hooks/useIsMobile.js';
 
 // In-Page Push (Banner) + Onclick (Popunder) — swapped from Multitag
 // (Popunder + Push Notifications + Vignette combined), which was overloading
-// mobile DOM/CPU and crashing Cesium's WebGL render loop.
+// mobile DOM/CPU and crashing Cesium's WebGL render loop. Root cause of the
+// black-screen crash was the IonImageryProvider bug (fixed separately), so
+// these lighter formats are now enabled on mobile too.
 const AD_TAGS = [
   { src: 'https://nap5k.com/tag.min.js', zone: '11485282' }, // In-Page Push
   { src: 'https://al5sm.com/tag.min.js', zone: '11485407' }, // Onclick (Popunder)
 ];
 
 export default function AdBanner() {
-  // Still withheld on mobile until these lighter formats are confirmed stable there too.
-  const isMobile = useIsMobile();
-
   useEffect(() => {
-    if (isMobile) return;
-
     const timer = setTimeout(() => {
       for (const { src, zone } of AD_TAGS) {
         if (document.querySelector(`script[data-zone="${zone}"]`)) continue;
@@ -45,7 +41,7 @@ export default function AdBanner() {
         if (el) el.remove();
       }
     };
-  }, [isMobile]);
+  }, []);
 
   // Monetag manages its own ad placement — no DOM node needed here
   return null;
