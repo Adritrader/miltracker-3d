@@ -10,7 +10,7 @@
 
 | Layer | Description |
 |-------|-------------|
-| **3D Globe** | CesiumJS + Resium on a CartoDB Dark Matter base map — no API key required |
+| **3D Globe** | CesiumJS + Resium on an Esri Dark Gray Canvas base map — no API key required |
 | **Live Aircraft** | Real military ADS-B via `adsb.lol` (primary) → `adsb.fi` → `airplanes.live` (fallbacks). Zero fake data, 100–300 aircraft at any time |
 | **Aircraft Trails** | 40-point fading trajectory history per aircraft (~20 min at 30s poll). PolylineGlow material |
 | **Live Ships** | Warships via VesselFinder scraper. Heading-aware top-down hull icons |
@@ -43,7 +43,7 @@ All sources are **free and require zero registration**.
 | `GEMINI_API_KEY` | AI threat analysis | [aistudio.google.com](https://aistudio.google.com/app/apikey) — 1500 req/day free |
 | `NEWSAPI_KEY` | Additional news feed | [newsapi.org](https://newsapi.org/register) — 100 req/day free |
 
-> The app runs fully without any keys. CartoDB tiles are used by default.
+> The app runs fully without any keys. Esri Canvas tiles are used by default.
 
 ---
 

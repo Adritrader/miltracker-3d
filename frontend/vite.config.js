@@ -33,8 +33,9 @@ export default defineConfig({
         // Cache Cesium assets and tiles aggressively
         runtimeCaching: [
           {
-            // Tile basemaps (CartoDB, OSM, etc.)
-            urlPattern: /^https:\/\/(tiles|[a-c])\.(basemaps\.cartocdn|tile\.openstreetmap|gibs\.earthdata\.nasa|tiles\.maps\.eox)\..*\.(png|jpg|jpeg)$/i,
+            // Tile basemaps (Esri, OSM, EOX, NASA GIBS, OpenTopoMap) — matched by
+            // hostname so it works regardless of file extension (Esri tiles have none).
+            urlPattern: ({ url }) => /^(server\.arcgisonline\.com|[a-c]\.tile\.openstreetmap\.org|[a-c]\.tile\.opentopomap\.org|tiles\.maps\.eox\.at|gibs\.earthdata\.nasa\.gov)$/i.test(url.hostname),
             handler: 'CacheFirst',
             options: {
               cacheName: 'map-tiles',

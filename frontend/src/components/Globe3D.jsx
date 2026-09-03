@@ -74,32 +74,28 @@ function buildImageryProvider(basemap) {
         credit: new Cesium.Credit('\u00a9 OpenStreetMap contributors'),
       });
     case 'light':
+      // Esri Canvas Light Gray Base — free, no API key, CORS-compatible.
+      // CartoDB's basemaps.cartocdn.com now requires an API key (Sept 2025+),
+      // so it was replaced with this Esri equivalent to avoid "API KEY REQUIRED" tile watermarks.
       return new Cesium.UrlTemplateImageryProvider({
-        url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        subdomains: ['a', 'b', 'c', 'd'],
-        minimumLevel: 0, maximumLevel: 18,
-        credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        minimumLevel: 0, maximumLevel: 16,
+        credit: new Cesium.Credit('\u00a9 Esri, HERE, Garmin, FAO, NOAA, USGS'),
       });
     case 'night':
-      return new Cesium.UrlTemplateImageryProvider({
-        url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-        subdomains: ['a', 'b', 'c', 'd'],
-        minimumLevel: 0, maximumLevel: 18,
-        credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
-      });
     case 'dark':
     default:
-      // dark_nolabels — labels come exclusively from the ESRI borders overlay
+      // Esri Canvas Dark Gray Base — free, no API key, CORS-compatible.
+      // Replaces CartoDB dark_nolabels, which now requires an API key (Sept 2025+).
       return new Cesium.UrlTemplateImageryProvider({
-        url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-        subdomains: ['a', 'b', 'c', 'd'],
-        minimumLevel: 0, maximumLevel: 18,
-        credit: new Cesium.Credit('\u00a9 CartoDB \u00a9 OpenStreetMap contributors'),
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        minimumLevel: 0, maximumLevel: 16,
+        credit: new Cesium.Credit('\u00a9 Esri, HERE, Garmin, FAO, NOAA, USGS'),
       });
   }
 }
 
-// CartoDB Dark Matter — initial provider (stable ref for first render)
+// Esri Canvas Dark Gray Base — initial provider (stable ref for first render)
 // NOTE: do NOT construct Cesium.IonImageryProvider directly — its constructor
 // is deprecated/unsafe in 1.115 (must use the async .fromAssetId() factory),
 // and using it here raced with tile creation causing a black-screen crash
