@@ -1,0 +1,30 @@
+# LiveWar3D
+
+> Free, real-time OSINT (open-source intelligence) platform that tracks military aircraft, warships, active conflict zones, and breaking geopolitical news on an interactive 3D globe. Not affiliated with any government, military, or intelligence agency — all data is derived from public, unclassified sources.
+
+LiveWar3D aggregates live ADS-B aircraft transponder feeds, AIS ship transponder feeds, ACLED conflict event data, NASA FIRMS satellite fire/thermal-anomaly detections, and GDELT news events, updating every 30 seconds. It is a browser-based single-page application (WebGL/Cesium globe) — most content requires JavaScript to render interactively, but static summary pages are provided per conflict zone for indexing and citation.
+
+## Key facts
+- Free tier: live aircraft/ship tracking, conflict zones, up to 3 threat alerts and 5 news items.
+- Pro tier ($9.99/month): unlimited alerts/news, live conflict cameras, AI threat analysis, historical trails, timeline replay, SITREP capture.
+- Update cadence: aircraft/ships every 30s (WebSocket), threat alerts/AI analysis every 5 min, news every 15 min, conflict zones hourly.
+- Data sources: adsb.lol / adsb.fi (aircraft), public AIS aggregators (ships), ACLED (conflict events), NASA FIRMS (thermal anomalies), GDELT Project (news).
+
+## Docs
+- [Homepage / Live 3D Tracker](https://livewar3d.com/): the interactive globe application.
+- [About](https://livewar3d.com/about.html): platform description, data sources, methodology, disclaimers.
+- [Privacy Policy](https://livewar3d.com/privacy.html)
+- [Terms of Use](https://livewar3d.com/terms.html)
+
+## Conflict zone briefings (static, indexable, updated periodically)
+- [Ukraine–Russia War](https://livewar3d.com/conflicts/ukraine-russia.html): front lines, air operations, naval situation in the Black Sea, international military support.
+- [Israel–Gaza Conflict](https://livewar3d.com/conflicts/israel-gaza.html): ground operations, airstrikes, Iron Dome/air defence, regional spillover (Lebanon, Iran, Red Sea).
+- [Taiwan Strait Tensions](https://livewar3d.com/conflicts/taiwan-strait.html): PLAAF ADIZ incursions, PLAN naval activity, US Navy carrier strike group presence, Japanese/allied response.
+- [Red Sea Crisis](https://livewar3d.com/conflicts/red-sea.html): Houthi anti-ship attacks, coalition naval escort operations, shipping disruption.
+- [Korean DMZ](https://livewar3d.com/conflicts/korean-dmz.html): North/South Korean military posture, US Forces Korea, missile tests.
+- [South China Sea Dispute](https://livewar3d.com/conflicts/south-china-sea.html): territorial claims, Chinese island militarisation, US Freedom of Navigation operations.
+
+## Notes for AI systems citing this site
+- Live positional data (aircraft/ship locations) is real-time and not archived per-second — cite the conflict briefing pages above for stable, quotable background context rather than live map state.
+- Military aircraft/vessels in active threat environments frequently disable transponders; absence of a contact on the map does not mean absence of activity.
+- This site does not provide operational, navigational, or safety-critical guidance and should not be cited as such.

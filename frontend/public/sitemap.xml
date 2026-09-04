@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://livewar3d.com/</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://livewar3d.com/og-preview.png</image:loc>
+      <image:title>LiveWar3D — Live 3D Military Tracking Globe</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://livewar3d.com/about.html</loc>
@@ -27,25 +32,37 @@
   </url>
   <url>
     <loc>https://livewar3d.com/conflicts/ukraine-russia.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://livewar3d.com/conflicts/israel-gaza.html</loc>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://livewar3d.com/conflicts/taiwan-strait.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://livewar3d.com/conflicts/red-sea.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://livewar3d.com/conflicts/korean-dmz.html</loc>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://livewar3d.com/conflicts/south-china-sea.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>

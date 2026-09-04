@@ -932,9 +932,13 @@ const SERVER_INFO = {
 // anonymous visitors by design, see useRealTimeData.js). The only practical abuse
 // guard is capping how much a single IP can consume: connection rate + concurrent sockets.
 const socketIpConnections = new Map(); // ip -> open socket count
-const socketIpAttempts    = new Map(); // ip -> recent connection timestamps (last 60s)
-const MAX_SOCKETS_PER_IP   = 8;   // generous headroom for legitimate multi-tab users
-const MAX_CONNECTS_PER_MIN = 20;  // blocks rapid reconnect/flood loops
+const socketIpAttempts    = new Map(); // ip -> recent *accepted* connection timestamps (last 60s)
+// Both caps sized for real-world conditions: many legitimate users share one public IP
+// (mobile carrier CGNAT, corporate/university NAT, VPN exit nodes), and the frontend
+// auto-reconnects indefinitely (1-5s backoff) after any drop (redeploy, network blip,
+// laptop sleep). These only need to catch gross abuse (scripted floods), not normal churn.
+const MAX_SOCKETS_PER_IP   = 40;  // generous headroom for shared/CGNAT IPs
+const MAX_CONNECTS_PER_MIN = 60;  // tolerates a full minute of 1s-interval auto-reconnect
 
 function getSocketIp(socket) {
   const fwd = socket.handshake.headers['x-forwarded-for'];
@@ -946,10 +950,13 @@ io.use((socket, next) => {
   const ip = getSocketIp(socket);
   const now = Date.now();
 
+  // IMPORTANT: only count attempts that are actually let through. If a rejected
+  // attempt were pushed here too, a client stuck auto-reconnecting every 1-5s would
+  // keep the sliding window permanently full and never recover on its own — turning
+  // one transient drop into a lockout that lasts until the process restarts.
   const attempts = (socketIpAttempts.get(ip) || []).filter(t => now - t < 60_000);
-  attempts.push(now);
-  socketIpAttempts.set(ip, attempts);
-  if (attempts.length > MAX_CONNECTS_PER_MIN) {
+  if (attempts.length >= MAX_CONNECTS_PER_MIN) {
+    socketIpAttempts.set(ip, attempts);
     return next(new Error('Too many connection attempts — please slow down.'));
   }
 
@@ -958,6 +965,8 @@ io.use((socket, next) => {
     return next(new Error('Too many concurrent connections from this address.'));
   }
 
+  attempts.push(now);
+  socketIpAttempts.set(ip, attempts);
   next();
 });
 

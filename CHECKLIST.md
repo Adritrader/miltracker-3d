@@ -22,7 +22,7 @@
 | DevOps (Docker, CI/CD, docs de build) | ❌ Pendiente |
 | i18n / Context API / arquitectura frontend | ❌ Pendiente |
 | SEO clásico (meta tags, OG, JSON-LD, sitemap) | ✅ Muy completo |
-| SEO para IA (llms.txt, bots declarados, cobertura de contenido) | ❌ Pendiente (ver §10) |
+| SEO para IA (llms.txt, bots declarados, cobertura de contenido) | ✅ Resuelto (2026-09-04) — ver §9 |
 
 ---
 
@@ -40,6 +40,7 @@
 - [x] Supabase Auth real (Google OAuth + email) — `AuthModal.jsx`, tabla `profiles` con trigger, endpoint `/api/profile` con `requireAuth`
 - [x] Socket.io sin auth por token — **evaluado y descartado**: el stream es público por diseño (datos gratis para visitantes anónimos, ver `useRealTimeData.js`), forzar JWT rompería el producto free. En su lugar se añadió protección anti-abuso por IP (ver siguiente punto).
 - [x] Rate limiting de Socket.io por-IP — `io.use(...)` en `server.js` limita a 20 intentos de conexión/min y 8 sockets concurrentes por IP (además del cooldown por-socket existente en `request_data`/`request_history`)
+- [x] **Bug crítico corregido (2026-09-04): el rate limiter de Socket.io bloqueaba usuarios legítimos ("muchos aviones desaparecieron" tras el push anterior)** — dos causas: (1) `MAX_SOCKETS_PER_IP=8` demasiado bajo para IPs compartidas (CGNAT de móviles, NAT corporativo); (2) bug de auto-bloqueo permanente — los intentos rechazados también se contaban en la ventana deslizante de 60s, y como el frontend reintenta infinitamente cada 1-5s (`reconnectionAttempts: Infinity`), un cliente que superaba el límite quedaba bloqueado **para siempre** (sus propios reintentos mantenían la ventana llena, nunca se vaciaba). Corregido: solo se cuentan intentos *aceptados* (no los rechazados), y los umbrales subieron a 40 sockets/IP y 60 intentos/min. También se suavizó el backoff del cliente (`reconnectionDelay` 1s→2s, `reconnectionDelayMax` 5s→10s) — `backend/server.js`, `frontend/src/hooks/useRealTimeData.js`.
 - [ ] Sanitizar mensajes de error en producción (evitar exponer stack traces / paths internos al cliente)
 
 ---
@@ -174,17 +175,17 @@ Cronología completa por si se necesita repasar el diagnóstico:
 - [x] JSON-LD `Organization` con `sameAs`
 - [x] `robots.txt` + `sitemap.xml` presentes y válidos
 - [x] Título/descripción dinámicos por ruta vía `react-helmet-async` en la SPA (`App.jsx` `seoTitle`/`seoDescription`) — visible para crawlers que ejecutan JS (Google)
-- [x] Páginas estáticas sin JS indexables: `about.html` + 4 páginas `/conflicts/*.html` (ukraine-russia, taiwan-strait, red-sea, south-china-sea) — crítico porque la app principal es una SPA con WebGL que la mayoría de crawlers de IA (GPTBot, ClaudeBot, PerplexityBot) no renderizan
+- [x] Páginas estáticas sin JS indexables: `about.html` + 6 páginas `/conflicts/*.html` (ukraine-russia, israel-gaza, taiwan-strait, red-sea, korean-dmz, south-china-sea) — crítico porque la app principal es una SPA con WebGL que la mayoría de crawlers de IA (GPTBot, ClaudeBot, PerplexityBot) no renderizan
 - [x] `preconnect`/`dns-prefetch` a CDNs de tiles y fuentes — ayuda a Core Web Vitals (LCP)
 
-### ❌ Pendiente
+### ✅ Resuelto (2026-09-04)
 
-- [ ] **`llms.txt`** — estándar emergente que varios crawlers de IA consultan para obtener un resumen curado del sitio en markdown. No existe en el repo. Alto impacto / esfuerzo mínimo.
-- [ ] **`robots.txt` no declara bots de IA explícitamente** (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended`, `anthropic-ai`). El wildcard `User-agent: *` ya los permite implícitamente, pero declararlos da control fino (ej. permitir los de *search* y bloquear `Bytespider`/`CCBot` si no se quiere scraping de entrenamiento).
-- [ ] **Sin JSON-LD en las 4 páginas de `/conflicts/*.html`** — ninguna tiene `Article`/`NewsArticle` schema con `datePublished`/`dateModified`. Reduce elegibilidad para Google News/Discover y citas de IA.
-- [ ] **Contenido incompleto vs. lo prometido en meta/FAQ**: la `description` y el `FAQPage` mencionan "Israel-Gaza" y "Korean DMZ" como zonas cubiertas, pero no existen `/conflicts/israel-gaza.html` ni `/conflicts/korean-dmz.html`. Inconsistencia que penaliza señales de calidad/E-E-A-T.
-- [ ] **`sitemap.xml` con `lastmod` hardcodeado** (`2026-07-29` en todas las URLs) — inconsistente con `changefreq: hourly` en la home; no refleja actualizaciones reales.
-- [ ] Sin imagen en el sitemap (`<image:image>`) para `og-preview.png`.
+- [x] **`llms.txt` creado** (`frontend/public/llms.txt`) — resumen curado del sitio en markdown con enlaces a las 6 páginas de conflicto, cadencia de actualización y notas para sistemas de IA que citen el sitio.
+- [x] **`robots.txt` declara bots de IA explícitamente** — `GPTBot`, `ChatGPT-User`, `OAI-SearchBot`, `ClaudeBot`, `Claude-Web`, `anthropic-ai`, `PerplexityBot`, `Perplexity-User`, `Google-Extended`, `Applebot-Extended` permitidos explícitamente; `Bytespider` y `CCBot` (scraping de entrenamiento sin valor de referencia/cita) bloqueados.
+- [x] **JSON-LD `NewsArticle` añadido a las 6 páginas de `/conflicts/*.html`** (las 4 existentes + las 2 nuevas) con `headline`/`description`/`datePublished`/`dateModified`/`author`/`publisher`/`mainEntityOfPage`. Validado con `JSON.parse()` sobre las 6 páginas — sin errores de sintaxis.
+- [x] **Creadas `/conflicts/israel-gaza.html` y `/conflicts/korean-dmz.html`** — mismo template que las 4 páginas existentes (head, header/nav, hero, main con secciones, callout OSINT, cta-box, disclaimer, footer), contenido propio y sustancial. Cierra la inconsistencia E-E-A-T entre lo prometido en el `FAQPage`/meta description de `index.html` y las páginas realmente existentes.
+- [x] **Interlinking actualizado**: footers de las 6 páginas de conflicto ahora enlazan a las 6 (antes cada una enlazaba solo a un subconjunto); el bloque `<noscript>` de `index.html` ("Covered Conflict Zones") ahora enlaza cada zona a su página estática; "Related Conflicts" de `taiwan-strait.html` ahora enlaza a Korean DMZ en vez de texto plano.
+- [x] **`sitemap.xml` actualizado** — `lastmod` de la home y las 6 páginas de conflicto refrescado a `2026-09-04` (páginas estáticas sin cambios de contenido como `about.html`/`privacy.html`/`terms.html` mantienen su fecha original), añadidas las 2 URLs nuevas, añadido `xmlns:image` + `<image:image>` con `og-preview.png` en la entrada de la home.
 
 ---
 
@@ -197,5 +198,5 @@ Cronología completa por si se necesita repasar el diagnóstico:
 5. **Tests mínimos** sobre funciones puras críticas (`geocodeTitle`, `filterAircraft`, `analyzeLocalDanger`, `icaoToCountry`) — cobertura actual es 0%.
 6. **Refactor de `server.js`** a rutas/módulos — ya delega a servicios pero el archivo principal sigue creciendo.
 7. Paginación cursor-based en endpoints de historial, antes de que el volumen de datos lo haga necesario.
-8. **SEO para IA** (§9): crear `llms.txt`, declarar bots de IA en `robots.txt`, añadir `Article` JSON-LD a las páginas de conflicto, y crear las páginas de Israel-Gaza/Korean DMZ que ya se prometen en meta tags.
+8. ~~**SEO para IA** (§9)~~ — resuelto 2026-09-04: `llms.txt`, bots de IA declarados en `robots.txt`, `NewsArticle` JSON-LD en las 6 páginas de conflicto, páginas de Israel-Gaza/Korean DMZ creadas, sitemap e interlinking actualizados.
 9. Indicador agregado de cobertura AIS en vivo vs. estático en la UI (ver §4.1) — mejora de UX de bajo esfuerzo.

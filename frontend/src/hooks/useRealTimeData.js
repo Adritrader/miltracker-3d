@@ -76,8 +76,11 @@ export function useRealTimeData() {
     const socket = io(BACKEND_URL, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      // Slightly gentler backoff than the socket.io default (1s/5s) — reduces attempt
+      // frequency during outages/redeploys so it stays comfortably under the backend's
+      // per-IP connection-rate guard (see server.js io.use()) without hurting normal UX.
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       timeout: 10000,
     });
     socketRef.current = socket;

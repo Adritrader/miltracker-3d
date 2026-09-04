@@ -2,4 +2,42 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
+# ── AI crawlers — explicitly allowed (site is free OSINT content, built to be cited) ──
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# ── Training-only scrapers with no citation/referral value — blocked ──
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
 Sitemap: https://livewar3d.com/sitemap.xml
