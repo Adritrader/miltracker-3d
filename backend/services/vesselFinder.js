@@ -2,17 +2,24 @@
  * vesselFinder.js – Military ship data aggregator
  *
  * Priority order:
- *  1. aisstream.io WebSocket MMSI filter  (targeted catalog of ~120 known warships)
- *  2. aisstream.io REST ShipType=35       (global real-time AIS)
- *  3. Norwegian Coastal AIS              (kystdatahuset.no – free, Norway-only)
- *  4. AISHub free endpoint               (global, type 35, no key needed)
- *  5. militaryMMSI.js catalog baseline   (verified homeport coords, labeled)
+ *  1. aisstream.io WebSocket MMSI filter  (targeted catalog of ~120 known warships — needs AISSTREAM_KEY)
+ *  2. aisstream.io REST ShipType=35       (global real-time AIS — needs AISSTREAM_KEY)
+ *  3. Norwegian Coastal AIS              (kystdatahuset.no – free, no key, Norway-only)
+ *  4. Finnish Digitraffic AIS            (meri.digitraffic.fi – free, no key, Finland-only)
+ *  5. militaryMMSI.js catalog baseline   (verified homeport coords, labeled, STATIC — last resort)
  *
  * Sources 1-4 run in parallel. MMSI-catalog vessels that appear in the live
  * feed are enriched with the catalog name/class; unknown type-35 ships keep
  * their raw AIS name. Baseline is NEVER shown while any live source returns ≥1.
  *
- * Get a free AISSTREAM_KEY at: https://aisstream.io  (no credit card required)
+ * IMPORTANT: without AISSTREAM_KEY, sources 3-4 only cover Nordic waters (~10-15
+ * vessels total), so most of the ~120-ship catalog falls back to static baseline
+ * positions (isBaseline:true, flagged in the UI). Get a free AISSTREAM_KEY at
+ * https://aisstream.io (no credit card required) for real global coverage.
+ *
+ * NOTE: the AISHub free endpoint (data.aishub.net?username=0) was removed —
+ * it requires a real feeder-registered username/password and always returned
+ * "Invalid username or password!". It was silently failing on every poll.
  */
 
 import fetch from 'node-fetch';
@@ -22,6 +29,14 @@ import { ALL_MMSIS, lookupMMSI, getCatalogBaseline } from './militaryMMSI.js';
 const TIMEOUT_MS = 10_000;
 const WS_COLLECT_MS = 18_000;  // listen window per MMSI batch
 const WS_BATCH_SIZE = 50;      // AISStream hard limit per subscription
+
+// Raw AIS text fields (destination, name) are fixed-width and '@'-padded at the
+// protocol level; some feeds forward that padding/garbage un-normalised. Strip
+// non-printable chars and trailing '@' padding so the UI never shows binary junk.
+function sanitizeAisText(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[^\x20-\x7E]/g, '').replace(/@+$/g, '').trim();
+}
 
 // ── Normalise a Norwegian AIS GeoJSON feature ─────────────────────────────────
 // The Norwegian Coastal AIS API returns LineString geometries (last two positions)
@@ -55,30 +70,30 @@ function normNorwAIS(f) {
     velocity:    parseFloat(p.speed ?? 0) || 0,
     type:        'Military',
     flag:        p.flag || p.country || 'NO',
-    destination: p.destination || '',
+    destination: sanitizeAisText(p.destination),
     type_entity: 'ship',
     lastSeen:    new Date().toISOString(),
   };
 }
 
-// ── Normalise an AISHub JSON row ──────────────────────────────────────────────
-function normAISHub(row) {
-  const id = String(row.MMSI || row.mmsi || '');
-  if (!id) return null;
-  const lat = parseFloat(row.LATITUDE  ?? row.lat ?? '');
-  const lon = parseFloat(row.LONGITUDE ?? row.lon ?? '');
-  if (isNaN(lat) || isNaN(lon)) return null;
+// ── Normalise a Finnish Digitraffic AIS location + vessel-metadata pair ───────
+function normDigitraffic(feature, meta) {
+  const mmsi = String(feature.mmsi || feature.properties?.mmsi || '');
+  if (!mmsi) return null;
+  const [lon, lat] = feature.geometry?.coordinates || [];
+  if (lat == null || lon == null || isNaN(lat) || isNaN(lon)) return null;
+  const p = feature.properties || {};
   return {
-    id,
-    mmsi:        id,
-    name:        row.NAME || row.SHIPNAME || 'UNKNOWN',
+    id:          mmsi,
+    mmsi,
+    name:        meta?.name || 'UNKNOWN',
     lat,
     lon,
-    heading:     parseFloat(row.COG  ?? row.heading ?? 0),
-    velocity:    parseFloat(row.SPEED ?? row.sog ?? 0),
+    heading:     p.heading != null && p.heading !== 511 ? p.heading : (p.cog ?? 0),
+    velocity:    p.sog ?? 0,
     type:        'Military',
-    flag:        row.FLAG || row.COUNTRY || '',
-    destination: row.DESTINATION || '',
+    flag:        'FI',
+    destination: sanitizeAisText(meta?.destination),
     type_entity: 'ship',
     lastSeen:    new Date().toISOString(),
   };
@@ -101,20 +116,29 @@ async function tryNorwegianAIS() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Source 2: AISHub free endpoint (global, type 35)
+// Source: Finnish Digitraffic AIS (type 35 = military) — free, no key required
+// https://www.digitraffic.fi/en/marine-traffic/ais/
 // ─────────────────────────────────────────────────────────────────────────────
-async function tryAISHub() {
-  const url = 'https://data.aishub.net/ws.php?username=0&format=1&output=json&compress=0&shiptype=35';
-  const res = await fetch(url, {
-    signal:  AbortSignal.timeout(TIMEOUT_MS),
-    headers: { 'User-Agent': 'MilTracker3D/1.0', 'Accept': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`AISHub HTTP ${res.status}`);
-  const data = await res.json();
-  const rows = Array.isArray(data) && Array.isArray(data[1]) ? data[1]
-             : Array.isArray(data) ? data : [];
-  const ships = rows.map(normAISHub).filter(Boolean);
-  if (ships.length === 0) throw new Error('0 military vessels from AISHub');
+async function tryFinnishAIS() {
+  const headers = { 'Accept': 'application/json', 'Digitraffic-User': 'MilTracker3D' };
+  const [locRes, metaRes] = await Promise.all([
+    fetch('https://meri.digitraffic.fi/api/ais/v1/locations', { signal: AbortSignal.timeout(TIMEOUT_MS), headers }),
+    fetch('https://meri.digitraffic.fi/api/ais/v1/vessels',   { signal: AbortSignal.timeout(TIMEOUT_MS), headers }),
+  ]);
+  if (!locRes.ok) throw new Error(`Digitraffic locations HTTP ${locRes.status}`);
+  if (!metaRes.ok) throw new Error(`Digitraffic vessels HTTP ${metaRes.status}`);
+
+  const locData  = await locRes.json();
+  const metaData = await metaRes.json();
+  const metaArr  = Array.isArray(metaData) ? metaData : Object.values(metaData || {});
+  const metaByMmsi = new Map(metaArr.filter(v => v.shipType === 35).map(v => [String(v.mmsi), v]));
+  if (metaByMmsi.size === 0) throw new Error('0 military vessels in Digitraffic metadata');
+
+  const ships = (locData?.features || [])
+    .filter(f => metaByMmsi.has(String(f.mmsi ?? f.properties?.mmsi)))
+    .map(f => normDigitraffic(f, metaByMmsi.get(String(f.mmsi ?? f.properties?.mmsi))))
+    .filter(Boolean);
+  if (ships.length === 0) throw new Error('0 military vessels with live position from Digitraffic');
   return ships;
 }
 
@@ -242,7 +266,7 @@ export async function fetchShips() {
     tryAISStreamMMSI().then(ships => ({ name: 'AISStream-MMSI', ships })),
     tryAISStream().then(ships     => ({ name: 'AISStream-REST', ships })),
     tryNorwegianAIS().then(ships  => ({ name: 'NorwAIS',        ships })),
-    tryAISHub().then(ships        => ({ name: 'AISHub',         ships })),
+    tryFinnishAIS().then(ships    => ({ name: 'Digitraffic-FI', ships })),
   ]);
 
   const realShips = [];

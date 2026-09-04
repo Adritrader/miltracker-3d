@@ -14,7 +14,8 @@
 | Auth de usuarios + Monetización (Stripe, planes Pro) | ✅ Implementado y funcionando |
 | PWA (manifest + service worker) | ✅ Implementado (vite-plugin-pwa) |
 | Anuncios (Monetag) | ✅ Implementado, con incidentes recientes resueltos (ver §7) |
-| Socket.io — auth por token | ❌ Pendiente |
+| Socket.io — abuso/rate limiting por IP | ✅ Resuelto (2026-09-04) — auth por token descartado por diseño (stream público) |
+| Datos de barcos (AIS) — mayormente estáticos | ⚠️ Mejorado 2026-09-04 (fuente rota eliminada + fuente nueva añadida), limitación real de fondo persiste sin `AISSTREAM_KEY` (ver §4.1) |
 | Basemap tiles (CartoDB → Esri, ver §3) | ✅ Corregido 2026-09-03 tras cambio de política de CartoDB |
 | Observabilidad (Sentry, /metrics, /healthz, logging estructurado) | ❌ Pendiente |
 | Calidad de código (tests, ESLint, TypeScript) | ❌ Pendiente — 0% cobertura |
@@ -37,8 +38,8 @@
 - [x] Escritura atómica de disk cache (`.tmp` + `rename`) — evita corrupción en crash
 - [x] Graceful shutdown (`SIGTERM`/`SIGINT` → flush + close)
 - [x] Supabase Auth real (Google OAuth + email) — `AuthModal.jsx`, tabla `profiles` con trigger, endpoint `/api/profile` con `requireAuth`
-- [ ] **Socket.io sin autenticación por token** — cualquiera puede conectarse al WebSocket y recibir todo el stream. `io.use(...)` no existe.
-- [ ] Rate limiting de Socket.io es solo por-socket (cooldown 5s/10s), no por-IP — 100 tabs del mismo atacante = 100 sockets libres
+- [x] Socket.io sin auth por token — **evaluado y descartado**: el stream es público por diseño (datos gratis para visitantes anónimos, ver `useRealTimeData.js`), forzar JWT rompería el producto free. En su lugar se añadió protección anti-abuso por IP (ver siguiente punto).
+- [x] Rate limiting de Socket.io por-IP — `io.use(...)` en `server.js` limita a 20 intentos de conexión/min y 8 sockets concurrentes por IP (además del cooldown por-socket existente en `request_data`/`request_history`)
 - [ ] Sanitizar mensajes de error en producción (evitar exponer stack traces / paths internos al cliente)
 
 ---
@@ -85,12 +86,25 @@
 - [ ] Logging estructurado (pino/winston) — sigue siendo `console.log`/`console.error` puro
 - [ ] Validación de env vars al arranque — parcial (solo `REST_API_KEY` y Gemini se comprueban)
 - [ ] Paginación cursor-based en `/api/alerts/history` y similares — solo hay `limit` (offset simple), no cursor real
-- [ ] CSV parser de FIRMS sigue usando `split(',')` naive (no maneja campos con comas escapadas)
+- [x] CSV parser de FIRMS con `split(',')` naive — **verificado 2026-09-04, no es un bug real**: las columnas de NASA FIRMS son siempre numéricas/enum (lat, lon, frp, confidence, bright_ti4...), nunca texto libre con comas, por lo que el parser naive es seguro en la práctica. Bajado de prioridad.
+- [x] `.env.example` no documentaba `ACLED_API_KEY`/`ACLED_EMAIL` (usadas en `conflictService.js` pero invisibles para quien configura un despliegue nuevo — el código las omite en silencio si faltan) — corregido 2026-09-04
 - [ ] Endpoint `/metrics` (Prometheus) o `/healthz` dedicado — no existe, solo `/api/status`
 - [ ] Sentry / error tracking en producción — no implementado
 - [ ] Broadcast de arrays completos a todos los clientes (sin delta updates ni viewport filtering) — con muchos usuarios concurrentes esto escala mal
 - [ ] Circuit breaker / backoff exponencial para APIs externas caídas (adsb.lol, etc.) — no implementado
 - [ ] Deduplicar Haversine (`distanceKm`/`distKm`) entre frontend y backend — backend ya centralizado (`aiDanger.js` exporta `distKm`), frontend sigue con su propia copia (aceptable, no puede importar del backend)
+
+### 4.1 Ships/AIS — flota mostrando posiciones estáticas (investigado 2026-09-04)
+
+> Causa raíz confirmada en vivo (llamadas reales a los 4 endpoints usados por `vesselFinder.js`):
+
+- [x] **Bug: fuente "AISHub" siempre fallaba** — `data.aishub.net?username=0` respondía `{"ERROR":true,"ERROR_MESSAGE":"Invalid username or password!"}` en el 100% de los intentos (requiere credenciales reales de feeder AIS, `username=0` nunca fue válido). Era código muerto que fallaba en silencio en cada poll. **Eliminado.**
+- [x] **Fix: nueva fuente gratuita añadida** — Finnish Digitraffic AIS (`meri.digitraffic.fi`, sin key, sin registro) verificada en vivo: aporta ~4 buques militares reales (armada finlandesa). Sumado a los ~9-10 de NorwAIS (que sí funcionaba), la cobertura en vivo real subió de ~9 a ~14 buques.
+- [x] Sanitización añadida para el campo `destination` (`sanitizeAisText()`) — algunos feeds AIS reenvían padding/bytes no imprimibles sin normalizar.
+- [ ] **Limitación real que persiste**: sin `AISSTREAM_KEY` (gratis, requiere registro en https://aisstream.io), NorwAIS + Digitraffic solo cubren aguas nórdicas (~14 buques reales). El resto del catálogo (~130 MMSIs en `militaryMMSI.js`) siempre sirve posiciones **estáticas** (último homeport conocido, `isBaseline:true`). No existe ninguna API gratuita real que dé cobertura AIS militar global sin key — es una limitación física de los datos abiertos de AIS, no del código.
+- [x] El frontend ya avisa de esto (`EntityPopup.jsx` muestra "⚠ No live AIS available" cuando `isBaseline`), pero **no hay indicador agregado** (ej. "14 en vivo / 131 último-conocido") ni distinción visual en el icono del buque sobre el globo — pendiente, mejora de UX de bajo esfuerzo.
+- [ ] **Acción recomendada para cobertura global real**: registrar `AISSTREAM_KEY` (gratis) en producción — es la única fuente del código que cubre buques fuera de aguas nórdicas.
+- [ ] Los MMSIs del catálogo (`militaryMMSI.js`) son en su mayoría **inventados/placeholder** (secuencias como `338234633`, `338234650`...), no los MMSI reales de esos buques — aunque se configure `AISSTREAM_KEY`, el matching por MMSI para la mayoría de estas entradas nunca encontrará datos reales porque no corresponden a los transpondedores reales de esos barcos. Solucionarlo requeriría reemplazar el catálogo con MMSIs verificados (trabajo de investigación OSINT, no de código).
 
 ---
 
@@ -177,9 +191,11 @@ Cronología completa por si se necesita repasar el diagnóstico:
 ## 10. Próximos pasos recomendados (orden sugerido)
 
 1. **Validar el fix del crash móvil** en dispositivo real (bloqueante — hay usuarios afectados ahora mismo).
-2. **Socket.io auth por token** — cierra el mayor agujero de seguridad restante (cualquiera puede leer el stream completo sin autenticarse).
-3. **Sentry** (u otra herramienta de error tracking) — sin esto, los próximos bugs en producción se detectan solo por reporte manual del usuario, como ha pasado en esta sesión.
-4. **Tests mínimos** sobre funciones puras críticas (`geocodeTitle`, `filterAircraft`, `analyzeLocalDanger`, `icaoToCountry`) — cobertura actual es 0%.
-5. **Refactor de `server.js`** a rutas/módulos — ya delega a servicios pero el archivo principal sigue creciendo.
-6. Paginación cursor-based en endpoints de historial, antes de que el volumen de datos lo haga necesario.
-7. **SEO para IA** (§9): crear `llms.txt`, declarar bots de IA en `robots.txt`, añadir `Article` JSON-LD a las páginas de conflicto, y crear las páginas de Israel-Gaza/Korean DMZ que ya se prometen en meta tags.
+2. ~~Socket.io auth por token~~ — resuelto 2026-09-04 con rate limiting por IP (ver §1).
+3. **Registrar `AISSTREAM_KEY`** (gratis, https://aisstream.io) en producción — es la única mejora restante de bajo esfuerzo para cobertura AIS global real (ver §4.1).
+4. **Sentry** (u otra herramienta de error tracking) — sin esto, los próximos bugs en producción se detectan solo por reporte manual del usuario, como ha pasado en esta sesión.
+5. **Tests mínimos** sobre funciones puras críticas (`geocodeTitle`, `filterAircraft`, `analyzeLocalDanger`, `icaoToCountry`) — cobertura actual es 0%.
+6. **Refactor de `server.js`** a rutas/módulos — ya delega a servicios pero el archivo principal sigue creciendo.
+7. Paginación cursor-based en endpoints de historial, antes de que el volumen de datos lo haga necesario.
+8. **SEO para IA** (§9): crear `llms.txt`, declarar bots de IA en `robots.txt`, añadir `Article` JSON-LD a las páginas de conflicto, y crear las páginas de Israel-Gaza/Korean DMZ que ya se prometen en meta tags.
+9. Indicador agregado de cobertura AIS en vivo vs. estático en la UI (ver §4.1) — mejora de UX de bajo esfuerzo.

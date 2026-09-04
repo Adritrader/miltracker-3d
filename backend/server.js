@@ -928,8 +928,53 @@ const SERVER_INFO = {
   geminiEnabled: !!process.env.GEMINI_API_KEY,
 };
 
+// Socket.io serves a public live-data stream (no per-user auth — data is free for
+// anonymous visitors by design, see useRealTimeData.js). The only practical abuse
+// guard is capping how much a single IP can consume: connection rate + concurrent sockets.
+const socketIpConnections = new Map(); // ip -> open socket count
+const socketIpAttempts    = new Map(); // ip -> recent connection timestamps (last 60s)
+const MAX_SOCKETS_PER_IP   = 8;   // generous headroom for legitimate multi-tab users
+const MAX_CONNECTS_PER_MIN = 20;  // blocks rapid reconnect/flood loops
+
+function getSocketIp(socket) {
+  const fwd = socket.handshake.headers['x-forwarded-for'];
+  if (fwd) return fwd.split(',')[0].trim();
+  return socket.handshake.address;
+}
+
+io.use((socket, next) => {
+  const ip = getSocketIp(socket);
+  const now = Date.now();
+
+  const attempts = (socketIpAttempts.get(ip) || []).filter(t => now - t < 60_000);
+  attempts.push(now);
+  socketIpAttempts.set(ip, attempts);
+  if (attempts.length > MAX_CONNECTS_PER_MIN) {
+    return next(new Error('Too many connection attempts — please slow down.'));
+  }
+
+  const openCount = socketIpConnections.get(ip) || 0;
+  if (openCount >= MAX_SOCKETS_PER_IP) {
+    return next(new Error('Too many concurrent connections from this address.'));
+  }
+
+  next();
+});
+
+// Periodic sweep so socketIpAttempts doesn't grow unbounded with one-off IPs
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, attempts] of socketIpAttempts) {
+    const fresh = attempts.filter(t => now - t < 60_000);
+    if (fresh.length === 0) socketIpAttempts.delete(ip);
+    else socketIpAttempts.set(ip, fresh);
+  }
+}, 5 * 60_000).unref();
+
 io.on('connection', (socket) => {
-  console.log(`[Socket] Client connected: ${socket.id}`);
+  const ip = getSocketIp(socket);
+  socketIpConnections.set(ip, (socketIpConnections.get(ip) || 0) + 1);
+  console.log(`[Socket] Client connected: ${socket.id} (${ip})`);
 
   // Per-socket rate limiting for client-initiated events
   let lastRequestData    = 0;
@@ -977,6 +1022,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    const n = (socketIpConnections.get(ip) || 1) - 1;
+    if (n <= 0) socketIpConnections.delete(ip);
+    else socketIpConnections.set(ip, n);
     console.log(`[Socket] Client disconnected: ${socket.id}`);
   });
 });
