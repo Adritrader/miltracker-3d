@@ -6,6 +6,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { timeAgo } from '../utils/geoUtils.js';
+import { AIRCRAFT_ROLES } from '../utils/militaryFilter.js';
+import RegionActivity, { useRegionActivity } from './RegionActivity.jsx';
 
 function useMissionClock() {
   const startRef = useRef(Date.now());
@@ -167,6 +169,16 @@ export const MapLegend = ({ isMobile = false }) => {
               <span className="text-red-500">⚠ Alert / Danger</span>
               <span style={{color:'#4af7ff'}}>⊕ Military Base</span>
               <span style={{color:'#00aaff'}}>📷 Live Cam</span>
+            </div>
+          </div>
+
+          {/* Aircraft role colours */}
+          <div>
+            <div className="hud-label text-[10px] mb-1 opacity-70">AIRCRAFT ROLE</div>
+            <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[10px] font-mono">
+              {Object.entries(AIRCRAFT_ROLES).map(([key, r]) => (
+                <span key={key} style={{ color: r.color }}>✈ {r.label}</span>
+              ))}
             </div>
           </div>
 
@@ -485,7 +497,7 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource,
 /* ────────────────────────────────────────────────────────── */
 const FilterPanel = ({
   filters, onFilterChange,
-  aircraftCount, shipCount, newsCount, conflictCount = 0, alertCount,
+  aircraftCount, shipCount, liveShipCount = null, newsCount, conflictCount = 0, alertCount,
   connected, lastUpdate, aircraftSource = 'loading',
   spaceView = false, onSpaceViewChange,
   isMobile = false, onSearchOpen, onLoginClick,
@@ -493,6 +505,7 @@ const FilterPanel = ({
 }) => {
   const set = (key, value) => onFilterChange({ ...filters, [key]: value });
   const missionTime = useMissionClock();
+  const regionActivity = useRegionActivity();
   const [panelOpen,  setPanelOpen]  = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -504,7 +517,12 @@ const FilterPanel = ({
     <>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs font-mono mt-1">
         <span className="text-hud-text">▲ <span className="text-hud-blue font-bold">{aircraftCount}</span> aircraft</span>
-        <span className="text-hud-text">▬ <span className="text-hud-blue font-bold">{shipCount}</span> ships</span>
+        <span className="text-hud-text" title="Live AIS positions vs. last known homeport/deployment positions">
+          ▬ <span className="text-hud-blue font-bold">{shipCount}</span> ships
+          {liveShipCount != null && liveShipCount < shipCount && (
+            <span className="text-hud-text/70"> ({liveShipCount} live)</span>
+          )}
+        </span>
         <span className="text-hud-text">■ <span className="text-hud-amber font-bold">{newsCount}</span> news</span>
         <span className="text-hud-text">⚠ <span className="text-red-400 font-bold">{alertCount}</span> alerts</span>
         <span className="text-hud-text">◆ <span className="text-orange-400 font-bold">{conflictCount}</span> events</span>
@@ -527,6 +545,7 @@ const FilterPanel = ({
           </div>
         );
       })()}
+      <RegionActivity regions={regionActivity} />
     </>
   );
 

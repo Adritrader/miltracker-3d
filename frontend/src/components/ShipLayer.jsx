@@ -204,6 +204,11 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
       const labelPad  = new Cesium.Cartesian2(5, 3);
       const cTracked  = Cesium.Color.fromCssColorString('#FFD700');
       const cShip     = Cesium.Color.fromCssColorString('#00aaff');
+      // Baseline vessels (no live AIS — last known homeport/deployment) are
+      // dimmed so they don't read as live positions
+      const cBaseline      = Cesium.Color.fromCssColorString('#8aa4b8').withAlpha(0.75);
+      const tintLive       = Cesium.Color.WHITE;
+      const tintBaseline   = new Cesium.Color(1, 1, 1, 0.45);
 
       // Add / update ships + trails
       for (const ship of ships) {
@@ -218,7 +223,9 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
         const rawFlag    = ship.flag || ship.country || '';
         const resolved   = rawFlag ? resolveCountry(rawFlag) : null;
         const countryTag = (resolved && resolved.code !== '??') ? `[${resolved.code}]` : '';
-        const shipLabel  = [countryTag, ship.name || id].filter(Boolean).join(' ');
+        const shipLabel  = [countryTag, ship.name || id, ship.isBaseline && '(last known)'].filter(Boolean).join(' ');
+        const tint       = ship.isBaseline && !isTracked ? tintBaseline : tintLive;
+        const labelColor = isTracked ? cTracked : ship.isBaseline ? cBaseline : cShip;
 
         // ── Trail history ───────────────────────────────────────────────────
         if (!trailPointsRef.current.has(id)) trailPointsRef.current.set(id, []);
@@ -286,11 +293,9 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
           tr.to     = position;
           tr.start  = Date.now();
           if (entity.billboard) entity.billboard.image = iconUri;
-          if (entity.billboard) entity.billboard.color = isTracked
-            ? Cesium.Color.WHITE
-            : Cesium.Color.WHITE;
+          if (entity.billboard) entity.billboard.color = tint;
           if (entity.label)     entity.label.text = new Cesium.ConstantProperty(shipLabel);
-          if (entity.label)     entity.label.fillColor = Cesium.Color.fromCssColorString(isTracked ? '#FFD700' : '#00aaff');
+          if (entity.label)     entity.label.fillColor = labelColor;
           entity._milData = { ...ship, type_entity: 'ship' };
         } else {
           // Create smooth-moving entity — position driven by a lerp CallbackProperty
@@ -309,7 +314,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
               width:  isMobile ? 32 : 46,
               height: isMobile ? 32 : 46,
               // Baseline vessels dimmed to indicate "last known position"
-              color: Cesium.Color.WHITE,
+              color: tint,
               verticalOrigin:   Cesium.VerticalOrigin.CENTER,
               horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
               scaleByDistance: nfsEntity,
@@ -319,7 +324,7 @@ const ShipLayer = ({ viewer, ships, visible, onSelect, isMobile = false, tracked
             label: {
               text: shipLabel,
               font: `bold ${isMobile ? 17 : 14}px "Share Tech Mono", monospace`,
-              fillColor: isTracked ? cTracked : cShip,
+              fillColor: labelColor,
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,

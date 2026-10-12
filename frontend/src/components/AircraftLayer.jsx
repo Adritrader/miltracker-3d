@@ -5,9 +5,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as Cesium from 'cesium';
-import { AIRCRAFT_SVG, HELICOPTER_SVG, getAltitudeColor } from '../utils/icons.js';
+import { aircraftRoleSvg, getAltitudeColor } from '../utils/icons.js';
 import { isValidCoord } from '../utils/geoUtils.js';
-import { icaoToCountry, getAircraftTypeName, resolveCountry, isHelicopter } from '../utils/militaryFilter.js';
+import { icaoToCountry, getAircraftTypeName, resolveCountry, getAircraftRole, AIRCRAFT_ROLES } from '../utils/militaryFilter.js';
 import { saveTrails as idbSaveTrails, loadTrails as idbLoadTrails, pruneOldTrails } from '../utils/trailStore.js';
 import { analyseTrajectory } from '../utils/trajectoryAnalysis.js';
 
@@ -70,20 +70,20 @@ const _LABEL_PAD    = new Cesium.Cartesian2(5, 3);
 // Aircraft trail point mapper: IndexedDB {x,y,z,a} → runtime {pos, altM}
 const acPointFromDB = p => ({ pos: new Cesium.Cartesian3(p.x, p.y, p.z), altM: p.a || 0 });
 
-// Cache SVG icons by (heading rounded to 10°, color, type) to avoid re-encoding on every render.
-// Theoretical max: 36 headings × ~4 colors × 2 types = ~288 entries.
+// Cache SVG icons by (heading rounded to 10°, color, role) to avoid re-encoding on every render.
+// Each role has one colour (plus gold when tracked): 36 headings × 8 roles × 2 = ~576 max.
 // Safety cap prevents unbounded growth if colors vary unexpectedly (e.g. HMR cycles). (P2)
-const MAX_ICON_CACHE = 500;
+const MAX_ICON_CACHE = 600;
 const _iconCache = new Map();
-function getCachedIcon(heading, color, helicopter = false) {
+function getCachedIcon(heading, color, role = 'other') {
   const h = Math.round((heading || 0) / 10) * 10 % 360;
-  const key = `${h}_${color}_${helicopter ? 'h' : 'a'}`;
+  const key = `${h}_${color}_${role}`;
   if (!_iconCache.has(key)) {
     if (_iconCache.size >= MAX_ICON_CACHE) {
       // LRU eviction: remove oldest entry rather than clearing all (F-M1)
       _iconCache.delete(_iconCache.keys().next().value);
     }
-    _iconCache.set(key, helicopter ? HELICOPTER_SVG(h, color) : AIRCRAFT_SVG(h, color));
+    _iconCache.set(key, aircraftRoleSvg(role, h, color));
   }
   return _iconCache.get(key);
 }
@@ -276,9 +276,9 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         const altM     = Math.max(ac.altitude || 0, 100);
         const position = Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, altM);
         const isTracked = trackedList?.has(ac.id);
-        const iconColor = isTracked ? '#FFD700' : '#ffffff';
-        const helo     = isHelicopter(ac.aircraftType);
-        const iconUri  = getCachedIcon(ac.heading, iconColor, helo);
+        const role      = getAircraftRole(ac.aircraftType);
+        const iconColor = isTracked ? '#FFD700' : AIRCRAFT_ROLES[role].color;
+        const iconUri   = getCachedIcon(ac.heading, iconColor, role);
 
         // ── Append to trail history ─────────────────────────────────────────
         if (!trailPointsRef.current.has(ac.id)) {

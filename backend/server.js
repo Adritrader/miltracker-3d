@@ -41,6 +41,8 @@ import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
 import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, supabaseClient } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
+import { getAircraftPhoto } from './services/aircraftPhotos.js';
+import { recordRegionActivity, getRegionActivity } from './services/regionActivity.js';
 import { isStripeEnabled, createCheckoutSession, createPortalSession, constructWebhookEvent, planFromSubscription } from './services/stripeService.js';
 
 dotenv.config();
@@ -352,6 +354,20 @@ app.get('/api/aircraft/intel', async (req, res) => {
   }
 });
 
+// Photo of the specific airframe (Planespotters): /api/aircraft/photo/:icao24
+app.get('/api/aircraft/photo/:icao24', async (req, res) => {
+  const hex = String(req.params.icao24 || '').toLowerCase();
+  if (!/^[0-9a-f]{6}$/.test(hex)) return res.status(400).json({ error: 'Invalid icao24 format (6 hex chars)' });
+  try {
+    const photo = await getAircraftPhoto(hex);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.json({ photo });
+  } catch (err) {
+    console.warn('[AircraftPhoto] lookup failed:', err.message);
+    res.json({ photo: null }); // graceful degradation — client falls back to the type photo
+  }
+});
+
 // Cached intel lookup (no API call): /api/aircraft/intel/cached/:id
 app.get('/api/aircraft/intel/cached/:id', (req, res) => {
   const intel = getCachedIntel(req.params.id);
@@ -361,6 +377,12 @@ app.get('/api/aircraft/intel/cached/:id', (req, res) => {
 // Intel cache stats
 app.get('/api/aircraft/intel/stats', (req, res) => {
   res.json(getIntelCacheStats());
+});
+
+// Military air activity per hotspot region vs. the same hour yesterday
+app.get('/api/activity/regions', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  res.json(getRegionActivity());
 });
 
 // ─── History endpoints (Supabase) ────────────────────────────────────────────
@@ -779,7 +801,10 @@ async function pollAircraft() {
     const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
     const isReal = aircraft.length > 0 && knownSources.includes(aircraft[0]?.source);
     console.log(`[Aircraft] ${aircraft.length} aircraft emitted (${isReal ? `REAL – ${aircraft[0].source}` : 'CACHED – awaiting next cycle'})`);
-    if (isReal) saveCache('aircraft', aircraft);
+    if (isReal) {
+      saveCache('aircraft', aircraft);
+      recordRegionActivity(aircraft);
+    }
   } catch (err) {
     console.error('[Aircraft] Poll error:', err.message);
   }

@@ -201,3 +201,28 @@ Cronología completa por si se necesita repasar el diagnóstico:
 7. Paginación cursor-based en endpoints de historial, antes de que el volumen de datos lo haga necesario.
 8. ~~**SEO para IA** (§9)~~ — resuelto 2026-09-04: `llms.txt`, bots de IA declarados en `robots.txt`, `NewsArticle` JSON-LD en las 6 páginas de conflicto, páginas de Israel-Gaza/Korean DMZ creadas, sitemap e interlinking actualizados.
 9. Indicador agregado de cobertura AIS en vivo vs. estático en la UI (ver §4.1) — mejora de UX de bajo esfuerzo.
+
+---
+
+## 11. Experiencia de usuario — plan 2026-10-13
+
+> Contexto: los aviones ya tienen foto por tipo ICAO (~200, `mediaLookup.js`) y los barcos por nombre/tipo, pero las bases solo tienen 6 fotos genéricas (todas las airbases muestran Ramstein). Ordenado por impacto/esfuerzo.
+
+### Imágenes y contexto
+- [x] **Foto + descripción real de cada base vía Wikipedia** — 145/158 bases con artículo verificado offline (coordenadas del artículo a <40 km de la base; descartados los que solo coincidían con la ciudad). Campo `wiki` en `MilitaryBasesLayer.jsx`, hook `useWikiSummary` (`utils/wikiSummary.js`), fallback a la foto por tipo. **Bug de datos corregido de paso:** Fordow estaba ~107 km desplazado.
+- [x] **Foto del avión concreto vía Planespotters.net** — `GET /api/aircraft/photo/:icao24` (`services/aircraftPhotos.js`): User-Agent con contacto, caché 7 días (aciertos) / 24 h (sin foto), deduplicación de peticiones en curso, cooldown de 5 min ante 429. La ficha muestra crédito «© fotógrafo · Planespotters.net» enlazado (requisito de sus términos); fallback a la foto por tipo.
+- [x] **Foto + descripción de barcos con nombre vía Wikipedia** — 95 buques con artículo verificado offline (`utils/shipWiki.js`): título con todas las palabras del nombre + descripción de buque + número de casco en el artículo. La búsqueda libre se descartó por errores (p. ej. USS Thomas Hudner → USS Gerald R. Ford). Buques nuevos que aparezcan por AIS no se mapean solos — regenerar la tabla si crece el catálogo.
+
+### Confianza en los datos
+- [x] **Distinguir barcos en vivo vs. última posición conocida** — icono atenuado + etiqueta «(last known)» en gris en `ShipLayer.jsx`; contador «N ships (L live)» en el panel de filtros y la barra inferior (con tooltip).
+
+### Globo
+- [x] **Iconos/colores por rol de avión** — `getAircraftRole()` + `AIRCRAFT_ROLES` en `militaryFilter.js` (por código ICAO); siluetas nuevas (pesado, AWACS con rotodomo, bombardero, dron) en `icons.js`; sección «AIRCRAFT ROLE» en la leyenda y fila ROLE en la ficha. Los aviones civiles del feed regional quedan en blanco («Other»).
+- [x] **Avisos de vuelos notables** — `NotableFlights.jsx`, detección en cliente (`getNotableFlight()`): squawk 7500/7600/7700, bombarderos estratégicos, puestos de mando nuclear (E-4B/E-6B) e ISR/AEW estratégico. Primer lote resumido en un único aviso, máx. 3 visibles, 12 s, botón MUTE persistente; clic → abre ficha y vuela. No entra en el pipeline de alertas de noticias (tweets/Supabase).
+
+### Análisis
+- [x] **Perfil de altitud/velocidad** — `FlightProfile.jsx`: dos sparklines separadas (sin doble eje) de las últimas 6 h desde `/api/history/trail`, con lectura al pasar el cursor/dedo; respeta las unidades ft/m y kt/km/h. Solo aparece con ≥3 muestras en ≥5 min. Visible para todos (no Pro) — decidir si se quiere gatear.
+- [x] **Comparativa de actividad vs. 24h** — `services/regionActivity.js` + `GET /api/activity/regions`: media horaria de aviones militares (solo feed `/mil`, no los civiles regionales) en las 6 regiones calientes, persistida en disk cache; % solo si la base de ayer es ≥3 aviones. Se muestra en el panel de estado (`RegionActivity.jsx`). **Necesita ~24 h de uptime en producción** para empezar a mostrar datos.
+
+### Detectado durante la sesión (pendiente)
+- [ ] **Gemini devuelve 404 para `gemini-2.5-flash`** en local (`[AircraftIntel] Error identifying … HTTP 404`) — la función AI Aircraft Intel (Pro) falla si producción usa el mismo modelo. Revisar el modelo configurado / `probeGeminiModel`.

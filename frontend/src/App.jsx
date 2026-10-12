@@ -12,6 +12,7 @@ import DangerZoneLayer from './components/DangerZoneLayer.jsx';
 import NewsLayer from './components/NewsLayer.jsx';
 import ConflictLayer from './components/ConflictLayer.jsx';
 import MilitaryBasesLayer from './components/MilitaryBasesLayer.jsx';
+import NotableFlights from './components/NotableFlights.jsx';
 import EntityPopup from './components/EntityPopup.jsx';
 import FilterPanel from './components/FilterPanel.jsx';
 import { MapLegend } from './components/FilterPanel.jsx';
@@ -213,6 +214,10 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [effectiveShips, filters.showShips, filters.country, filters.alliance]
   );
+  const liveShipCount = useMemo(
+    () => filteredShips.filter(s => !s.isBaseline).length,
+    [filteredShips]
+  );
   const filteredNews = useMemo(
     () => filterNews(news, filters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,6 +265,17 @@ function App() {
     if (v && lat != null && lon != null) {
       v.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1_800_000),
+        duration: 2,
+      });
+    }
+  }, []);
+
+  const handleNotableSelect = useCallback((ac) => {
+    setSelectedEntity(ac);
+    const v = viewerRef.current;
+    if (v && !v.isDestroyed() && ac?.lat != null && ac?.lon != null) {
+      v.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(ac.lon, ac.lat, 500_000),
         duration: 2,
       });
     }
@@ -473,6 +489,7 @@ function App() {
           onFilterChange={setFilters}
           aircraftCount={filteredAircraft.length}
           shipCount={filteredShips.length}
+          liveShipCount={liveShipCount}
           newsCount={filteredNews.filter(n => n.lat).length}
           conflictCount={filteredConflicts.length}
           alertCount={alerts.length}
@@ -592,6 +609,9 @@ function App() {
         />
       )}
 
+      {/* Toasts for rare airborne aircraft (bombers, emergency squawks…) */}
+      <NotableFlights aircraft={filteredAircraft} onSelect={handleNotableSelect} isMobile={isMobile} />
+
       {/* Bottom-right: Entity detail popup */}
       <EntityPopup
         entity={selectedEntity}
@@ -638,6 +658,7 @@ function App() {
         viewer={viewer}
         aircraftCount={filteredAircraft.length}
         shipCount={filteredShips.length}
+        liveShipCount={liveShipCount}
         conflictCount={conflicts.length}
         connected={connected}
         isMobile={isMobile}

@@ -10,11 +10,16 @@ import {
   formatAltitude, formatSpeed, metersToFeet, msToKnots,
   headingToCompass, timeAgo
 } from '../utils/geoUtils.js';
-import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry, resolveAirport } from '../utils/militaryFilter.js';
+import { COUNTRY_FLAGS, icaoToCountry, getAircraftTypeName, resolveCountry, resolveAirport, getAircraftRole, AIRCRAFT_ROLES } from '../utils/militaryFilter.js';
 import { PATTERNS } from '../utils/trajectoryAnalysis.js';
 import {
   getAircraftImageUrl, getShipImageUrl, getBaseImageUrl, getConflictImageUrl, getCountryFallbackImage,
 } from '../utils/mediaLookup.js';
+import { useWikiSummary } from '../utils/wikiSummary.js';
+import FlightProfile from './FlightProfile.jsx';
+import { getShipWikiTitle } from '../utils/shipWiki.js';
+
+const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const Row = ({ label, value, highlight }) => (
   <div className="flex justify-between items-center py-px border-b border-hud-border/40">
@@ -24,12 +29,20 @@ const Row = ({ label, value, highlight }) => (
 );
 
 /** Compact image banner shown at the top of every popup */
-const EntityImage = ({ src, alt }) => {
+const EntityImage = ({ src, alt, pending = false, credit = null }) => {
   const [state, setState] = useState('loading'); // loading | ok | err
   useEffect(() => { setState('loading'); }, [src]);
+  // `pending`: a better photo is still being looked up — hold the banner space
+  if (!src && pending) {
+    return (
+      <div className="relative w-full flex items-center justify-center bg-black/60" style={{ height: 120 }}>
+        <span className="text-hud-text text-xs font-mono animate-pulse">LOADING IMAGE…</span>
+      </div>
+    );
+  }
   if (!src || state === 'err') return null;
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: 100 }}>
+    <div className="relative w-full overflow-hidden" style={{ height: 120 }}>
       {state === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           <span className="text-hud-text text-xs font-mono animate-pulse">LOADING IMAGE…</span>
@@ -56,6 +69,12 @@ const EntityImage = ({ src, alt }) => {
       <div className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none"
         style={{ background: 'linear-gradient(transparent, rgba(5,8,16,0.9))' }}
       />
+      {credit && state === 'ok' && (
+        <a href={credit.href} target="_blank" rel="noopener noreferrer"
+          className="absolute bottom-0.5 right-1 text-[9px] font-mono text-white/70 hover:text-white truncate max-w-[90%]">
+          {credit.text}
+        </a>
+      )}
     </div>
   );
 };
@@ -67,6 +86,27 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   const [dragging, setDragging] = useState(false);
   const [aiIntel, setAiIntel] = useState(null);      // AI aircraft identification
   const [aiIntelLoading, setAiIntelLoading] = useState(false);
+  const [acPhoto, setAcPhoto] = useState({ hex: null, photo: null, loading: false });
+
+  // Wikipedia photo + summary for bases (verified title) and named ships
+  const isShipEntity = !!entity && (entity.type_entity === 'ship' || !!entity.mmsi);
+  const wikiTitle = entity?.type === 'base' ? entity.wiki
+                  : isShipEntity ? getShipWikiTitle(entity.name) : null;
+  const { summary: wiki, loading: wikiLoading } = useWikiSummary(wikiTitle);
+
+  // Photo of this specific airframe (Planespotters, proxied + cached by backend)
+  const acHex = entity && (entity.type === 'aircraft' || entity.icao24) && /^[0-9a-f]{6}$/i.test(entity.icao24 || '')
+    ? entity.icao24.toLowerCase() : null;
+  useEffect(() => {
+    if (!acHex) { setAcPhoto({ hex: null, photo: null, loading: false }); return; }
+    let alive = true;
+    setAcPhoto({ hex: acHex, photo: null, loading: true });
+    fetch(`${BACKEND}/api/aircraft/photo/${acHex}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive) setAcPhoto({ hex: acHex, photo: d?.photo || null, loading: false }); })
+      .catch(() => { if (alive) setAcPhoto({ hex: acHex, photo: null, loading: false }); });
+    return () => { alive = false; };
+  }, [acHex]);
 
   // Reset position and AI intel when new entity is shown
   useEffect(() => {
@@ -78,7 +118,6 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
     } else if (entity && (entity.type === 'aircraft' || entity.icao24)) {
       setAiIntel(null);
       setAiIntelLoading(true);
-      const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       // F-C7: validate entity fields before sending to backend
       const RE_CS   = /^[A-Z0-9 _-]{2,10}$/i;
       const RE_ICAO = /^[0-9a-f]{6}$/i;
@@ -184,20 +223,50 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
   // F-C8: only allow safe URL schemes for images that come from external data
   const SAFE_IMG = /^(https?:\/\/|\/)/;
   let imageUrl = null;
+  let imageCredit = null;
+  let imagePending = false;
   if (isNews) {
     const rawImg = entity.imageUrl || entity.urlToImage || null;
     imageUrl = rawImg && SAFE_IMG.test(rawImg) ? rawImg : null;
   } else if (isAircraft) {
-    imageUrl = getAircraftImageUrl(entity.aircraftType);
-    if (!imageUrl) {
-      const raw = entity.country || icaoToCountry(entity.icao24 || '');
-      const r   = raw ? resolveCountry(raw) : null;
-      imageUrl  = r && r.code !== '??' ? getCountryFallbackImage(r.code) : null;
+    const own = acPhoto.hex === acHex ? acPhoto : { photo: null, loading: !!acHex };
+    if (own.photo) {
+      imageUrl    = own.photo.src;
+      imageCredit = { text: `\u00a9 ${own.photo.photographer} \u00b7 Planespotters.net`, href: own.photo.link };
+    } else if (own.loading) {
+      imagePending = true;
+    } else {
+      imageUrl = getAircraftImageUrl(entity.aircraftType);
+      if (!imageUrl) {
+        const raw = entity.country || icaoToCountry(entity.icao24 || '');
+        const r   = raw ? resolveCountry(raw) : null;
+        imageUrl  = r && r.code !== '??' ? getCountryFallbackImage(r.code) : null;
+      }
     }
-  } else if (isShip)     imageUrl = getShipImageUrl(entity);
-  else if (isBase)       imageUrl = getBaseImageUrl(entity.baseType);
+  } else if (isShip || isBase) {
+    if (wiki?.image) {
+      imageUrl    = wiki.image;
+      imageCredit = wiki.url ? { text: 'Wikipedia', href: wiki.url } : null;
+    } else if (wikiLoading) {
+      imagePending = true;
+    } else {
+      imageUrl = isShip ? getShipImageUrl(entity) : getBaseImageUrl(entity.baseType);
+    }
+  }
   else if (isConflict)   imageUrl = getConflictImageUrl(entity.type || entity.eventType);
   // isFirms: no photo — thermal data speaks for itself
+
+  const wikiBlurb = wiki?.extract ? (
+    <div className="mt-1 border-t border-hud-border/40 pt-1">
+      <p className="text-hud-text text-xs sm:text-sm leading-relaxed line-clamp-4">{wiki.extract}</p>
+      {wiki.url && (
+        <a href={wiki.url} target="_blank" rel="noopener noreferrer"
+          className="text-[10px] sm:text-xs font-mono text-hud-cyan hover:text-white">
+          &#x21D7; WIKIPEDIA
+        </a>
+      )}
+    </div>
+  ) : null;
 
   // ── Fly to ────────────────────────────────────────────────────────────────
   const flyTo = () => {
@@ -289,7 +358,8 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
         </div>
 
         {/* Photo banner */}
-        <EntityImage src={imageUrl} alt={entity.name || entity.callsign || entity.title || ''} />
+        <EntityImage src={imageUrl} pending={imagePending} credit={imageCredit}
+          alt={entity.name || entity.callsign || entity.title || ''} />
 
         {/* Body */}
         <div className="px-2 py-1 space-y-0">
@@ -321,6 +391,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                   {entity.note}
                 </p>
               )}
+              {wikiBlurb}
             </>
           )}
 
@@ -330,6 +401,15 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="CALLSIGN"  value={entity.callsign}                       highlight="text-hud-green" />
               {entity.registration && <Row label="REG"      value={entity.registration} highlight="text-hud-blue" />}
               {entity.aircraftType  && <Row label="AC TYPE" value={acTypeName}          highlight="text-white" />}
+              {entity.aircraftType && getAircraftRole(entity.aircraftType) !== 'other' && (() => {
+                const r = AIRCRAFT_ROLES[getAircraftRole(entity.aircraftType)];
+                return (
+                  <div className="flex justify-between items-center py-px border-b border-hud-border/40">
+                    <span className="hud-label text-xs">ROLE</span>
+                    <span className="font-mono text-xs font-bold" style={{ color: r.color }}>{r.label.toUpperCase()}</span>
+                  </div>
+                );
+              })()}
               <Row label="ICAO24"    value={entity.icao24} />
               <Row label="COUNTRY"   value={acCountryDisplay} />
               <div className="flex justify-between items-center py-px border-b border-hud-border/40">
@@ -370,6 +450,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
               <Row label="ORIGIN"    value={entity.dep_airport ? resolveAirport(entity.dep_airport) : '\u2014'} highlight={entity.dep_airport ? 'text-hud-green' : undefined} />
               <Row label="DEST"      value={entity.arr_airport ? resolveAirport(entity.arr_airport) : '\u2014'} highlight={entity.arr_airport ? 'text-hud-amber' : undefined} />
               <Row label="LAST SEEN" value={timeAgo(entity.lastSeen)} />
+              <FlightProfile icao24={entity.icao24} altUnit={altUnit} speedUnit={speedUnit} />
               {entity.carrierOps && (
                 <div className="mt-1 rounded-lg border border-amber-400/40 bg-amber-950/40 p-1.5 space-y-0.5">
                   <div className="text-[8px] sm:text-[9px] font-mono font-bold text-amber-300/80 tracking-widest uppercase mb-0.5">
@@ -504,6 +585,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
                   &#x26A0; No live AIS available &mdash; showing last known homeport / deployment position
                 </div>
               )}
+              {wikiBlurb}
             </>
           )}
 

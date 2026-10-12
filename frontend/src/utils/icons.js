@@ -40,6 +40,61 @@ export const HELICOPTER_SVG = (heading = 0, color = '#ffffff') => {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
+// Heavy aircraft silhouette — long straight wings, 4 engine pods
+// (transports, tankers, ISR/AEW). `rotodome` adds the AWACS radar disc.
+export const HEAVY_SVG = (heading = 0, color = '#ffffff', rotodome = false) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">
+    <g transform="rotate(${heading}, 16, 16)">
+      <rect x="14.5" y="2" width="3" height="26" rx="1.5" fill="${color}" opacity="0.95"/>
+      <polygon points="14.5,11 1,16 1,18 14.5,15 17.5,15 31,18 31,16 17.5,11" fill="${color}" opacity="0.85"/>
+      <rect x="6" y="15" width="1.6" height="3" fill="${color}" opacity="0.8"/>
+      <rect x="10" y="14" width="1.6" height="3" fill="${color}" opacity="0.8"/>
+      <rect x="20.4" y="14" width="1.6" height="3" fill="${color}" opacity="0.8"/>
+      <rect x="24.4" y="15" width="1.6" height="3" fill="${color}" opacity="0.8"/>
+      <polygon points="14.5,25 9,29 9,30 16,28 23,30 23,29 17.5,25" fill="${color}" opacity="0.8"/>
+      ${rotodome ? `<ellipse cx="16" cy="19" rx="5" ry="5" fill="none" stroke="${color}" stroke-width="1.6" opacity="0.95"/>` : ''}
+    </g>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+// Bomber silhouette — wide swept flying-wing outline
+export const BOMBER_SVG = (heading = 0, color = '#ffffff') => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">
+    <g transform="rotate(${heading}, 16, 16)">
+      <polygon points="16,3 30,21 27,23 16,17 5,23 2,21" fill="${color}" opacity="0.9"/>
+      <rect x="14.5" y="3" width="3" height="22" rx="1.5" fill="${color}" opacity="0.95"/>
+      <polygon points="14.5,22 11,27 21,27 17.5,22" fill="${color}" opacity="0.8"/>
+    </g>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+// Drone silhouette — slender fuselage, very long thin wings, V-tail
+export const DRONE_SVG = (heading = 0, color = '#ffffff') => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">
+    <g transform="rotate(${heading}, 16, 16)">
+      <ellipse cx="16" cy="14" rx="2" ry="10" fill="${color}" opacity="0.95"/>
+      <rect x="1" y="12" width="30" height="2" rx="1" fill="${color}" opacity="0.85"/>
+      <polygon points="15,23 10,28 11,29 16,25 21,29 22,28 17,23" fill="${color}" opacity="0.8"/>
+    </g>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+/** Icon for an aircraft role (see getAircraftRole in militaryFilter.js). */
+export function aircraftRoleSvg(role, heading, color) {
+  switch (role) {
+    case 'helicopter': return HELICOPTER_SVG(heading, color);
+    case 'bomber':     return BOMBER_SVG(heading, color);
+    case 'drone':      return DRONE_SVG(heading, color);
+    case 'transport':
+    case 'tanker':     return HEAVY_SVG(heading, color);
+    case 'isr':        return HEAVY_SVG(heading, color, true);
+    default:           return AIRCRAFT_SVG(heading, color);
+  }
+}
+
 // Ship silhouette (white, top-down view)
 export const SHIP_SVG = (heading = 0, color = '#00aaff') => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">

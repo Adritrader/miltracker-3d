@@ -30,7 +30,7 @@ const Seg = ({ label, value, valueClass = 'text-hud-green', children }) => (
   </div>
 );
 
-const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount = 0, connected = false, isMobile = false, onOpenLegal, onNewsletterOpen, speedUnit = 'kt', onToggleSpeedUnit }) => {
+const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, liveShipCount = null, conflictCount = 0, connected = false, isMobile = false, onOpenLegal, onNewsletterOpen, speedUnit = 'kt', onToggleSpeedUnit }) => {
   const [coords, setCoords]     = useState(null);   // { lat, lon }
   const [cameraAlt, setCamAlt]  = useState(null);
   const [utcTime, setUtcTime]   = useState('');
@@ -161,8 +161,12 @@ const CoordinateHUD = ({ viewer, aircraftCount = 0, shipCount = 0, conflictCount
         <span className="font-mono text-xs text-hud-text">
           ▲ <span className="text-hud-blue font-bold">{aircraftCount}</span>
         </span>
-        <span className="font-mono text-xs text-hud-text">
+        <span className="font-mono text-xs text-hud-text"
+          title={liveShipCount != null ? `${liveShipCount} ships with live AIS · ${shipCount - liveShipCount} at last known position` : undefined}>
           ▬ <span className="text-hud-blue font-bold">{shipCount}</span>
+          {liveShipCount != null && liveShipCount < shipCount && (
+            <span className="text-hud-text/70"> ({liveShipCount} live)</span>
+          )}
         </span>
         <span className="font-mono text-xs text-hud-text">
           ◆ <span className="text-orange-400 font-bold">{conflictCount}</span>

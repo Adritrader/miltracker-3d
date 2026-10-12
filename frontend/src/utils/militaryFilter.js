@@ -610,3 +610,54 @@ export function categorizeAircraft(ac) {
   if (ac.altitude > 10000 && (ac.velocity || 0) > 350) return 'Fighter';
   return 'Military';
 }
+
+// ── Aircraft role (from ICAO type code) ──────────────────────────────────────
+// Drives the globe icon colour/silhouette and the legend. Order matters: the
+// first matching role wins (e.g. KC-135 is a tanker, not a generic transport).
+export const AIRCRAFT_ROLES = {
+  fighter:    { label: 'Fighter / Attack', color: '#ff6b6b' },
+  bomber:     { label: 'Bomber',           color: '#ff9f1c' },
+  tanker:     { label: 'Tanker',           color: '#4dd4ff' },
+  isr:        { label: 'ISR / AEW / MPA',  color: '#c77dff' },
+  transport:  { label: 'Transport',        color: '#9be564' },
+  drone:      { label: 'Drone / UAV',      color: '#f72585' },
+  helicopter: { label: 'Helicopter',       color: '#7bdff2' },
+  other:      { label: 'Other / Unknown',  color: '#ffffff' },
+};
+
+const ROLE_PATTERNS = [
+  ['tanker',    /^(K35[ERT]|KC135|KC10|KC46|K46|KC767|IL78|A310MRTT|MRTT|KC30|KC2|KC390|KC130|K130|VC10)$/],
+  ['isr',       /^(E3[A-Z]{0,2}|E2|E2[CD]|E6|E6B|E7|E737|E8|E4|E4B|R135|RC135|RC35|P8|P8A|P3|P3C|EP3|U2|U2S|A50|IL20|IL38|TU142|TU214R|EC130|E390|GLF5|GL5T|SENT|B350|DH8E|EP3E|C12|MC12|ATLA|ATL2|P1|SH60R?)$/],
+  ['drone',     /^(Q1|Q4|Q9|MQ1|MQ9|RQ4|RQ4B|MQ4|MQ4C|HRON|TB2|AKNC|MQ25|RQ170|Q25|WK45|UAV)$/],
+  ['bomber',    /^(B52H?|B1B?|B2A?|B21|TU95|TU160|T160|TU22|T22M|H6K?|H6N|SU24|SU34)$/],
+  ['transport', /^(C17|C5M?|C130J?|C30J|C130|C160|C27J|C295|CN35|C2|C40|C32|C37|A400|A40M|IL76|AN124|A124|AN12|AN26|AN72|AN22|Y20|Y8|Y9|KC39|E390|C390|V22|CV22|MV22|C12|C21|C26|L100)$/],
+  ['fighter',   /^(F14|F15[A-Z]{0,2}|F16[A-Z]?|F18[A-Z]?|FA18|F22|F35[ABC]?|F117|A10C?|AV8B?|HAR|EUFI|EF19|TPHR|TYPH|RFAL|RAFA|GRIF|JAS3|JAS39|GRPE|TOR|TORN|M2000|MIR2|MG29|MIG29|MG31|MIG31|SU25|SU27|SU30|SU33|SU35|SU57|J10|J11|J15|J16|J20|J31|JF17|KF21|T50|HAWK|T38|T7|L39|M346|EA18|EA18G|EA6B|AJET|ALPH)$/],
+];
+
+export function getAircraftRole(typeCode = '') {
+  if (isHelicopter(typeCode)) return 'helicopter';
+  const code = String(typeCode).trim().toUpperCase().replace(/[-\s]/g, '');
+  if (!code) return 'other';
+  for (const [role, re] of ROLE_PATTERNS) if (re.test(code)) return role;
+  return 'other';
+}
+
+// ── Notable flights ──────────────────────────────────────────────────────────
+// Rare, newsworthy airborne aircraft worth a toast: emergency squawks,
+// strategic bombers, nuclear command posts and strategic ISR/AEW platforms.
+const RE_DOOMSDAY = /^(E4|E4B|E6|E6B)$/;
+const RE_STRAT_BOMBER = /^(B52H?|B1B?|B2A?|B21|TU95|TU160|T160|TU22|T22M|H6K?|H6N)$/;
+const RE_STRAT_ISR = /^(R135|RC135|RC35|U2|U2S|Q4|RQ4|RQ4B|MQ4|MQ4C|E3[A-Z]{0,2}|E7|E737|E8|A50|IL20)$/;
+const SQUAWK_REASONS = { '7500': 'HIJACK SQUAWK 7500', '7600': 'RADIO FAILURE SQUAWK 7600', '7700': 'EMERGENCY SQUAWK 7700' };
+
+/** Returns `{ level, reason }` for a notable airborne aircraft, else null. */
+export function getNotableFlight(ac) {
+  if (!ac || ac.on_ground) return null;
+  const sq = String(ac.squawk || '').trim();
+  if (SQUAWK_REASONS[sq]) return { level: 'critical', reason: SQUAWK_REASONS[sq] };
+  const code = String(ac.aircraftType || '').trim().toUpperCase().replace(/[-\s]/g, '');
+  if (RE_DOOMSDAY.test(code))      return { level: 'high',   reason: 'Nuclear command post airborne' };
+  if (RE_STRAT_BOMBER.test(code))  return { level: 'high',   reason: 'Strategic bomber airborne' };
+  if (RE_STRAT_ISR.test(code))     return { level: 'medium', reason: 'Strategic ISR / AEW airborne' };
+  return null;
+}
