@@ -32,10 +32,13 @@ function timeAgo(ts) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+const DB_DOWN_MSG = 'Historical database is temporarily unavailable — live data on the globe is unaffected.';
+
 async function fetchAPI(path) {
   const r = await fetch(`${BACKEND}${path}`);
-  if (!r.ok) throw new Error(`${r.status}`);
-  const d = await r.json();
+  const d = await r.json().catch(() => null);
+  if (d?.code === 'DB_UNAVAILABLE') throw new Error(DB_DOWN_MSG);
+  if (!r.ok) throw new Error(d?.error || `Request failed (HTTP ${r.status})`);
   if (d?.error) throw new Error(d.error);
   return d;
 }
@@ -101,15 +104,16 @@ const OverviewTab = ({ hours, onFlyTo, liveCounts }) => {
       fetchAPI(`/api/analytics/alerts-by-severity?hours=${hours}`),
       fetchAPI(`/api/analytics/conflicts-by-type?hours=${hours}`),
       fetchAPI(`/api/analytics/news-by-source?hours=${hours}`),
-      fetchAPI(`/api/history/stats?days=14`),
+      // Daily stats come straight from the DB; if it is down, keep the rest
+      // of the overview (live KPIs) and show a notice instead of failing it all
+      fetchAPI(`/api/history/stats?days=14`).catch(err => { setError(err.message); return []; }),
     ]).then(([fleet, acTypes, hourly, top, alt, speed, alertSev, conflictTypes, newsSrc, dailyStats]) => {
       setData({ fleet, acTypes, hourly, top, alt, speed, alertSev, conflictTypes, newsSrc, dailyStats });
     }).catch(err => setError(err.message)).finally(() => setLoading(false));
   }, [hours]);
 
   if (loading) return <Loader text="Loading analytics…" />;
-  if (error) return <ErrorBanner msg={error} />;
-  if (!data) return <EmptyState icon="📊" msg="No analytics data yet" />;
+  if (!data) return error ? <ErrorBanner msg={error} /> : <EmptyState icon="📊" msg="No analytics data yet" />;
 
   // KPIs — use live counts from the 3D map (military-filtered, matches globe exactly)
   const lc = liveCounts || {};
@@ -144,6 +148,7 @@ const OverviewTab = ({ hours, onFlyTo, liveCounts }) => {
 
   return (
     <div className="space-y-5">
+      <ErrorBanner msg={error} />
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {[

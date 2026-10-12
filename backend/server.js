@@ -387,6 +387,16 @@ app.get('/api/activity/regions', (req, res) => {
 
 // ─── History endpoints (Supabase) ────────────────────────────────────────────
 
+// Supabase unreachable (project paused/deleted, DNS or network failure) is an
+// outage, not a bug in the request: answer 503 + a stable code so the
+// dashboard can show "history unavailable" instead of a generic error.
+const DB_UNREACHABLE = /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/i;
+function sendHistoryError(res, err, message) {
+  const unreachable = DB_UNREACHABLE.test(`${err?.message || ''} ${err?.details || ''} ${err?.cause?.code || ''}`);
+  if (unreachable) return res.status(503).json({ error: 'Historical database unavailable', code: 'DB_UNAVAILABLE' });
+  res.status(500).json({ error: message });
+}
+
 // Entity trail — e.g. /api/history/trail/a4b7c2?hours=24
 app.get('/api/history/trail/:entityId', async (req, res) => {
   if (!supabaseEnabled()) return res.json([]);
@@ -401,7 +411,7 @@ app.get('/api/history/trail/:entityId', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] trail error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch trail history' });
+    sendHistoryError(res, err, 'Failed to fetch trail history');
   }
 });
 
@@ -416,7 +426,7 @@ app.get('/api/history/alerts', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] alerts error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch alert history' });
+    sendHistoryError(res, err, 'Failed to fetch alert history');
   }
 });
 
@@ -429,7 +439,7 @@ app.get('/api/history/stats', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] stats error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch daily stats' });
+    sendHistoryError(res, err, 'Failed to fetch daily stats');
   }
 });
 
@@ -443,7 +453,7 @@ app.get('/api/history/entities', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] entities error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch entity list' });
+    sendHistoryError(res, err, 'Failed to fetch entity list');
   }
 });
 
@@ -457,7 +467,7 @@ app.get('/api/history/conflicts', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] conflicts error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch conflict history' });
+    sendHistoryError(res, err, 'Failed to fetch conflict history');
   }
 });
 
@@ -471,7 +481,7 @@ app.get('/api/history/news', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] news error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch news history' });
+    sendHistoryError(res, err, 'Failed to fetch news history');
   }
 });
 
@@ -484,7 +494,7 @@ app.get('/api/history/insights', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[History] insights error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch AI insights' });
+    sendHistoryError(res, err, 'Failed to fetch AI insights');
   }
 });
 
