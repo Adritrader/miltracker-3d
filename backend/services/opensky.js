@@ -26,6 +26,33 @@ const MAX_AIRCRAFT = 500;
 // Cache of last successful real data
 let _lastRealAircraft = [];
 let _lastSourceName = '';
+// Last successful /mil result, kept separately from the merged cache so a
+// /mil outage never re-serves stale merged positions as if they were fresh
+let _lastGlobal = [];
+let _lastGlobalAt = 0;
+const GLOBAL_STALE_MS = 2 * 60 * 1000; // bridge a blip, never freeze aircraft
+
+// ── Per-endpoint backoff (circuit breaker) ──────────────────────────────────
+// A dead endpoint otherwise burns its full timeout on every 30s poll. After a
+// failure, skip it for 30s, doubling per consecutive failure up to 10 min.
+const BACKOFF_BASE_MS = 30 * 1000;
+const BACKOFF_MAX_MS  = 10 * 60 * 1000;
+const _backoff = new Map(); // key → { failures, until }
+
+function isCoolingDown(key) {
+  const b = _backoff.get(key);
+  return !!b && Date.now() < b.until;
+}
+function recordFailure(key) {
+  // Concurrent region fetches share a host: count one failure per window
+  if (isCoolingDown(key)) return;
+  const failures = (_backoff.get(key)?.failures || 0) + 1;
+  const delay = Math.min(BACKOFF_BASE_MS * 2 ** (failures - 1), BACKOFF_MAX_MS);
+  _backoff.set(key, { failures, until: Date.now() + delay });
+}
+function recordSuccess(key) {
+  _backoff.delete(key);
+}
 
 /**
  * Normalise a raw aircraft object from any of the three APIs into our
@@ -110,12 +137,17 @@ export async function fetchAircraft() {
 
   const lists = [milResult, gulfResult, blackSeaResult, taiwanResult, koreaResult, medResult, balticResult]
     .map(r => r.status === 'fulfilled' ? r.value : []);
-  const [milList, gulfList, blackSeaList, taiwanList, koreaList, medList, balticList] = lists;
+  const [, gulfList, blackSeaList, taiwanList, koreaList, medList, balticList] = lists;
+  const { aircraft: milList, fresh: milFresh } =
+    milResult.status === 'fulfilled' ? milResult.value : { aircraft: [], fresh: false };
+  const regionLists = [gulfList, blackSeaList, taiwanList, koreaList, medList, balticList];
 
-  // Merge, deduplicate by icao24
-  const seen = new Set(milList.map(a => a.icao24));
-  const merged = [...milList];
-  for (const list of [gulfList, blackSeaList, taiwanList, koreaList, medList, balticList]) {
+  // Merge, deduplicate by icao24 — first list wins, so a stale /mil fallback
+  // goes last and never overrides fresh regional positions
+  const ordered = milFresh ? [milList, ...regionLists] : [...regionLists, milList];
+  const seen = new Set();
+  const merged = [];
+  for (const list of ordered) {
     for (const a of list) {
       if (!seen.has(a.icao24)) { merged.push(a); seen.add(a.icao24); }
     }
@@ -141,17 +173,24 @@ export async function fetchAircraft() {
 
 async function fetchMilGlobal() {
   for (const source of SOURCES) {
+    if (isCoolingDown(source.url)) continue;
     try {
       const aircraft = await trySource(source);
-      _lastRealAircraft = aircraft;
-      _lastSourceName   = source.name;
+      recordSuccess(source.url);
+      _lastGlobal     = aircraft;
+      _lastGlobalAt   = Date.now();
+      _lastSourceName = source.name;
       console.log(`[Aircraft] ${aircraft.length} military aircraft from ${source.name}`);
-      return aircraft;
+      return { aircraft, fresh: true };
     } catch (err) {
+      recordFailure(source.url);
       console.warn(`[Aircraft] ${source.name} unavailable: ${err.message}`);
     }
   }
-  return _lastRealAircraft; // all sources failed
+  // All sources failed or cooling down — reuse the last /mil result only while
+  // it is recent enough to bridge a short outage
+  const recent = Date.now() - _lastGlobalAt < GLOBAL_STALE_MS;
+  return { aircraft: recent ? _lastGlobal : [], fresh: false };
 }
 
 const GULF_CENTER = { lat: 26.5, lon: 56.0, dist: 700 }; // 700 nm radius
@@ -199,12 +238,16 @@ async function fetchRegion(label, lat, lon, distNm) {
     `https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/${distNm}`,
   ];
   for (const url of urls) {
+    // Back off per host (all regions share it), not per region URL
+    const host = new URL(url).host;
+    if (isCoolingDown(host)) continue;
     try {
       const res = await fetch(url, {
         headers: HEADERS,
         signal: AbortSignal.timeout(10000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) { recordFailure(host); continue; }
+      recordSuccess(host);
       const data = await res.json();
       const raw = data.ac ?? data.aircraft ?? [];
       if (!Array.isArray(raw)) continue;
@@ -228,6 +271,7 @@ async function fetchRegion(label, lat, lon, distNm) {
         return filtered;
       }
     } catch (e) {
+      recordFailure(host);
       console.warn(`[Region:${label}]`, e.message);
     }
   }

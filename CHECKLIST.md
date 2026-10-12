@@ -92,7 +92,8 @@
 - [ ] Endpoint `/metrics` (Prometheus) o `/healthz` dedicado — no existe, solo `/api/status`
 - [ ] Sentry / error tracking en producción — no implementado
 - [ ] Broadcast de arrays completos a todos los clientes (sin delta updates ni viewport filtering) — con muchos usuarios concurrentes esto escala mal
-- [ ] Circuit breaker / backoff exponencial para APIs externas caídas (adsb.lol, etc.) — no implementado
+- [x] Circuit breaker / backoff exponencial para APIs externas caídas — implementado 2026-10-13 para las fuentes de aviones (`opensky.js`): tras un fallo, el endpoint/host se salta 30s, duplicando hasta 10 min por fallo consecutivo (los fetch regionales concurrentes al mismo host cuentan un solo fallo). Pendiente extenderlo a otras fuentes (noticias, AIS, FIRMS) si se ve necesario.
+- [x] **Bug corregido (2026-10-13): aviones congelados cuando caen las fuentes `/mil`** — `fetchMilGlobal()` devolvía como fallback la lista *combinada* anterior, que se mezclaba primero en la deduplicación (las posiciones viejas ganaban a las regionales frescas) y se volvía a guardar como caché, perpetuándose mientras durase la caída. Ahora se cachea solo el último resultado `/mil`, se reutiliza como mucho 2 min y, si no es fresco, va al final de la deduplicación — `backend/services/opensky.js`
 - [ ] Deduplicar Haversine (`distanceKm`/`distKm`) entre frontend y backend — backend ya centralizado (`aiDanger.js` exporta `distKm`), frontend sigue con su propia copia (aceptable, no puede importar del backend)
 
 ### 4.1 Ships/AIS — flota mostrando posiciones estáticas (investigado 2026-09-04)
