@@ -276,6 +276,24 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       return c.clientWidth > 0 && c.clientHeight > 0;
     };
 
+    // Single shared resume poll — visibility, resize and render-error paths all
+    // funnel through here so polls never stack, and rendering never restarts
+    // while the tab is hidden or the canvas is still 0×0.
+    let resumeTimer = null;
+    let contextLost = false;
+    const scheduleResume = (delay = 200, attemptsLeft = 50) => {
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(() => {
+        resumeTimer = null;
+        if (viewer.isDestroyed() || document.hidden || contextLost) return;
+        if (canvasSizeValid()) {
+          viewer.useDefaultRenderLoop = true;
+        } else if (attemptsLeft > 1) {
+          scheduleResume(delay, attemptsLeft - 1);
+        }
+      }, delay);
+    };
+
     let renderErrorCount = 0;
     viewer.scene.renderError.addEventListener((_scene, error) => {
       renderErrorCount++;
@@ -283,17 +301,7 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
       if (viewer.isDestroyed()) return;
       // Poll for a valid canvas size instead of a single fixed-delay retry —
       // the 0×0 canvas window from a backgrounded tab can outlast 300ms.
-      let attempts = 0;
-      const tryResume = () => {
-        if (viewer.isDestroyed()) return;
-        attempts++;
-        if (canvasSizeValid()) {
-          viewer.useDefaultRenderLoop = true;
-        } else if (attempts < 20) {
-          setTimeout(tryResume, 300);
-        }
-      };
-      setTimeout(tryResume, 300);
+      scheduleResume(300, 20);
     });
 
     // ── Pause rendering while the tab is backgrounded ──────────────────────
@@ -307,20 +315,31 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     const handleVisibilityChange = () => {
       if (viewer.isDestroyed()) return;
       if (document.hidden) {
+        clearTimeout(resumeTimer);
         viewer.useDefaultRenderLoop = false;
       } else {
-        const tryResume = () => {
-          if (viewer.isDestroyed()) return;
-          if (canvasSizeValid()) {
-            viewer.useDefaultRenderLoop = true;
-          } else {
-            setTimeout(tryResume, 200);
-          }
-        };
-        tryResume();
+        scheduleResume(0);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // ── Pause rendering while the canvas is collapsed (resize/rotation) ────
+    // Orientation changes and mobile URL-bar resizes can also briefly report
+    // a 0×0 canvas without any visibilitychange — the same "Invalid array
+    // length" trigger. Watch the canvas size directly and pause until valid.
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        if (viewer.isDestroyed()) return;
+        if (!canvasSizeValid()) {
+          viewer.useDefaultRenderLoop = false;
+          scheduleResume();
+        } else if (!viewer.useDefaultRenderLoop && !document.hidden) {
+          scheduleResume(0);
+        }
+      });
+      resizeObserver.observe(viewer.scene.canvas);
+    }
 
     // ── Recover from lost/restored WebGL contexts ──────────────────────────
     // Same trigger as above (backgrounding via ad popunders) can also cost the
@@ -329,15 +348,19 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     const handleContextLost = (e) => {
       e.preventDefault();
       console.warn('[Globe3D] WebGL context lost');
+      contextLost = true;
       if (!viewer.isDestroyed()) viewer.useDefaultRenderLoop = false;
     };
     const handleContextRestored = () => {
       console.warn('[Globe3D] WebGL context restored');
-      if (!viewer.isDestroyed() && canvasSizeValid()) viewer.useDefaultRenderLoop = true;
+      contextLost = false;
+      if (!viewer.isDestroyed()) scheduleResume(0);
     };
     canvas.addEventListener('webglcontextlost', handleContextLost);
     canvas.addEventListener('webglcontextrestored', handleContextRestored);
     backgroundCleanupRef.current = () => {
+      clearTimeout(resumeTimer);
+      resizeObserver?.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       canvas.removeEventListener('webglcontextrestored', handleContextRestored);

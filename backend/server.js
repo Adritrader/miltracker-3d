@@ -85,7 +85,7 @@ app.post('/api/stripe/webhook',
       event = constructWebhookEvent(req.body, sig);
     } catch (err) {
       console.error('[Stripe] Webhook signature invalid:', err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+      return res.status(400).send('Webhook Error: invalid signature');
     }
 
     const sub = event.data?.object;
@@ -594,7 +594,8 @@ app.post('/api/admin/tweet', async (req, res) => {
     await tweetNow(alert);
     res.json({ ok: true, tweeted: alert?.title || 'Generic launch tweet' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[Admin] tweet error:', err.message);
+    res.status(500).json({ error: 'Failed to post tweet' });
   }
 });
 

@@ -216,7 +216,7 @@ RULES:
   } catch (err) {
     console.error(`[AircraftIntel] Error identifying ${cacheKey}:`, err.message);
     // Cache the failure briefly so we don't hammer the API
-    const failResult = { country: null, confidence: 'FAILED', error: err.message, queriedAt: new Date().toISOString() };
+    const failResult = { country: null, confidence: 'FAILED', error: 'Identification failed', queriedAt: new Date().toISOString() };
     intelCache.set(cacheKey, failResult);
     return null;
   }
@@ -284,7 +284,10 @@ export async function enrichBatchWithIntel(aircraft, maxNew = 5) {
  */
 export function getCachedIntel(entityId) {
   const key = (entityId || '').toUpperCase().trim();
-  return intelCache.get(key) || null;
+  const intel = intelCache.get(key) || null;
+  // Older disk-cache entries may still carry the raw upstream error text
+  if (intel?.confidence === 'FAILED') return { ...intel, error: 'Identification failed' };
+  return intel;
 }
 
 /**
