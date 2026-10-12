@@ -75,6 +75,11 @@ function normalise(ac, sourceName) {
   const callsign = (ac.flight || ac.callsign || '').trim() || 'UNKNOWN';
   const country  = ac.ownOp || ac.origin_country || '';
   const onGround = ac.on_ground === true || ac.alt_baro === 'ground' || ac.ground === true;
+  // Regional feeds also carry fast civilian traffic; flag what is really military
+  // (dedicated /mil feed, ADS-B military flag / dbFlags bit 0, or a military type)
+  const military = SOURCES.some(s => s.name === sourceName)
+    || ac.mil === true || ac.military === true || ((+ac.dbFlags || 0) & 1) === 1
+    || MIL_TYPE_CODES.has(String(ac.t || '').toUpperCase());
 
   return {
     id:          icao24,
@@ -94,6 +99,7 @@ function normalise(ac, sourceName) {
     squawk:       ac.squawk || '',
     type:         'aircraft',
     source:       sourceName,
+    military,
     dep_airport:  ac.origin      || ac.dep   || ac.departure   || '',
     arr_airport:  ac.destination || ac.dest  || ac.arrival     || '',
     lastSeen:     new Date().toISOString(),

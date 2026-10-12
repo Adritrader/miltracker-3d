@@ -15,14 +15,24 @@ const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 // Service role key bypasses RLS — required for writing to profiles from webhooks
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_KEY;
 
+// Data client for every table read/write below. Uses the service role key so
+// the history tables can keep RLS closed to `anon` — the anon key ships in the
+// frontend bundle, so anon write policies would let anyone fill or wipe the DB.
 let supabase = null;
 // Admin client for writes that need to bypass RLS (Stripe webhooks, profile upserts)
 let supabaseAdmin = null;
+// Anon client, only for verifying user access tokens (auth.getUser)
+let authClient = null;
 
 if (SUPABASE_URL && SUPABASE_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-  supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  supabaseAdmin = supabase;
+  authClient = createClient(SUPABASE_URL, SUPABASE_KEY);
   console.log('[Supabase] Connected →', SUPABASE_URL.replace(/https?:\/\//, '').split('.')[0]);
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('[Supabase] SUPABASE_SERVICE_ROLE_KEY not set — falling back to the anon key; '
+      + 'writes will fail once RLS is locked down (backend/migrations/setup_new_project.sql)');
+  }
 } else {
   console.warn('[Supabase] SUPABASE_URL or SUPABASE_ANON_KEY not set — historical storage disabled');
 }
@@ -32,8 +42,8 @@ export function isEnabled() {
   return supabase !== null;
 }
 
-/** Expose the client for auth token verification in server.js */
-export { supabase as supabaseClient };
+/** Expose the anon client for auth token verification in server.js */
+export { authClient as supabaseClient };
 
 // ─── Alert Archive ──────────────────────────────────────────────────────────
 
@@ -108,6 +118,20 @@ export async function archiveAlerts(alerts) {
 
 let lastPositionSave = 0;
 const POSITION_INTERVAL_MS = 10 * 60_000; // every 10 minutes
+// Skip a sample when the entity hasn't really moved since its last stored one
+// (parked aircraft, ships alongside) — those rows were most of the volume
+const MIN_MOVE_DEG = 0.01;          // ~1 km
+const MIN_ALT_CHANGE_M = 150;
+const _lastStored = new Map();      // entity_id → { lat, lon, alt }
+
+function movedEnough(id, lat, lon, alt) {
+  const prev = _lastStored.get(id);
+  if (prev && Math.abs(prev.lat - lat) < MIN_MOVE_DEG && Math.abs(prev.lon - lon) < MIN_MOVE_DEG
+      && Math.abs((prev.alt ?? 0) - (alt ?? 0)) < MIN_ALT_CHANGE_M) return false;
+  _lastStored.set(id, { lat, lon, alt });
+  if (_lastStored.size > 20000) _lastStored.clear();
+  return true;
+}
 
 /**
  * Sample current positions and insert into position_snapshots.
@@ -122,11 +146,13 @@ export async function snapshotPositions(aircraft, ships) {
   try {
     const rows = [];
 
-    // Aircraft — only those with valid positions
+    // Aircraft — military only (regional feeds include civilian traffic), with
+    // valid positions, and only when they moved since the last stored sample.
     // Every row MUST have the same set of columns — PostgREST requires
     // uniform keys in bulk inserts. Include ship-specific fields as null.
     for (const a of (aircraft || [])) {
-      if (a.lat == null || a.lon == null) continue;
+      if (a.lat == null || a.lon == null || a.military === false) continue;
+      if (!movedEnough(a.id || a.icao24 || a.callsign, a.lat, a.lon, a.altitude)) continue;
       rows.push({
         entity_type:   'aircraft',
         entity_id:     a.id || a.icao24 || a.callsign,
@@ -153,8 +179,10 @@ export async function snapshotPositions(aircraft, ships) {
     }
 
     // Ships — include aircraft-specific fields as null for uniform columns
+    // Ships — skip baseline (static last-known) positions: no new information
     for (const s of (ships || [])) {
-      if (s.lat == null || s.lon == null) continue;
+      if (s.lat == null || s.lon == null || s.isBaseline) continue;
+      if (!movedEnough(s.id || s.mmsi, s.lat, s.lon, null)) continue;
       rows.push({
         entity_type:   'ship',
         entity_id:     s.id || s.mmsi,
@@ -244,7 +272,14 @@ export async function upsertDailyStats({ aircraftCount, shipCount, alertCount, c
 
 // ─── Cleanup — purge old position snapshots ─────────────────────────────────
 
-const RETENTION_DAYS = 14;
+const ARCHIVE_RETENTION_DAYS = 60;
+const ARCHIVE_TABLES = [
+  ['alert_archive',   'timestamp'],
+  ['news_archive',    'published_at'],
+  ['conflict_events', 'published_at'],
+  ['ai_insights',     'analyzed_at'],
+];
+const RETENTION_DAYS = 7; // free-tier DB is 500 MB — the previous project was closed for usage
 
 /**
  * Delete position snapshots older than RETENTION_DAYS.
@@ -262,6 +297,17 @@ export async function purgeOldSnapshots() {
     console.log(`[Supabase] Purged ${count ?? '?'} snapshots older than ${RETENTION_DAYS}d`);
   } catch (err) {
     console.error('[Supabase] purgeOldSnapshots error:', err.message);
+  }
+  // Archive tables grew without bound too — keep ARCHIVE_RETENTION_DAYS
+  const archiveCutoff = new Date(Date.now() - ARCHIVE_RETENTION_DAYS * 86400_000).toISOString();
+  for (const [table, column] of ARCHIVE_TABLES) {
+    try {
+      const { error, count } = await supabase.from(table).delete({ count: 'exact' }).lt(column, archiveCutoff);
+      if (error) throw error;
+      if (count) console.log(`[Supabase] Purged ${count} ${table} rows older than ${ARCHIVE_RETENTION_DAYS}d`);
+    } catch (err) {
+      console.error(`[Supabase] purge ${table} error:`, err.message);
+    }
   }
 }
 
@@ -904,6 +950,20 @@ export async function getProfile(userId) {
     .single();
   if (error) throw error;
   return data;
+}
+
+/** Profile id for a Stripe customer (webhooks without supabase_user_id metadata). */
+export async function findProfileIdByCustomer(customerId) {
+  if (!supabaseAdmin || !customerId) return null;
+  // Service role: the profiles RLS policy only lets a user read their own row,
+  // so an anon lookup by customer id always came back empty
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id || null;
 }
 
 export async function upsertProfile(userId, fields) {

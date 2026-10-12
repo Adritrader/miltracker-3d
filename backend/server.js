@@ -39,7 +39,7 @@ function isInOpZone(lat, lon) {
 }
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, supabaseClient } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, findProfileIdByCustomer, supabaseClient } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 import { getAircraftPhoto } from './services/aircraftPhotos.js';
 import { recordRegionActivity, getRegionActivity } from './services/regionActivity.js';
@@ -108,11 +108,7 @@ app.post('/api/stripe/webhook',
           const uid = sub.metadata?.supabase_user_id || userId;
           if (!uid) {
             // Look up profile by stripe_customer_id
-            const { data } = await supabaseClient
-              .from('profiles')
-              .select('id')
-              .eq('stripe_customer_id', sub.customer)
-              .single();
+            const data = { id: await findProfileIdByCustomer(sub.customer) };
             if (data?.id) {
               const fields = planFromSubscription(sub);
               await upsertProfile(data.id, {
@@ -140,11 +136,7 @@ app.post('/api/stripe/webhook',
               stripe_subscription_id: sub.id,
             });
           } else {
-            const { data } = await supabaseClient
-              .from('profiles')
-              .select('id')
-              .eq('stripe_customer_id', sub.customer)
-              .single();
+            const data = { id: await findProfileIdByCustomer(sub.customer) };
             if (data?.id) {
               await upsertProfile(data.id, {
                 plan: 'free',
