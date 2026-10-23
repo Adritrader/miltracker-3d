@@ -68,7 +68,9 @@ export async function checkDbHealth() {
   if (_health.value && Date.now() - _health.at < HEALTH_TTL_MS) return _health.value;
   let value = 'ok';
   try {
-    const { error } = await supabase.from('daily_stats').select('date', { head: true, count: 'estimated' }).limit(1);
+    // Plain GET of one row: a HEAD request gets no error body for a missing
+    // table, so supabase-js reported it as healthy
+    const { error } = await supabase.from('daily_stats').select('date').limit(1);
     if (error) throw error;
   } catch (err) {
     value = classifyDbError(err);
