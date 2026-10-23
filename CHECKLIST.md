@@ -118,7 +118,7 @@
 - [x] Debounce en `SearchBar` (400ms) y `CoordinateHUD` mouse tracking (100ms throttle)
 - [ ] Sin Context API global — `App.jsx` sigue con ~20 `useState` y prop drilling a 5+ niveles de componentes
 - [ ] Sin TypeScript (0 archivos `.ts`/`.tsx`, sin `tsconfig.json`)
-- [ ] Sin ESLint configurado (no hay `.eslintrc`/`eslint.config.js`)
+- [ ] Sin ESLint configurado en el repo — un análisis puntual con reglas de bugs (`no-undef` etc.) encontró la capa de aviones rota; añadirlo al repo + CI evitaría que se repita
 - [ ] Sin i18n (la UI está solo en inglés, sin `react-i18next` ni equivalente)
 - [ ] SVGs de iconos con tamaño fijo (no completamente HiDPI-safe)
 - [ ] Clases Tailwind `hud-*` sin documentar en `tailwind.config.js`
@@ -231,5 +231,8 @@ Cronología completa por si se necesita repasar el diagnóstico:
 - [x] **Bug Stripe corregido:** los webhooks buscaban el perfil por `stripe_customer_id` con la anon key; la RLS de `profiles` lo impedía → renovaciones/cancelaciones sin metadata nunca se aplicaban. Ahora `findProfileIdByCustomer()` con service role.
 - [ ] **Acción manual pendiente:** ejecutar `setup_new_project.sql` en el SQL Editor del proyecto nuevo; poner `SUPABASE_URL`, `SUPABASE_ANON_KEY` y **`SUPABASE_SERVICE_ROLE_KEY`** en Railway y `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` en Vercel; en Supabase Auth reconfigurar Google OAuth y las Redirect URLs. Los usuarios y perfiles Pro del proyecto viejo no se migran — revisar en Stripe los clientes activos.
 - [x] Mitigación en código: `/api/history/*` responde 503 `DB_UNAVAILABLE` cuando Supabase es inalcanzable y el dashboard muestra un aviso claro manteniendo los KPIs en vivo (antes: "500" en todas las pestañas).
-- [ ] Añadir comprobación de Supabase a `/api/status` + alerta (Sentry/uptime) — esta caída solo se detectó por reporte manual.
-- [ ] **Gemini devuelve 404 para `gemini-2.5-flash`** en local (`[AircraftIntel] Error identifying … HTTP 404`) — la función AI Aircraft Intel (Pro) falla si producción usa el mismo modelo. Revisar el modelo configurado / `probeGeminiModel`.
+- [ ] Alerta automática (Sentry/uptime monitor sobre `/api/status` → `database != ok`) — la comprobación ya existe; falta quien avise.
+- [x] **Gemini 404 (AI Aircraft Intel y análisis de amenazas rotos)** — corregido 2026-10-23. Tres fallos encadenados: lista de modelos preferidos solo con modelos retirados (2.0/1.5); `listModels` con `pageSize=50` cuando el catálogo ya tiene más de 50 entradas; y cada error reseteaba la elección y volvía a elegir el mismo modelo muerto (bucle de 404). Nuevo `services/geminiModel.js` compartido: prefiere los alias `gemini-flash-lite-latest`/`gemini-flash-latest`, descarta variantes tts/image/preview y recuerda los modelos con 404. Verificado en vivo (RCH123 → C-17A, Air Mobility Command).
+- [x] **`sanitizeErr` usado pero nunca definido en `aiDanger.js`** — cualquier error de Gemini en el análisis de amenazas se convertía en `ReferenceError`, ocultando la causa real. Corregido.
+- [x] **🔴 Capa de aviones rota desde el commit `5aa17d8`** (introducido en la sesión de UX): `AircraftLayer.jsx` seguía usando la variable `helo` eliminada al añadir los iconos por rol → `ReferenceError` en el primer avión, y el `ErrorBoundary` silencioso ocultaba la capa entera. Corregido. Detectado con un análisis ESLint puntual (`no-undef`, `rules-of-hooks`, `jsx-no-undef`…): 72 archivos, 0 problemas tras el fix.
+- [x] `/api/status` incluye `database` (`ok`/`unreachable`/`schema_missing`/`disabled`, chequeo cacheado 60 s) y `commit` (de `RAILWAY_GIT_COMMIT_SHA`); las tablas inexistentes devuelven 503 `DB_SCHEMA_MISSING` en vez de 500.

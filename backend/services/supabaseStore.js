@@ -42,6 +42,42 @@ export function isEnabled() {
   return supabase !== null;
 }
 
+// ─── Health / error classification ──────────────────────────────────────────
+
+const DB_UNREACHABLE = /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/i;
+// PostgREST / Postgres codes for a table or function that does not exist —
+// i.e. the project is reachable but setup_new_project.sql was never run
+const SCHEMA_MISSING_CODES = new Set(['PGRST205', 'PGRST202', '42P01', '42883']);
+
+/** 'unreachable' | 'schema_missing' | 'error' for a Supabase/PostgREST error. */
+export function classifyDbError(err) {
+  if (SCHEMA_MISSING_CODES.has(err?.code)) return 'schema_missing';
+  if (DB_UNREACHABLE.test(`${err?.message || ''} ${err?.details || ''} ${err?.cause?.code || ''}`)) return 'unreachable';
+  return 'error';
+}
+
+const HEALTH_TTL_MS = 60_000;
+let _health = { at: 0, value: null };
+
+/**
+ * Cheap DB health probe for /api/status (cached 60s): 'disabled' | 'ok' |
+ * 'unreachable' | 'schema_missing' | 'error'. Never exposes error text.
+ */
+export async function checkDbHealth() {
+  if (!supabase) return 'disabled';
+  if (_health.value && Date.now() - _health.at < HEALTH_TTL_MS) return _health.value;
+  let value = 'ok';
+  try {
+    const { error } = await supabase.from('daily_stats').select('date', { head: true, count: 'estimated' }).limit(1);
+    if (error) throw error;
+  } catch (err) {
+    value = classifyDbError(err);
+    console.error('[Supabase] health check failed:', value, err?.code || '', err?.message || '');
+  }
+  _health = { at: Date.now(), value };
+  return value;
+}
+
 /** Expose the anon client for auth token verification in server.js */
 export { authClient as supabaseClient };
 

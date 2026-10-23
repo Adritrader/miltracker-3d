@@ -37,7 +37,7 @@ const DB_DOWN_MSG = 'Historical database is temporarily unavailable — live dat
 async function fetchAPI(path) {
   const r = await fetch(`${BACKEND}${path}`);
   const d = await r.json().catch(() => null);
-  if (d?.code === 'DB_UNAVAILABLE') throw new Error(DB_DOWN_MSG);
+  if (d?.code === 'DB_UNAVAILABLE' || d?.code === 'DB_SCHEMA_MISSING') throw new Error(DB_DOWN_MSG);
   if (!r.ok) throw new Error(d?.error || `Request failed (HTTP ${r.status})`);
   if (d?.error) throw new Error(d.error);
   return d;

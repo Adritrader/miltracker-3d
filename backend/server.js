@@ -39,7 +39,7 @@ function isInOpZone(lat, lon) {
 }
 import { getCameras } from './services/cameraService.js';
 import { maybeTweetAlert, tweetNow } from './services/twitterService.js';
-import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, findProfileIdByCustomer, supabaseClient } from './services/supabaseStore.js';
+import { archiveAlerts, snapshotPositions, upsertDailyStats, purgeOldSnapshots, isEnabled as supabaseEnabled, getEntityTrail, getRecentAlerts, getDailyStats, getActiveEntities, archiveConflicts, getRecentConflicts, archiveNews, getRecentNews, archiveAIInsight, getRecentInsights, analyticsFleetComposition, analyticsAircraftTypes, analyticsHourlyActivity, analyticsTopEntities, analyticsAltitudeDistribution, analyticsSpeedDistribution, analyticsConflictsByZone, analyticsConflictsByType, analyticsNewsBySource, analyticsAlertsBySeverity, subscribeNewsletter, getProfile, upsertProfile, findProfileIdByCustomer, supabaseClient, classifyDbError, checkDbHealth } from './services/supabaseStore.js';
 import { identifyAircraft, enrichBatchWithIntel, getCachedIntel, getIntelCacheStats } from './services/aiAircraftIntel.js';
 import { getAircraftPhoto } from './services/aircraftPhotos.js';
 import { recordRegionActivity, getRegionActivity } from './services/regionActivity.js';
@@ -286,7 +286,7 @@ let cache = {
 };
 
 // ─── REST endpoints ──────────────────────────────────────────────────────────
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
   const firmsCount = cache.conflicts.filter(c => c.source === 'NASA FIRMS').length;
   res.json({
     status: 'online',
@@ -302,6 +302,9 @@ app.get('/api/status', (req, res) => {
     lastNewsUpdate: cache.lastNewsUpdate,
     lastConflictUpdate: cache.lastConflictUpdate,
     version: process.env.npm_package_version || '2.1.0',
+    // Which commit is deployed (Railway sets this) — answers "is the fix live?"
+    commit: (process.env.RAILWAY_GIT_COMMIT_SHA || '').slice(0, 7) || undefined,
+    database: await checkDbHealth(),
   });
 });
 
@@ -379,13 +382,13 @@ app.get('/api/activity/regions', (req, res) => {
 
 // ─── History endpoints (Supabase) ────────────────────────────────────────────
 
-// Supabase unreachable (project paused/deleted, DNS or network failure) is an
-// outage, not a bug in the request: answer 503 + a stable code so the
-// dashboard can show "history unavailable" instead of a generic error.
-const DB_UNREACHABLE = /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/i;
+// Supabase unreachable (project paused/deleted, DNS or network failure) or not
+// initialised (tables missing) is an outage, not a bug in the request: answer
+// 503 + a stable code so the dashboard can show "history unavailable".
 function sendHistoryError(res, err, message) {
-  const unreachable = DB_UNREACHABLE.test(`${err?.message || ''} ${err?.details || ''} ${err?.cause?.code || ''}`);
-  if (unreachable) return res.status(503).json({ error: 'Historical database unavailable', code: 'DB_UNAVAILABLE' });
+  const kind = classifyDbError(err);
+  if (kind === 'unreachable')    return res.status(503).json({ error: 'Historical database unavailable', code: 'DB_UNAVAILABLE' });
+  if (kind === 'schema_missing') return res.status(503).json({ error: 'Historical database not initialised', code: 'DB_SCHEMA_MISSING' });
   res.status(500).json({ error: message });
 }
 

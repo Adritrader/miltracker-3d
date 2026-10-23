@@ -338,7 +338,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         // ── Trajectory analysis (cached — recompute only when trail grows) ─
         const trajCache = trajCacheRef.current.get(ac.id);
         if (!trajCache || trajCache.len !== pts.length) {
-          const analysis = analyseTrajectory(pts, ac.aircraftType, helo);
+          const analysis = analyseTrajectory(pts, ac.aircraftType, role === 'helicopter');
           trajCacheRef.current.set(ac.id, { len: pts.length, result: analysis });
           ac._trajAnalysis = analysis;
         } else {

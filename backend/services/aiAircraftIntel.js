@@ -10,6 +10,7 @@
 
 import fetch from 'node-fetch';
 import { loadCache, saveCache } from './diskCache.js';
+import { resolveGeminiModel, reportGeminiFailure } from './geminiModel.js';
 
 const GEMINI_HOST = 'https://generativelanguage.googleapis.com';
 
@@ -21,7 +22,6 @@ function sanitizeErr(msg = '') {
 // ── In-memory LRU cache ─────────────────────────────────────────────────────
 const MAX_CACHE = 2000;
 let intelCache = new Map(); // callsign/icao → result
-let resolvedModel = null;   // { apiVer, model } — shared across calls
 
 // Load from disk on startup
 try {
@@ -38,43 +38,6 @@ function persistCache() {
   try {
     saveCache('aircraft_intel', [...intelCache].slice(-MAX_CACHE));
   } catch { /* ignore */ }
-}
-
-// ── Gemini model resolution (reuses same pattern as aiDanger) ───────────────
-const PREFERRED_MODELS = [
-  'gemini-2.0-flash', 'gemini-2.0-flash-001', 'gemini-2.0-flash-lite',
-  'gemini-1.5-flash', 'gemini-1.5-flash-latest',
-  'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro',
-];
-
-async function getModel(key) {
-  if (resolvedModel) return resolvedModel;
-
-  for (const apiVer of ['v1beta', 'v1']) {
-    try {
-      const res = await fetch(
-        `${GEMINI_HOST}/${apiVer}/models?key=${key}&pageSize=50`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      const available = (data.models || [])
-        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => m.name.replace('models/', ''));
-
-      for (const p of PREFERRED_MODELS) {
-        if (available.includes(p)) {
-          resolvedModel = { apiVer, model: p };
-          return resolvedModel;
-        }
-      }
-      if (available.length) {
-        resolvedModel = { apiVer, model: available[0] };
-        return resolvedModel;
-      }
-    } catch { /* try next */ }
-  }
-  throw new Error('No Gemini model available');
 }
 
 // ── Rate limiting — max 10 calls per minute to stay well within free tier ───
@@ -124,7 +87,7 @@ export async function identifyAircraft({ callsign, icao24, registration, aircraf
   }
 
   try {
-    const { apiVer, model } = await getModel(key);
+    const { apiVer, model } = await resolveGeminiModel(key);
 
     const prompt = `You are a military aviation intelligence analyst with expert knowledge of military aircraft worldwide, including callsign conventions, ICAO hex allocations, squadron assignments, and air base locations.
 
@@ -174,7 +137,7 @@ RULES:
 
     if (!res.ok) {
       const errTxt = await res.text();
-      resolvedModel = null;
+      reportGeminiFailure(model, res.status);
       throw new Error(`Gemini ${model} HTTP ${res.status}: ${sanitizeErr(errTxt.slice(0, 200))}`);
     }
 

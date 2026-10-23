@@ -7,63 +7,11 @@
  */
 
 import fetch from 'node-fetch';
+import { resolveGeminiModel, reportGeminiFailure, sanitizeGeminiError as sanitizeErr } from './geminiModel.js';
 
 const GEMINI_HOST = 'https://generativelanguage.googleapis.com';
 
-// Cache the resolved model so we only call listModels once per process
-let resolvedGeminiModel = null; // { apiVer, model }
-
-/**
- * Discover which Gemini model is actually available for this API key by
- * calling the listModels endpoint, then picking the best generateContent model.
- */
-async function resolveGeminiModel(key) {
-  if (resolvedGeminiModel) return resolvedGeminiModel;
-
-  // Preference order: fastest/cheapest first
-  const PREFERRED = [
-    'gemini-2.0-flash', 'gemini-2.0-flash-001', 'gemini-2.0-flash-lite',
-    'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-001',
-    'gemini-1.5-flash-002', 'gemini-1.5-pro', 'gemini-1.5-pro-latest',
-    'gemini-1.0-pro', 'gemini-pro',
-  ];
-
-  for (const apiVer of ['v1beta', 'v1']) {
-    try {
-      const res = await fetch(
-        `${GEMINI_HOST}/${apiVer}/models?key=${key}&pageSize=50`,
-        { signal: AbortSignal.timeout(10000) }
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      const available = (data.models || [])
-        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => m.name.replace('models/', '')); // "models/gemini-2.0-flash" → "gemini-2.0-flash"
-
-      console.log(`[AI] Available models (${apiVer}):`, available.join(', '));
-
-      // Pick highest-preference model that's in the available list
-      for (const preferred of PREFERRED) {
-        if (available.includes(preferred)) {
-          resolvedGeminiModel = { apiVer, model: preferred };
-          console.log(`[AI] Selected model: ${preferred} (${apiVer})`);
-          return resolvedGeminiModel;
-        }
-      }
-      // If none of our preferred list matched, use whatever is available
-      if (available.length > 0) {
-        resolvedGeminiModel = { apiVer, model: available[0] };
-        console.log(`[AI] Fallback model: ${available[0]} (${apiVer})`);
-        return resolvedGeminiModel;
-      }
-    } catch (e) {
-      console.warn(`[AI] listModels (${apiVer}) failed:`, sanitizeErr(e.message));
-    }
-  }
-  throw new Error('No Gemini models available for this API key — check Google AI Studio');
-}
-
-/** Call this at startup to log available models immediately. */
+/** Call this at startup to log the selected model immediately (see geminiModel.js). */
 export async function probeGeminiModel(key) {
   try { await resolveGeminiModel(key); } catch (e) { console.error('[AI] Probe failed:', e.message); }
 }
@@ -507,8 +455,8 @@ Be factual, concise, and analytical. Do not speculate beyond available data.`;
 
   if (!res.ok) {
     const errTxt = await res.text();
-    // Reset so next call re-discovers (model may have been removed)
-    resolvedGeminiModel = null;
+    // 404 = model retired → pick another next time; quota/5xx keep the choice
+    reportGeminiFailure(model, res.status);
     throw new Error(`Gemini ${model} HTTP ${res.status}: ${sanitizeErr(errTxt.slice(0, 300))}`);
   }
 
