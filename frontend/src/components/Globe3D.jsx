@@ -389,17 +389,11 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     if (!viewer || !globeReady || viewer.isDestroyed()) return;
     viewer.imageryLayers.removeAll();
     viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(bm), { maximumRequestsPerServer: 4 }));
-    // For dark/night basemaps add a high-contrast country borders + labels overlay
-    if (bm === 'dark' || bm === 'night') {
-      const bordersProvider = new Cesium.UrlTemplateImageryProvider({
-        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-        minimumLevel: 0,
-        maximumLevel: 8,
-        credit: new Cesium.Credit('\u00a9 Esri'),
-      });
-      viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65, maximumRequestsPerServer: 4 }));
-    }
-    // For satellite basemap add the ESRI reference overlay (city/country labels, borders)
+    // NOTE: no labels overlay for dark/night \u2014 Esri World_Dark_Gray_Base already
+    // bakes in country names + borders at every zoom level. Stacking the
+    // World_Boundaries_and_Places overlay on top drew every country name twice
+    // (offset once the overlay's maxLevel 8 tiles got upsampled).
+    // Satellite imagery has no labels, so it gets the ESRI reference overlay.
     if (bm === 'satellite') {
       const labelsProvider = new Cesium.UrlTemplateImageryProvider({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
