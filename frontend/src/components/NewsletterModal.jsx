@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-const BACKEND  = import.meta.env.VITE_BACKEND_URL || '';
+import { BACKEND } from '../utils/config.js';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function NewsletterModal({ onClose }) {

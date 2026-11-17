@@ -3,19 +3,22 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "cd frontend && npm ci",
   "framework": null,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Permissions-Policy",
-          "value": "unload=(), bluetooth=(), usb=(), serial=(), hid=(), midi=()"
-        }
-      ]
-    }
-  ],
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/(.*)",
+      "headers": {
+        "Permissions-Policy": "unload=(), bluetooth=(), usb=(), serial=(), hid=(), midi=()",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
+      },
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }

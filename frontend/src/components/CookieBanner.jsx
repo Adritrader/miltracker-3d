@@ -29,6 +29,10 @@ const CookieBanner = ({ onOpenLegal }) => {
         timestamp: Date.now(),
       }));
     } catch { /* ignore */ }
+    // Tell Google Analytics about the choice (Consent Mode default is "denied", see index.html)
+    try {
+      window.gtag?.('consent', 'update', { analytics_storage: all ? 'granted' : 'denied' });
+    } catch { /* ignore */ }
     setVisible(false);
   };
 

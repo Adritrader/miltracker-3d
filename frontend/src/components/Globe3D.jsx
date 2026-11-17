@@ -389,16 +389,27 @@ const Globe3D = ({ onViewerReady, onEntityClick, spaceView = false, basemap = 'd
     if (!viewer || !globeReady || viewer.isDestroyed()) return;
     viewer.imageryLayers.removeAll();
     viewer.imageryLayers.add(new Cesium.ImageryLayer(buildImageryProvider(bm), { maximumRequestsPerServer: 4 }));
-    // NOTE: no labels overlay for dark/night \u2014 Esri World_Dark_Gray_Base already
-    // bakes in country names + borders at every zoom level. Stacking the
-    // World_Boundaries_and_Places overlay on top drew every country name twice
-    // (offset once the overlay's maxLevel 8 tiles got upsampled).
-    // Satellite imagery has no labels, so it gets the ESRI reference overlay.
+    // For dark/night basemaps add the high-contrast borders + labels overlay.
+    // Its maximumLevel MUST match the base (16): World_Dark_Gray_Base also bakes
+    // in faint country names, at the same positions as this overlay per zoom
+    // level. With the old maxLevel 8, Cesium upsampled level-8 overlay tiles
+    // when zoomed in, so overlay names drifted away from the base names and
+    // every country appeared twice.
+    if (bm === 'dark' || bm === 'night') {
+      const bordersProvider = new Cesium.UrlTemplateImageryProvider({
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        minimumLevel: 0,
+        maximumLevel: 16,
+        credit: new Cesium.Credit('\u00a9 Esri'),
+      });
+      viewer.imageryLayers.add(new Cesium.ImageryLayer(bordersProvider, { alpha: 0.65, maximumRequestsPerServer: 4 }));
+    }
+    // For satellite basemap add the ESRI reference overlay (city/country labels, borders)
     if (bm === 'satellite') {
       const labelsProvider = new Cesium.UrlTemplateImageryProvider({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
         minimumLevel: 0,
-        maximumLevel: 8,
+        maximumLevel: 16,
         credit: new Cesium.Credit('\u00a9 Esri'),
       });
       viewer.imageryLayers.add(new Cesium.ImageryLayer(labelsProvider, { alpha: 0.8, maximumRequestsPerServer: 4 }));

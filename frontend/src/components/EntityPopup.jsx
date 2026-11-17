@@ -19,7 +19,7 @@ import { useWikiSummary } from '../utils/wikiSummary.js';
 import FlightProfile from './FlightProfile.jsx';
 import { getShipWikiTitle } from '../utils/shipWiki.js';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 
 const Row = ({ label, value, highlight }) => (
   <div className="flex justify-between items-center py-px border-b border-hud-border/40">
@@ -115,7 +115,9 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
     if (entity?.aiIntel) {
       setAiIntel(entity.aiIntel);
       setAiIntelLoading(false);
-    } else if (entity && (entity.type === 'aircraft' || entity.icao24)) {
+    } else if (isPro && entity && (entity.type === 'aircraft' || entity.icao24)) {
+      // Pro only: the result is never shown to free users, so asking for it
+      // just spent Gemini quota on every aircraft they clicked
       setAiIntel(null);
       setAiIntelLoading(true);
       // F-C7: validate entity fields before sending to backend
@@ -144,7 +146,7 @@ const EntityPopup = ({ entity, viewer, onClose, isMobile = false, trackedList = 
       setAiIntel(null);
       setAiIntelLoading(false);
     }
-  }, [entity]);
+  }, [entity, isPro]);
 
   const onDragStart = useCallback((e) => {
     if (e.button !== 0) return;

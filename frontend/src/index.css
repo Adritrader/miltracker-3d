@@ -195,6 +195,21 @@
   }
 }
 
+/* ─── Respect the OS "reduce motion" setting ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .text-glitch,
+  .text-flicker,
+  .glow-critical,
+  .border-pulse,
+  .radar-sweep,
+  .animate-ticker,
+  .animate-pulse,
+  .animate-slide-left,
+  .animate-slide-right {
+    animation: none !important;
+  }
+}
+
 /* ─── Panel slide-in from right ──────────────────────────────────────────── */
 @keyframes slideInRight {
   from { transform: translateX(20px); opacity: 0; }

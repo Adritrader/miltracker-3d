@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 
 const SECTION = { ACCOUNT: 'account', SUBSCRIPTION: 'subscription', PREFERENCES: 'preferences' };
 

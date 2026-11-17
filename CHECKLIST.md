@@ -3,6 +3,7 @@
 > Consolida STATUS.md, AUDIT.md, AUDIT_v2.md, REVIEW2.md y ROADMAP.md en un único documento vivo.
 > Fecha de esta revisión: **2026-08-18** (última actualización puntual: **2026-09-03**, fix de basemap). Los ítems marcados como "hecho" en los docs antiguos fueron re-verificados contra el código actual (no se asumió que la documentación previa siga siendo correcta).
 > Los 5 documentos antiguos quedan obsoletos a partir de aquí — mantener solo este archivo hacia adelante.
+> **Auditoría completa del 2026-11-17** (hallazgos nuevos y arreglos aplicados): ver [AUDITORIA_2026-11.md](AUDITORIA_2026-11.md).
 
 ---
 

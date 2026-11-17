@@ -151,7 +151,10 @@ app.post('/api/stripe/webhook',
           // Unhandled event type — ignore
       }
     } catch (err) {
+      // Answer 5xx so Stripe retries (with backoff, up to 3 days). Replying 200
+      // here silently dropped the plan change whenever Supabase had a blip.
       console.error('[Stripe] Webhook handler error:', err.message);
+      return res.status(500).json({ error: 'Webhook handler failed' });
     }
 
     res.json({ received: true });
@@ -663,7 +666,7 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
   }
   if (!supabaseEnabled()) {
     // Gracefully accept even when DB is not wired — log for later import
-    console.log('[Newsletter] subscription (no-db):', email.trim());
+    console.warn('[Newsletter] subscription received but no database is configured — it was NOT stored');
     return res.json({ ok: true });
   }
   try {
@@ -671,7 +674,7 @@ app.post('/api/newsletter/subscribe', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     // DB error (e.g. table not yet created) — log and accept gracefully
-    console.error('[Newsletter] subscribe error:', err.message, '| email:', email.trim());
+    console.error('[Newsletter] subscribe error:', err.message); // no email in logs (PII)
     res.json({ ok: true }); // don't surface DB errors to users
   }
 });
@@ -756,6 +759,7 @@ app.post('/api/stripe/portal', requireAuth, async (req, res) => {
 
 // ─── Aircraft polling (every 15 seconds) ────────────────────────────────────
 async function pollAircraft() {
+  const pollStartedAt = Date.now();
   try {
     const raw = await fetchAircraft();
     // Enrich with carrier air wing detection
@@ -803,13 +807,19 @@ async function pollAircraft() {
       io.emit('danger_update', { dangerZones: cache.dangerZones, alerts: cache.alerts, hotspots: cache.hotspots });
       prevHash.danger = dHash;
     }
-    const knownSources = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
-    const isReal = aircraft.length > 0 && knownSources.includes(aircraft[0]?.source);
-    console.log(`[Aircraft] ${aircraft.length} aircraft emitted (${isReal ? `REAL – ${aircraft[0].source}` : 'CACHED – awaiting next cycle'})`);
-    if (isReal) {
-      saveCache('aircraft', aircraft);
-      recordRegionActivity(aircraft);
-    }
+    // Any aircraft normalised during THIS poll means live data (a fully cached
+    // list keeps its old lastSeen). Checking only aircraft[0]
+    // misreported a live poll as cached whenever /mil was down and the regional
+    // feeds came first, which skipped the disk cache and the activity stats.
+    const liveSource = aircraft.find(a => Date.parse(a.lastSeen) >= pollStartedAt)?.source;
+    const isReal = !!liveSource;
+    console.log(`[Aircraft] ${aircraft.length} aircraft emitted (${isReal ? `REAL – ${liveSource}` : 'CACHED – awaiting next cycle'})`);
+    if (isReal) saveCache('aircraft', aircraft);
+    // Activity stats count /mil aircraft only, so they need a fresh /mil result:
+    // a poll with only regional feeds would log a false drop in military traffic.
+    const MIL_FEEDS = ['adsb.lol', 'adsb.fi', 'airplanes.live'];
+    const milFresh = aircraft.some(a => MIL_FEEDS.includes(a.source) && Date.parse(a.lastSeen) >= pollStartedAt);
+    if (milFresh) recordRegionActivity(aircraft);
   } catch (err) {
     console.error('[Aircraft] Poll error:', err.message);
   }
@@ -855,7 +865,11 @@ async function pollConflicts() {
 }
 
 // ─── News polling (every 5 minutes) ──────────────────────────────────────────
+let newsPollRunning = false;
 async function pollNews() {
+  // setInterval-driven: skip a tick if the previous run (slow feeds + Gemini) is still going
+  if (newsPollRunning) return;
+  newsPollRunning = true;
   try {
     const [gdelt, newsapi, rss] = await Promise.allSettled([
       fetchGDELTNews(),
@@ -928,7 +942,8 @@ async function pollNews() {
         }
       } catch (e) {
         console.error('[AI] Gemini error:', e.message);
-        io.emit('ai_insight', { error: e.message, source: 'gemini_error', timestamp: new Date().toISOString() });
+        // Generic text only — the raw Gemini error (model names, quota details) stays in the log
+        io.emit('ai_insight', { error: 'AI analysis temporarily unavailable', source: 'gemini_error', timestamp: new Date().toISOString() });
         // Don't block retries — allow next poll to try again
         if (!geminiHasRun) lastGeminiCallAt = 0;
       }
@@ -951,6 +966,8 @@ async function pollNews() {
     }
   } catch (err) {
     console.error('[News] Poll error:', err.message);
+  } finally {
+    newsPollRunning = false;
   }
 }
 
@@ -1081,6 +1098,7 @@ const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
   console.log(`\n🛰️  LiveWar3D Backend running on port ${PORT}`);
   console.log(`   Aircraft polling: every 30 seconds (adsb.lol / adsb.fi / airplanes.live)`);
+  console.log(`   Conflicts polling: every 10 minutes`);
   console.log(`   Ships polling:    every 60 seconds`);
   console.log(`   News polling:     every 5 minutes\n`);
   if (!process.env.REST_API_KEY && process.env.NODE_ENV === 'production') {
@@ -1124,6 +1142,8 @@ httpServer.listen(PORT, () => {
 // Without this, Railway kills the process mid-write corrupting disk caches.
 async function shutdown(signal) {
   console.log(`[Server] ${signal} received — shutting down gracefully`);
+  // Flush the timeline buffer (otherwise up to 5 min of replay history is lost per redeploy)
+  try { saveHistory(); } catch (err) { console.error('[Server] history flush failed:', err.message); }
   // Stop accepting new HTTP/WebSocket connections
   io.close(() => console.log('[Server] Socket.io closed'));
   httpServer.close(() => {

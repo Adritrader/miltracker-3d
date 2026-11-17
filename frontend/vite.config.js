@@ -43,23 +43,17 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          {
-            // Backend API (short-lived)
-            urlPattern: /\/api\//i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxAgeSeconds: 60 },
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
+          // No /api/ rule: the backend lives on another origin, where a path
+          // regex never matches (and if it did it would cache /api/profile).
         ],
         // Don't precache Cesium's huge static tree — it's loaded dynamically
         globIgnores: [
           '**/cesium/**',
           '**/Cesium/**',
           '**/*.wasm',
+          // Pro-only chunk (history panel + recharts, ~420 kB): free users
+          // should not download it in the service-worker precache.
+          '**/HistoryPanel-*.js',
         ],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
       },

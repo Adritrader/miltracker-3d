@@ -11,7 +11,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 
 // ── Theme colors ────────────────────────────────────────────────────────────
 const C = {

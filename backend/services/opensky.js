@@ -234,6 +234,14 @@ const MIL_TYPE_CODES = new Set([
   'A50',                       // A-50 Mainstay (AEW)
 ]);
 
+// Civil airliner / regional ICAO type designators (A320 family, 737, 777, 787,
+// A330/A350, Embraer E-jets, CRJ, ATR, Dash 8, C919, Superjet…)
+const AIRLINER_TYPE_RE = /^(A3\d\d|A2\dN|A19N|A20N|A21N|A3[0-9]{2}|B7[0-9][0-9A-Z]|B3[89]M|B3XM|B7[0-9]M|BCS[13]|E1[0-9]{2}|E2[0-9]{2}|E75[LS]|CRJ[0-9X]|AT[4-7][0-9]|DH8[A-D]|C919|SU95|MD[0-9]{2}|A148|B712)$/;
+// Business jets (civil) — fast and high, but not military
+const CIVIL_BIZJET_RE = /^(GLF[0-9]|GL[57]T|GLEX|G[0-9]{3}|CL[36][05]|C[0-9]{2}[0-9A-Z]|FA[0-9]X|F900|F2TH|LJ[0-9]{2}|PC24|E5[0-9]{2}|E35L|HDJT|BE40)$/;
+// Airline-style callsign: 3-letter ICAO operator + flight number (e.g. UAE231, THY7KX)
+const AIRLINE_CALLSIGN_RE = /^[A-Z]{3}[0-9][0-9A-Z]{0,3}$/;
+
 /**
  * Generic: fetch all aircraft in a lat/lon radius (nm) and keep only interesting
  * ones — military-flagged, known type codes, or fast high-altitude movers.
@@ -261,11 +269,23 @@ async function fetchRegion(label, lat, lon, distNm) {
       const filtered = raw
         .filter(ac => {
           if (ac.mil === true || ac.military === true) return true;
+          // readsb/adsb.lol: dbFlags bit 0 = military (from the aircraft database)
+          if ((+ac.dbFlags & 1) === 1) return true;
           const t = (ac.t || ac.type || '').toUpperCase();
           if (MIL_TYPE_CODES.has(t)) return true;
+          // Fast + high used to be accepted on its own, which let every airliner
+          // cruising over the Gulf, Baltic, Korea… onto the "military" map. Keep
+          // it only for unidentified jets: no airliner type and no airline-style
+          // callsign. (Military 3-letter callsigns like RCH/CNV are already
+          // caught by the db flag / type checks above.)
           const alt = +(ac.alt_baro ?? ac.alt_geom ?? 0);
           const gs  = +(ac.gs ?? ac.velocity ?? 0);
-          if (alt > 15000 && gs > 350) return true;
+          if (alt > 15000 && gs > 350) {
+            if (AIRLINER_TYPE_RE.test(t) || CIVIL_BIZJET_RE.test(t)) return false;
+            const cs = (ac.flight || ac.callsign || '').trim().toUpperCase();
+            if (AIRLINE_CALLSIGN_RE.test(cs)) return false;
+            return true;
+          }
           return false;
         })
         .map(ac => normalise(ac, label))

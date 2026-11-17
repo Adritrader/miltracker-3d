@@ -1,6 +1,6 @@
 {
   "name": "miltracker-3d-backend",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "MilTracker 3D - Backend server for real-time military tracking",
   "main": "server.js",
   "type": "module",

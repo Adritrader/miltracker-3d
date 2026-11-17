@@ -1,23 +1,33 @@
 name: Supabase Keep-Alive
 
-# Runs every 3 days to prevent the free-tier project from pausing
+# Daily: keeps the free-tier Supabase project from pausing AND acts as a basic
+# uptime monitor — the job fails (GitHub emails the repo owner) when the backend
+# is unreachable or reports a database problem.
 on:
   schedule:
-    - cron: '0 8 */3 * *'   # every 3 days at 08:00 UTC
+    - cron: '0 8 * * *'     # every day at 08:00 UTC
   workflow_dispatch:          # manual trigger from GitHub Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase DB via backend health endpoint
+      - name: Check backend + database health
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
         run: |
-          # Hits the backend /api/status which reads from DB
-          # Replace with your production backend URL
-          curl -sf "${{ secrets.BACKEND_URL }}/api/status" \
-            --max-time 15 \
-            --retry 3 \
-            --retry-delay 5 \
-            -o /dev/null \
-            && echo "✓ Backend alive" \
-            || echo "⚠ Ping failed (backend may be down)"
+          if [ -z "$BACKEND_URL" ]; then
+            echo "::error::BACKEND_URL secret is not set"
+            exit 1
+          fi
+          # /api/status runs a real query against the database (cached 60 s)
+          body=$(curl -sf "$BACKEND_URL/api/status" --max-time 20 --retry 3 --retry-delay 10) || {
+            echo "::error::Backend unreachable"
+            exit 1
+          }
+          db=$(echo "$body" | jq -r '.database // "missing"')
+          echo "Backend alive — database: $db"
+          if [ "$db" != "ok" ]; then
+            echo "::error::Database status is '$db' (expected 'ok')"
+            exit 1
+          fi

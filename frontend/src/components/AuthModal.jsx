@@ -10,7 +10,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { supabase } from '../utils/supabaseClient.js';
 
-const BACKEND     = import.meta.env.VITE_BACKEND_URL       || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 const RC_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 
 // ── Simple math CAPTCHA ──────────────────────────────────────────────────────

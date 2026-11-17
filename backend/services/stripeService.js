@@ -101,11 +101,17 @@ export function planFromSubscription(sub) {
 
   const status = sub.status; // active | trialing | past_due | canceled | unpaid | incomplete
   const priceId = sub.items?.data?.[0]?.price?.id || null;
-  const periodEnd = sub.current_period_end
-    ? new Date(sub.current_period_end * 1000).toISOString()
+  // Webhook payloads follow the endpoint's API version, not this client's:
+  // from 2025-03-31 on, current_period_end lives on the subscription item.
+  const periodEndTs = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+  const periodEnd = periodEndTs
+    ? new Date(periodEndTs * 1000).toISOString()
     : null;
 
-  const isPaid = ['active', 'trialing'].includes(status);
+  // past_due = a renewal charge failed and Stripe is retrying (Smart Retries,
+  // days). Keep Pro meanwhile; once retries run out the subscription moves to
+  // unpaid/canceled and the webhook downgrades it.
+  const isPaid = ['active', 'trialing', 'past_due'].includes(status);
   const plan = isPaid ? 'pro' : 'free';
 
   return { plan, subscription_status: status, plan_expires_at: periodEnd, stripe_price_id: priceId };

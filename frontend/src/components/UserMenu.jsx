@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 
 const PRO_FEATURES = [
   'Unlimited news feed',

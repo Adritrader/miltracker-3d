@@ -12,7 +12,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 
 const PRICE_MONTHLY = import.meta.env.VITE_STRIPE_PRICE_MONTHLY || '';
 const PRICE_ANNUAL  = import.meta.env.VITE_STRIPE_PRICE_ANNUAL  || '';

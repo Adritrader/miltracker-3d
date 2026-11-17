@@ -5,9 +5,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
 
-const _RAW_BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-// F-L9: reject non-http(s) schemes to prevent file:// or javascript:// injection
-const BACKEND_URL = /^https?:\/\//i.test(_RAW_BACKEND) ? _RAW_BACKEND : 'http://localhost:3001';
+import { BACKEND as BACKEND_URL } from '../utils/config.js'; // F-L9 scheme check lives there
 
 // ── LocalStorage cache helpers ───────────────────────────────────────────────
 const CACHE = {
@@ -87,8 +85,8 @@ export function useRealTimeData() {
 
     socket.on('connect', () => {
       setConnected(true);
-      // A6: pass last-known timestamps so server skips unchanged data on reconnect
-      socket.emit('request_data', { since: lastUpdateRef.current });
+      // No 'request_data' here: the server already pushes every dataset on each
+      // (re)connection, so asking again made it send the whole payload twice.
     });
     socket.on('disconnect', () => setConnected(false));
     socket.on('connect_error', (e) => console.warn('[Socket] connect error:', e.message));

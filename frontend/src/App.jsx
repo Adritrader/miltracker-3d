@@ -3,7 +3,7 @@
  * Assembles: Globe + Aircraft + Ships + News + Danger Zones + UI Panels
  */
 
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import * as Cesium from 'cesium';
 import Globe3D from './components/Globe3D.jsx';
 import AircraftLayer from './components/AircraftLayer.jsx';
@@ -13,6 +13,7 @@ import NewsLayer from './components/NewsLayer.jsx';
 import ConflictLayer from './components/ConflictLayer.jsx';
 import MilitaryBasesLayer from './components/MilitaryBasesLayer.jsx';
 import NotableFlights from './components/NotableFlights.jsx';
+import { BACKEND } from './utils/config.js';
 import EntityPopup from './components/EntityPopup.jsx';
 import FilterPanel from './components/FilterPanel.jsx';
 import { MapLegend } from './components/FilterPanel.jsx';
@@ -25,24 +26,26 @@ import MapLayerSwitcher from './components/MapLayerSwitcher.jsx';
 import TrackingPanel from './components/TrackingPanel.jsx';
 import TimelinePanel from './components/TimelinePanel.jsx';
 import FIRMSLayer from './components/FIRMSLayer.jsx';
-import SentinelPortalModal from './components/SentinelPortalModal.jsx';
-import SitrepCapture from './components/SitrepCapture.jsx';
-import HistoryPanel from './components/HistoryPanel.jsx';
 import CameraLayer from './components/CameraLayer.jsx';
-import CameraModal from './components/CameraModal.jsx';
 import CookieBanner from './components/CookieBanner.jsx';
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
-import LegalModal from './components/LegalModal.jsx';
-import AuthModal from './components/AuthModal.jsx';
-import NewsletterModal from './components/NewsletterModal.jsx';
 import UserMenu from './components/UserMenu.jsx';
-import PricingModal from './components/PricingModal.jsx';
 import PromoModal, { PromoModalTrigger } from './components/PromoModal.jsx';
-import AccountPanel from './components/AccountPanel.jsx';
 import AdBanner from './components/AdBanner.jsx';
 import { supabase } from './utils/supabaseClient.js';
 import { useSubscription } from './hooks/useSubscription.js';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
+
+// Opened on demand (or Pro-only): loaded as separate chunks so the first paint
+// doesn't pay for recharts, the auth forms or the legal texts.
+const SentinelPortalModal = lazy(() => import('./components/SentinelPortalModal.jsx'));
+const SitrepCapture = lazy(() => import('./components/SitrepCapture.jsx'));
+const HistoryPanel = lazy(() => import('./components/HistoryPanel.jsx'));
+const CameraModal = lazy(() => import('./components/CameraModal.jsx'));
+const LegalModal = lazy(() => import('./components/LegalModal.jsx'));
+const AuthModal = lazy(() => import('./components/AuthModal.jsx'));
+const NewsletterModal = lazy(() => import('./components/NewsletterModal.jsx'));
+const AccountPanel = lazy(() => import('./components/AccountPanel.jsx'));
 
 const RC_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '';
 import { useRealTimeData } from './hooks/useRealTimeData.js';
@@ -66,11 +69,15 @@ const DEFAULT_FILTERS = {
   missionType: 'ALL',
 };
 
+// Max entities a logged-in free user can track at once (Pro: unlimited)
+const FREE_TRACK_LIMIT = 2;
+
 function App() {
   const isMobile = useIsMobile();
   const viewerRef = useRef(null);
   const [viewer, setViewer] = useState(null);
   const [selectedEntity, setSelectedEntity] = useState(null);
+  const [entityViews, setEntityViews] = useState(0); // entity cards opened this visit (gates the promo)
   const [newsCluster, setNewsCluster] = useState(null); // array of news items for cluster modal
   // F1: restore filters from localStorage; merge with DEFAULT_FILTERS so new keys always have a value
   const [filters, setFilters] = useState(() => {
@@ -83,7 +90,8 @@ function App() {
   const [spaceView, setSpaceView]   = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [basemap, setBasemap] = useState(() => {
-    const stored = localStorage.getItem('milt_basemap') || 'dark';
+    let stored = 'dark';
+    try { stored = localStorage.getItem('milt_basemap') || 'dark'; } catch { /* storage blocked */ }
     // sentinel and gibs removed from UI — fall back to dark
     return (stored === 'sentinel' || stored === 'gibs') ? 'dark' : stored;
   });
@@ -135,13 +143,28 @@ function App() {
   // Subscription plan (fetched from backend via /api/profile)
   const { profile, isPro, refresh: refreshSubscription } = useSubscription(authUser);
 
+  // Back from Stripe Checkout: the plan is set by a webhook that can land a few
+  // seconds after the redirect, so re-read the profile until it shows Pro
+  // (before this, Pro only appeared after closing the banner or reloading).
+  useEffect(() => {
+    if (checkoutBanner !== 'success' || !authUser || isPro) return;
+    let tries = 0;
+    const id = setInterval(() => {
+      tries += 1;
+      refreshSubscription();
+      if (tries >= 10) clearInterval(id);
+    }, 3000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutBanner, authUser, isPro]);
+
   const [historyTrailId, setHistoryTrailId] = useState(null); // { id, ts } for HistoryPanel trail auto-load
   const [alertPanelHeight, setAlertPanelHeight] = useState(0);
   const [trackingPanelHeight, setTrackingPanelHeight] = useState(0);
   const [newsPanelHeight, setNewsPanelHeight] = useState(40);
   const [newsFeedExpanded, setNewsFeedExpanded] = useState(false);
-  const [speedUnit, setSpeedUnit] = useState(() => localStorage.getItem('milt_speedUnit') || 'kt');
-  const [altUnit, setAltUnit] = useState(() => localStorage.getItem('milt_altUnit') || 'ft');
+  const [speedUnit, setSpeedUnit] = useState(() => { try { return localStorage.getItem('milt_speedUnit') || 'kt'; } catch { return 'kt'; } });
+  const [altUnit, setAltUnit] = useState(() => { try { return localStorage.getItem('milt_altUnit') || 'ft'; } catch { return 'ft'; } });
 
   // Persist speed unit
   useEffect(() => {
@@ -157,6 +180,12 @@ function App() {
     try { localStorage.setItem('milt_filters', JSON.stringify(filters)); } catch { /* ignore */ }
   }, [filters]);
 
+  // Count entity cards opened (by id change) — the auto promo waits for real interaction
+  const selectedKey = selectedEntity ? (selectedEntity.id ?? selectedEntity.icao24 ?? selectedEntity.title ?? 'x') : null;
+  useEffect(() => {
+    if (selectedKey != null) setEntityViews(n => n + 1);
+  }, [selectedKey]);
+
   // F2: persist trackedList whenever it changes
   useEffect(() => {
     try { localStorage.setItem('milt_tracked', JSON.stringify([...trackedList])); } catch { /* ignore */ }
@@ -164,7 +193,7 @@ function App() {
 
   // Fetch conflict-zone cameras from backend once on mount
   useEffect(() => {
-    const url = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001') + '/api/cameras';
+    const url = BACKEND + '/api/cameras';
     fetch(url)
       .then(r => r.ok ? r.json() : [])
       .then(data => { if (Array.isArray(data)) setCameras(data); })
@@ -186,7 +215,9 @@ function App() {
         if (timeline.replayMode) {
           timeline.controls.stop();
           return; // replay stop takes priority
-        }        if (selectedCamera) { setSelectedCamera(null); return; }        setSelectedEntity(null);
+        }
+        if (selectedCamera) { setSelectedCamera(null); return; }
+        setSelectedEntity(null);
         setSearchOpen(false);
         setNewsCluster(null);
       }
@@ -203,16 +234,22 @@ function App() {
   const effectiveAircraft = timeline.replayAircraft ?? aircraft;
   const effectiveShips    = timeline.replayShips    ?? ships;
 
+  // Country and mission-type filters are Pro-only. A non-Pro user may still
+  // have them saved in localStorage (e.g. after a cancelled subscription), so
+  // they are ignored here rather than trusted from storage.
+  const proCountry = isPro ? filters.country : 'ALL';
+  const proMission = isPro ? filters.missionType : 'ALL';
+
   // Filtered data — deps split per-layer to avoid cross-layer re-renders (§2.3)
   const filteredAircraft = useMemo(
-    () => filterAircraft(effectiveAircraft, filters),
+    () => filterAircraft(effectiveAircraft, { ...filters, country: proCountry, missionType: proMission }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [effectiveAircraft, filters.showAircraft, filters.country, filters.alliance, filters.showOnGround, filters.missionType]
+    [effectiveAircraft, filters.showAircraft, proCountry, filters.alliance, filters.showOnGround, proMission]
   );
   const filteredShips = useMemo(
-    () => filterShips(effectiveShips, filters),
+    () => filterShips(effectiveShips, { ...filters, country: proCountry }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [effectiveShips, filters.showShips, filters.country, filters.alliance]
+    [effectiveShips, filters.showShips, proCountry, filters.alliance]
   );
   const liveShipCount = useMemo(
     () => filteredShips.filter(s => !s.isBaseline).length,
@@ -286,9 +323,16 @@ function App() {
   }, []);
 
   // ── Entity tracking ──────────────────────────────────────────────────────────────────
+  // Tracking needs a free account; free accounts can follow FREE_TRACK_LIMIT
+  // entities at once, Pro is unlimited.
   const handleTrack = useCallback((id, type) => {
+    if (!authUser) { setAuthOpen(true); return; }
+    if (!isPro && !trackedList.has(id) && trackedList.size >= FREE_TRACK_LIMIT) {
+      setPricingOpen(true);
+      return;
+    }
     setTrackedList(prev => new Map(prev).set(id, { id, type }));
-  }, []);
+  }, [authUser, isPro, trackedList]);
 
   const handleUntrack = useCallback((id) => {
     if (id) {
@@ -386,6 +430,8 @@ function App() {
           speedUnit={speedUnit}
           altUnit={altUnit}
         />
+        </ErrorBoundary>
+        <ErrorBoundary name="ShipLayer" silent>
         <ShipLayer
           viewer={viewer}
           ships={filteredShips}
@@ -567,20 +613,24 @@ function App() {
                     // cap height so AlertPanel can't overlap on small screens
                     maxHeight: `calc(100vh - ${alertPanelHeight + 80}px)` }}>
         <MapLegend isMobile={isMobile} />
-        <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); localStorage.setItem('milt_basemap', bm); }} isMobile={isMobile} />
+        <MapLayerSwitcher basemap={basemap} onBasemapChange={(bm) => { setBasemap(bm); try { localStorage.setItem('milt_basemap', bm); } catch { /* ignore */ } }} isMobile={isMobile} />
         {/* History trails — Pro only */}
         {isPro && (
+          <Suspense fallback={null}>
           <HistoryPanel viewer={viewer} isMobile={isMobile} externalTrailId={historyTrailId}
             liveCounts={{ aircraft: filteredAircraft.length, ships: filteredShips.length, alerts: alerts.length, conflicts: filteredConflicts.length, news: filteredNews.filter(n => n.lat).length }} />
+          </Suspense>
         )}
         {/* SITREP capture — Pro only */}
         {isPro && (
+          <Suspense fallback={null}>
           <SitrepCapture
             viewer={viewer}
             onUiHide={() => setUiHidden(true)}
             onUiShow={() => setUiHidden(false)}
             inline
           />
+          </Suspense>
         )}
         {/* Upgrade nudge for free users in bottom-right toolbar */}
         {!isPro && (
@@ -634,12 +684,14 @@ function App() {
 
       {/* SITREP capture — already rendered inline in the bottom-right container above */}
       {satellitePortal && (
+        <Suspense fallback={null}>
         <SentinelPortalModal
           lat={satellitePortal.lat}
           lon={satellitePortal.lon}
           title={satellitePortal.title}
           onClose={() => setSatellitePortal(null)}
         />
+        </Suspense>
       )}
 
       {/* Bottom: News ticker (sits above CoordinateHUD) */}
@@ -697,7 +749,9 @@ function App() {
 
       {/* Camera live viewer modal */}
       {selectedCamera && isPro && (
+        <Suspense fallback={null}>
         <CameraModal camera={selectedCamera} onClose={() => setSelectedCamera(null)} />
+        </Suspense>
       )}
 
       {/* Cookie consent banner */}
@@ -705,16 +759,21 @@ function App() {
 
       {/* Legal modals — Privacy / Cookies / Terms */}
       {legalPage && (
+        <Suspense fallback={null}>
         <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
+        </Suspense>
       )}
 
       {/* Auth modal — login / register */}
       {authOpen && (
+        <Suspense fallback={null}>
         <AuthModal onClose={() => setAuthOpen(false)} onOpenLegal={setLegalPage} />
+        </Suspense>
       )}
 
       {/* Account settings panel — profile, subscription, preferences */}
       {accountOpen && authUser && (
+        <Suspense fallback={null}>
         <AccountPanel
           user={authUser}
           profile={profile}
@@ -728,6 +787,7 @@ function App() {
           onToggleSpeedUnit={handleToggleSpeedUnit}
           onToggleAltUnit={handleToggleAltUnit}
         />
+        </Suspense>
       )}
 
       {/* Pricing / upgrade modal (opened manually) */}
@@ -739,10 +799,12 @@ function App() {
         />
       )}
 
-      {/* Auto promo modal — shows once after 12s to non-pro visitors */}
+      {/* Auto promo modal — shows once to non-pro visitors, only after they
+          have opened a second entity card and closed it (never on a timer) */}
       <PromoModalTrigger
         authUser={authUser}
         isPro={isPro}
+        ready={entityViews >= 2 && !selectedEntity && !pricingOpen && !authOpen}
         onOpenAuth={() => setAuthOpen(true)}
       />
 
@@ -767,7 +829,9 @@ function App() {
 
       {/* Newsletter subscription modal */}
       {newsletterOpen && (
+        <Suspense fallback={null}>
         <NewsletterModal onClose={() => setNewsletterOpen(false)} />
+        </Suspense>
       )}
 
       {/* Site footer — legal links for Google AdSense compliance */}

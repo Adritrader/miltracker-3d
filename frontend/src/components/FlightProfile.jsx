@@ -6,7 +6,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
-const BACKEND  = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+import { BACKEND } from '../utils/config.js';
 const HOURS    = 6;
 const CACHE_MS = 2 * 60 * 1000;
 const _cache   = new Map(); // hex → { at, points }

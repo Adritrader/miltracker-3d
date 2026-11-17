@@ -53,7 +53,7 @@ export function useSubscription(authUser) {
   const isAdmin = !!authUser?.email &&
     ADMIN_EMAILS.includes(authUser.email.toLowerCase());
   const isPro = isAdmin ||
-    (plan === 'pro' && ['active', 'trialing'].includes(profile?.subscription_status || ''));
+    (plan === 'pro' && ['active', 'trialing', 'past_due'].includes(profile?.subscription_status || ''));
 
   return { profile, plan, isPro, isAdmin, loading, refresh: () => fetchProfile(authUser) };
 }

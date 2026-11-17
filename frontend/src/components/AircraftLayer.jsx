@@ -88,10 +88,14 @@ function getCachedIcon(heading, color, role = 'other') {
   return _iconCache.get(key);
 }
 
+// Trails of aircraft not seen in the feed for this long are dropped from memory
+const TRAIL_FORGET_MS = 30 * 60 * 1000;
+
 const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, trackedList = null, replayMode = false, historyTrack = {}, speedUnit = 'kt', altUnit = 'ft' }) => {
   const entityMapRef    = useRef(new Map()); // icao24 → billboard entity
   const trailEntityRef  = useRef(new Map()); // icao24 → polyline entity[]
   const trailPointsRef  = useRef(new Map());         // icao24 → {pos,altM}[] (loaded async from IDB)
+  const trailSeenRef    = useRef(new Map());         // icao24 → last time it was in the feed (ms)
   const trailSegCountRef = useRef(new Map()); // icao24 → number of trail segments already rendered
   const trajCacheRef    = useRef(new Map()); // icao24 → {len, result} trajectory analysis cache
   const prevIdsRef      = useRef(new Set());
@@ -107,6 +111,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       const cur = trailPointsRef.current;
       for (const [id, pts] of stored.entries()) {
         const existing = cur.get(id);
+        if (!trailSeenRef.current.has(id)) trailSeenRef.current.set(id, Date.now());
         if (!existing || existing.length === 0) {
           cur.set(id, pts);
         } else {
@@ -270,6 +275,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
       const nfsLabel  = new Cesium.NearFarScalar(5e4, isMobile ? 1.4 : 1.1, LABEL_RANGE, 0.0);
 
       // ── Add / update aircraft + trails ────────────────────────────────────
+      const nowMs = Date.now();
       for (const ac of aircraft) {
         if (!isValidCoord(ac.lat, ac.lon)) continue;
 
@@ -281,6 +287,7 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
         const iconUri   = getCachedIcon(ac.heading, iconColor, role);
 
         // ── Append to trail history ─────────────────────────────────────────
+        trailSeenRef.current.set(ac.id, nowMs);
         if (!trailPointsRef.current.has(ac.id)) {
           trailPointsRef.current.set(ac.id, []);
         }
@@ -432,6 +439,16 @@ const AircraftLayer = ({ viewer, aircraft, visible, onSelect, isMobile = false, 
     } finally {
       acDS.entities.resumeEvents();
       trailDS.entities.resumeEvents();
+      // Forget trails of aircraft gone from the feed for TRAIL_FORGET_MS, so
+      // the map (and the IndexedDB rewrite every 15 s) doesn't grow without
+      // bound over a long session. Short gaps keep their trail.
+      const cutoff = Date.now() - TRAIL_FORGET_MS;
+      for (const [id, seen] of trailSeenRef.current) {
+        if (seen < cutoff) {
+          trailSeenRef.current.delete(id);
+          trailPointsRef.current.delete(id);
+        }
+      }
       // Persist ALL trails to IndexedDB (unlimited storage, debounced 5 s)
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => idbSaveTrails('aircraft', trailPointsRef.current), 15_000);

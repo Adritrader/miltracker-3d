@@ -1,26 +1,30 @@
-﻿/**
- * PromoModal â€” Pricing modal shown to visitors and non-pro users.
+/**
+ * PromoModal — Pricing modal shown to visitors and non-pro users.
  *
- * Shows automatically after DELAY_MS on first visit (tracked via localStorage).
+ * Shows automatically once, after the second entity card (see PromoModalTrigger).
  * Also opens when user clicks "Pricing" or "Upgrade to Pro".
  */
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient.js';
 
-const BACKEND    = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-const DELAY_MS   = 12000;
+import { BACKEND } from '../utils/config.js';
+const DELAY_MS   = 1500;   // short pause after the card closes
+const COOKIE_CONSENT_KEY = 'lw3d_cookie_consent'; // set by CookieBanner
 const STORAGE_KEY = 'milt_promo_seen';
 
 const PRICE_MONTHLY  = import.meta.env.VITE_STRIPE_PRICE_MONTHLY || '';
 const PRICE_ANNUAL   = import.meta.env.VITE_STRIPE_PRICE_ANNUAL  || '';
 
 const COMPARE = [
-  { label: 'Live military aircraft (ADS-B)',    free: 'Limited',     pro: 'Full access'  },
-  { label: 'Live warship tracking',             free: 'Limited',     pro: 'Full access'  },
+  { label: 'Live military aircraft (ADS-B)',    free: '+',           pro: '+'            },
+  { label: 'Live warship tracking',             free: '+',           pro: '+'            },
   { label: 'Conflict events on globe',          free: '+',           pro: '+'            },
   { label: 'News feed',                         free: '5 items',     pro: 'Unlimited'    },
   { label: 'Threat alerts',                     free: '3 alerts',    pro: 'Unlimited'    },
+  { label: 'Tracked aircraft & ships',          free: '2 (account)', pro: 'Unlimited'    },
+  { label: 'Country & mission filters',         free: '--',          pro: '+'            },
+  { label: 'Regional activity vs 24h',          free: '--',          pro: '+'            },
   { label: 'AI threat analysis (Gemini)',       free: '--',          pro: '+'            },
   { label: 'Historical flight & ship trails',   free: '--',          pro: '+'            },
   { label: 'Timeline replay',                   free: '--',          pro: '+'            },
@@ -92,7 +96,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
                      text-white/50 hover:text-white hover:bg-white/10 transition-all text-lg"
         >X</button>
 
-        {/* â”€â”€ HERO â”€â”€ */}
+        {/* ── HERO ── */}
         <div className="px-8 pt-8 pb-7 text-center"
              style={{ background: 'linear-gradient(180deg, rgba(0,255,136,0.07) 0%, transparent 100%)' }}>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5
@@ -107,7 +111,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
             Track live military aircraft, warships, AI threat analysis and global conflict events -- all in one 3D globe.
           </p>
 
-          {/* â”€â”€ Billing toggle â€” pill style â”€â”€ */}
+          {/* ── Billing toggle — pill style ── */}
           <div className="flex justify-center mt-7">
             <div className="relative flex rounded-xl p-1 gap-1"
                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -141,7 +145,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
           </div>
         </div>
 
-        {/* â”€â”€ PLAN CARDS â”€â”€ */}
+        {/* ── PLAN CARDS ── */}
         <div className="grid md:grid-cols-2 gap-5 px-7 pb-7">
 
           {/* FREE */}
@@ -245,7 +249,7 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
 
         </div>
 
-        {/* â”€â”€ TRUST â”€â”€ */}
+        {/* ── TRUST ── */}
         <div className="px-7 pb-6 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5">
             {['[S] Secure payment via Stripe', '[+] Cancel anytime', '[+] No hidden fees', '[+] Real data only'].map((t, i) => (
@@ -260,23 +264,30 @@ export default function PromoModal({ authUser, onClose, onOpenAuth }) {
 }
 
 /**
- * PromoModalTrigger â€” Mounts the modal automatically after DELAY_MS
- * on first visit (once per browser via localStorage).
+ * PromoModalTrigger — Opens the modal once per browser (localStorage), and only
+ * after real interaction: `ready` comes from App (second entity card opened and
+ * closed). It also waits for the cookie banner to be answered so the two never
+ * stack on a first visit.
  */
-export function PromoModalTrigger({ authUser, isPro, onOpenAuth }) {
+export function PromoModalTrigger({ authUser, isPro, onOpenAuth, ready = false }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (isPro) return;
-    if (localStorage.getItem(STORAGE_KEY)) return;
+    if (isPro || !ready) return;
+    // localStorage throws in some private modes / blocked-storage setups; an
+    // uncaught throw here would unmount the whole app (no boundary above it)
+    try {
+      if (localStorage.getItem(STORAGE_KEY)) return;
+      if (!localStorage.getItem(COOKIE_CONSENT_KEY)) return; // banner still up
+    } catch { return; }
 
     const timer = setTimeout(() => {
       setShow(true);
-      localStorage.setItem(STORAGE_KEY, '1');
+      try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* ignore */ }
     }, DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [isPro]);
+  }, [isPro, ready]);
 
   if (!show) return null;
 

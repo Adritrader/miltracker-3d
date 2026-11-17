@@ -408,10 +408,15 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource,
 
     {/* Country filter */}
     <div className="hud-panel px-3 py-2">
-      <div className="hud-title mb-2">COUNTRY FILTER</div>
+      <div className="hud-title mb-2 flex items-center justify-between">
+        <span>COUNTRY FILTER</span>
+        {!isPro && <span className="text-[8px] font-mono text-hud-amber/60">🔒 PRO</span>}
+      </div>
       <select
-        value={filters.country}
-        onChange={e => set('country', e.target.value)}
+        value={isPro ? filters.country : 'ALL'}
+        onMouseDown={e => { if (!isPro) { e.preventDefault(); onOpenPricing?.(); } }}
+        onKeyDown={e => { if (!isPro && e.key !== 'Tab') { e.preventDefault(); onOpenPricing?.(); } }}
+        onChange={e => { if (isPro) set('country', e.target.value); }}
         className="w-full bg-hud-bg border border-hud-border text-hud-green font-mono text-xs
                    px-2 py-1 rounded outline-none focus:border-hud-green cursor-pointer"
       >
@@ -430,10 +435,15 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource,
 
     {/* Mission type filter */}
     <div className="hud-panel px-3 py-2">
-      <div className="hud-title mb-2">MISSION TYPE</div>
+      <div className="hud-title mb-2 flex items-center justify-between">
+        <span>MISSION TYPE</span>
+        {!isPro && <span className="text-[8px] font-mono text-hud-amber/60">🔒 PRO</span>}
+      </div>
       <select
-        value={filters.missionType || 'ALL'}
-        onChange={e => set('missionType', e.target.value)}
+        value={isPro ? (filters.missionType || 'ALL') : 'ALL'}
+        onMouseDown={e => { if (!isPro) { e.preventDefault(); onOpenPricing?.(); } }}
+        onKeyDown={e => { if (!isPro && e.key !== 'Tab') { e.preventDefault(); onOpenPricing?.(); } }}
+        onChange={e => { if (isPro) set('missionType', e.target.value); }}
         className="w-full bg-hud-bg border border-hud-border text-hud-green font-mono text-xs
                    px-2 py-1 rounded outline-none focus:border-hud-green cursor-pointer"
       >
@@ -476,7 +486,7 @@ const PanelBody = ({ filters, set, spaceView, onSpaceViewChange, aircraftSource,
           ⚡ Upgrade to Pro
         </div>
         <div className="text-hud-text/70 text-[9px] font-mono leading-snug">
-          Unlock news globe pins, live cameras, AI intel, history trails, SITREP, timeline replay & more.
+          Unlock news globe pins, live cameras, AI intel, country &amp; mission filters, unlimited tracking, history trails, SITREP, timeline replay &amp; more.
         </div>
         {!authUser && (
           <button
@@ -545,7 +555,7 @@ const FilterPanel = ({
           </div>
         );
       })()}
-      <RegionActivity regions={regionActivity} />
+      <RegionActivity regions={regionActivity} isPro={isPro} onOpenPricing={onOpenPricing} />
     </>
   );
 
